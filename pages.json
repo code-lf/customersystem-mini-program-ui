@@ -1,0 +1,66 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u--(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
+      "^up-(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
+      "^u-([^-].*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue"
+    }
+  },
+  "pages": [
+    { "path": "pages/index/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "首页" } },
+    { "path": "pages/product/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品中心" } },
+    { "path": "pages/product/category", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品分类" } },
+    { "path": "pages/product/list", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品列表" } },
+    { "path": "pages/product/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品详情" } },
+    { "path": "pages/monitor/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "价格监控" } },
+    { "path": "pages/monitor/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "价格变化" } },
+    { "path": "pages/solution/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价单" } },
+    { "path": "pages/solution/create", "style": { "navigationStyle": "custom", "navigationBarTitleText": "新建报价单" } },
+    { "path": "pages/solution/edit", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价单编辑" } },
+    { "path": "pages/solution/add-product", "style": { "navigationStyle": "custom", "navigationBarTitleText": "添加商品" } },
+    { "path": "pages/solution/price", "style": { "navigationStyle": "custom", "navigationBarTitleText": "价格设置" } },
+    { "path": "pages/solution/share", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价预览" } },
+    { "path": "pages/solution/history", "style": { "navigationStyle": "custom", "navigationBarTitleText": "历史报价单" } },
+    { "path": "pages/share/solution", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价详情" } },
+    { "path": "pages/ai/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI助手" } },
+    { "path": "pages/ai/chat", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI对话" } },
+    { "path": "pages/my/my", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的" } },
+    { "path": "pages/auth/login", "style": { "navigationStyle": "custom", "navigationBarTitleText": "登录" } },
+    { "path": "pages/member/profile", "style": { "navigationStyle": "custom", "navigationBarTitleText": "个人资料" } },
+    { "path": "pages/member/balance", "style": { "navigationStyle": "custom", "navigationBarTitleText": "账户余额" } },
+    { "path": "pages/member/apply-cash-out", "style": { "navigationStyle": "custom", "navigationBarTitleText": "申请提现" } },
+    { "path": "pages/member/cash-out", "style": { "navigationStyle": "custom", "navigationBarTitleText": "提现记录" } },
+    { "path": "pages/member/cash-out-detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "提现详情" } },
+    { "path": "pages/pay/result", "style": { "navigationStyle": "custom", "navigationBarTitleText": "支付结果" } },
+    { "path": "pages/message/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "消息通知" } },
+    { "path": "pages/notice/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "公告列表" } },
+    { "path": "pages/notice/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "公告详情" } },
+    { "path": "pages/wechat/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "关注公众号" } },
+    { "path": "pages/feedback/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "用户反馈" } },
+    { "path": "pages/cooperation/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "合作申请" } },
+    { "path": "pages/password/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "密码查询" } }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "空调产品中心",
+    "navigationBarBackgroundColor": "#F5F8FD",
+    "backgroundColor": "#F5F8FD",
+    "backgroundColorTop": "#F5F8FD",
+    "backgroundColorBottom": "#F5F8FD"
+  },
+  "tabBar": {
+    "color": "#8994a6",
+    "selectedColor": "#2468e8",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "static/tabbar/shouye.png", "selectedIconPath": "static/tabbar/shouye_active.png" },
+      { "pagePath": "pages/product/index", "text": "产品", "iconPath": "static/tabbar/pisa.png", "selectedIconPath": "static/tabbar/pisa_active.png" },
+      { "pagePath": "pages/solution/index", "text": "报价单", "iconPath": "static/tabbar/dingdan.png", "selectedIconPath": "static/tabbar/dingdan_active.png" },
+      { "pagePath": "pages/ai/index", "text": "AI助手", "iconPath": "static/tabbar/ai.png", "selectedIconPath": "static/tabbar/ai_active.png" },
+      { "pagePath": "pages/my/my", "text": "我的", "iconPath": "static/tabbar/wode.png", "selectedIconPath": "static/tabbar/wode_active.png" }
+    ]
+  },
+  "uniIdRouter": {}
+}

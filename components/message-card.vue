@@ -1,0 +1,7 @@
+<template><view class="message-card"><view class="icon" :class="`icon--${message.type}`"><up-icon :name="icon" size="24" color="#fff" /></view><view class="body"><view><text class="title">{{ message.title }}</text><text class="time">{{ message.time }}</text></view><text class="content">{{ message.content }}</text></view><view v-if="message.unread" class="dot">{{ message.unread ? '1' : '' }}</view></view></template>
+<script setup>
+import { computed } from 'vue';
+const props = defineProps({ message: { type: Object, required: true } });
+const icon = computed(() => ({ price: 'rmb-circle', document: 'file-text', system: 'volume' }[props.message.type] || 'bell'));
+</script>
+<style lang="scss" scoped>.message-card{display:flex;align-items:center;padding:20rpx;margin-bottom:16rpx;background:#fff;border-radius:18rpx}.icon{display:flex;align-items:center;justify-content:center;width:76rpx;height:76rpx;margin-right:18rpx;border-radius:20rpx}.icon--price{background:#f7684d}.icon--document{background:#3478e9}.icon--system{background:#35b989}.body{flex:1;min-width:0}.title{color:#17233d;font-size:27rpx;font-weight:600}.time{float:right;color:#9aa5b5;font-size:20rpx}.content{display:block;margin-top:8rpx;color:#8b95a7;font-size:22rpx;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.dot{width:34rpx;height:34rpx;line-height:34rpx;text-align:center;color:#fff;background:#fa4d42;border-radius:50%;font-size:18rpx}</style>

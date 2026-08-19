@@ -1,0 +1,6 @@
+{
+  "name": "Customer System Mini Program",
+  "description": "Air conditioning customer management and solution quotation mini program built with uni-app and uview-plus",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,155 @@
+/**
+ * 项目级公共样式。
+ *
+ * 这里放跨页面都可能使用的布局、文字和安全区样式；业务页面自己的样式仍然写在页面内部，
+ * 避免公共样式随着业务增加变成难以维护的“大杂烩”。
+ */
+
+page,
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+
+page {
+  min-height: 100%;
+  color: $uni-text-color;
+  background: $uni-bg-color-grey;
+  font-size: $uni-font-size-base;
+}
+
+/* uni-app 的 button 默认带一层 after 边框，设计稿里的胶囊按钮更干净，这里统一去掉默认描边。 */
+button::after {
+  border: 0;
+}
+
+/* CRM 页面统一的色彩和卡片基础，避免各页面重复写同一套视觉参数。 */
+$crm-primary: #2468e8;
+$crm-text: #17233d;
+$crm-muted: #8b95a7;
+$crm-danger: #ef543f;
+$crm-page-bg: #f5f8fd;
+
+.crm-page {
+  min-height: 100vh;
+  padding: 24rpx;
+  background: $crm-page-bg;
+  color: $crm-text;
+}
+
+.crm-card {
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 26rpx rgba(31, 64, 120, .05);
+}
+
+.crm-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 26rpx 0 18rpx;
+  color: $crm-text;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.crm-muted { color: $crm-muted; }
+.crm-primary { color: $crm-primary; }
+.crm-danger { color: $crm-danger; }
+
+.page {
+  min-height: 100vh;
+  background: $uni-bg-color-grey;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
+  min-width: 0;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 设计稿页面的基础容器：浅蓝灰背景、紧凑内边距、底部 Tab 预留。 */
+.design-page {
+  min-height: 100vh;
+  padding: 0 24rpx 120rpx;
+  background: #f3f7fd;
+  color: #17233d;
+}
+
+.design-card {
+  border-radius: 16rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(31, 64, 120, .04);
+}
+
+.design-search {
+  display: flex;
+  align-items: center;
+  height: 64rpx;
+  padding: 0 22rpx;
+  border-radius: 34rpx;
+  background: #fff;
+  color: #9aa5b5;
+  font-size: 24rpx;
+}
+
+.design-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28rpx 0 16rpx;
+  color: #17233d;
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.design-link {
+  color: #2468e8;
+  font-size: 22rpx;
+  font-weight: 500;
+}
