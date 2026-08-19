@@ -1,11 +1,12 @@
 <template>
   <view class="app-navbar">
+    <view class="nav-safe-top" />
     <view class="custom-nav-bar" :style="{ backgroundColor: bgColor, height: height, borderBottom: border ? '1rpx solid #edf1f8' : 'none' }">
       <view class="nav-left">
         <view v-if="showBack" class="nav-back-touch" @click="handleBack">
           <up-icon name="arrow-left" :size="leftIconSize" :color="leftIconColor" />
         </view>
-        <view class="nav-home-touch" @click="goHome">
+        <view v-if="showHome" class="nav-home-touch" @click="goHome">
           <up-icon name="home" :size="Number(leftIconSize) - 2" :color="leftIconColor" />
         </view>
         <slot name="left" />
@@ -24,6 +25,7 @@
 const props = defineProps({
   title: { type: String, default: '' },
   showBack: { type: Boolean, default: true },
+  showHome: { type: Boolean, default: false },
   bgColor: { type: String, default: 'transparent' },
   titleColor: { type: String, default: '#17233d' },
   leftIconColor: { type: String, default: '#17233d' },
@@ -67,19 +69,25 @@ const handleBack = () => {
   z-index: 20;
 }
 
+.nav-safe-top {
+  height: 20rpx;
+  height: calc(env(safe-area-inset-top) + 12rpx);
+}
+
 .custom-nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16rpx;
+  padding: 0 20rpx;
   position: relative;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  min-width: 140rpx;
+  gap: 12rpx;
+  min-width: 80rpx;
+  min-height: 60rpx;
   z-index: 2;
 }
 
@@ -91,14 +99,14 @@ const handleBack = () => {
   width: 60rpx;
   height: 60rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 2rpx 8rpx rgba(23, 35, 61, 0.06);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.08);
 }
 
 .nav-title {
   position: absolute;
-  left: 150rpx;
-  right: 150rpx;
+  left: 90rpx;
+  right: 90rpx;
   text-align: center;
   font-size: 32rpx;
   font-weight: 800;
@@ -112,7 +120,8 @@ const handleBack = () => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 140rpx;
+  min-width: 80rpx;
+  min-height: 60rpx;
   z-index: 2;
 }
 </style>

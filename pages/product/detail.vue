@@ -4,12 +4,10 @@
       <template #right>
         <view class="nav-actions">
           <view class="nav-btn-item" @click="toggleFavorite">
-            <up-icon :name="isFav ? 'star-fill' : 'star'" size="18" :color="isFav ? '#f59e0b' : '#586477'" />
-            <text :style="{ color: isFav ? '#f59e0b' : '#586477' }">{{ isFav ? '已收藏' : '收藏' }}</text>
+            <up-icon :name="isFav ? 'star-fill' : 'star'" size="20" :color="isFav ? '#f59e0b' : '#586477'" />
           </view>
           <view class="nav-btn-item" @click="shareProduct">
-            <up-icon name="share" size="18" color="#586477" />
-            <text>分享</text>
+            <up-icon name="share" size="20" color="#586477" />
           </view>
         </view>
       </template>
@@ -213,18 +211,19 @@ const addToSolution = () => {
 
 .nav-actions {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  gap: 14rpx;
 }
 
 .nav-btn-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2rpx;
-}
-
-.nav-btn-item text {
-  font-size: 20rpx;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.08);
 }
 
 .hero {

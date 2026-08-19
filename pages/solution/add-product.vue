@@ -10,20 +10,20 @@
 
     <view class="search-line">
       <view class="design-search">
-        <up-icon name="search" size="18" color="#9aa5b5" />
+        <up-icon name="search" size="20" color="#9aa5b5" />
         <text>搜索产品型号、名称、系列</text>
       </view>
-      <button>筛选</button>
+      <button class="filter-btn">筛选</button>
     </view>
 
     <view v-for="product in uiProducts" :key="product.id" class="add-row">
-      <image :src="product.image" mode="aspectFit" />
-      <view>
+      <image class="add-row-img" :src="product.image" mode="aspectFit" />
+      <view class="add-row-info">
         <text class="add-row__model">{{ product.model }}</text>
         <text class="add-row__spec">{{ product.specs.slice(0, 3).join(' | ') }}</text>
         <text class="add-row__price">¥{{ money(product.price) }}</text>
       </view>
-      <button @click="add(product)">加入</button>
+      <button class="add-btn" @click="add(product)">+ 加入</button>
     </view>
   </view>
 </template>
@@ -37,24 +37,29 @@ const solutionId = getPageOptions().id;
 const money = (value) => Number(value || 0).toLocaleString();
 
 const add = (product) => {
-  // 添加商品页只负责选中商品，报价单编辑页读取缓存后合并到清单。
   uni.setStorageSync('pendingSolutionProduct', product);
   replacePage('/pages/solution/edit', { id: solutionId || 1 });
 };
 </script>
 
 <style lang="scss" scoped>
+.add-product-page {
+  min-height: 100vh;
+  padding: 0 24rpx 60rpx;
+  background: linear-gradient(180deg, #e8f1ff 0%, #f4f7fc 240rpx, #f4f7fc 100%);
+}
+
 .top-tabs {
   display: flex;
   justify-content: space-around;
-  height: 74rpx;
+  height: 80rpx;
   color: #586477;
-  font-size: 25rpx;
+  font-size: 27rpx;
 }
 
 .top-tabs text {
-  height: 74rpx;
-  line-height: 74rpx;
+  height: 80rpx;
+  line-height: 80rpx;
   border-bottom: 4rpx solid transparent;
 }
 
@@ -66,48 +71,65 @@ const add = (product) => {
 
 .search-line {
   display: flex;
+  align-items: center;
   gap: 14rpx;
-  margin-bottom: 18rpx;
+  margin-bottom: 20rpx;
 }
 
 .search-line .design-search {
   flex: 1;
+  display: flex;
+  align-items: center;
+  height: 74rpx;
+  padding: 0 24rpx;
+  border-radius: 37rpx;
+  background: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.04);
 }
 
 .search-line .design-search text {
-  margin-left: 12rpx;
+  margin-left: 14rpx;
+  color: #9aa5b5;
+  font-size: 26rpx;
 }
 
-.search-line button {
-  width: 92rpx;
-  height: 64rpx;
+.filter-btn {
+  width: 108rpx;
+  height: 74rpx;
   margin: 0;
   padding: 0;
-  border-radius: 32rpx;
+  border-radius: 37rpx;
   background: #fff;
   color: #2468e8;
-  font-size: 22rpx;
-  line-height: 64rpx;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 74rpx;
+  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.04);
 }
 
 .add-row {
   display: flex;
   align-items: center;
-  min-height: 142rpx;
-  padding: 18rpx;
-  margin-bottom: 16rpx;
-  border-radius: 16rpx;
+  min-height: 154rpx;
+  padding: 22rpx 24rpx;
+  margin-bottom: 18rpx;
+  border-radius: 20rpx;
   background: #fff;
+  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
 }
 
-.add-row image {
-  width: 112rpx;
-  height: 112rpx;
-  margin-right: 18rpx;
+.add-row-img {
+  width: 128rpx;
+  height: 128rpx;
+  margin-right: 20rpx;
+  border-radius: 14rpx;
+  background: #f7f9fc;
+  flex-shrink: 0;
 }
 
-.add-row view {
+.add-row-info {
   flex: 1;
+  min-width: 0;
 }
 
 .add-row__model,
@@ -118,33 +140,35 @@ const add = (product) => {
 
 .add-row__model {
   color: #17233d;
-  font-size: 27rpx;
+  font-size: 29rpx;
   font-weight: 800;
 }
 
 .add-row__spec {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
   color: #8b95a7;
-  font-size: 20rpx;
-  line-height: 28rpx;
+  font-size: 23rpx;
+  line-height: 30rpx;
 }
 
 .add-row__price {
   margin-top: 8rpx;
   color: #ef543f;
-  font-size: 24rpx;
-  font-weight: 800;
+  font-size: 28rpx;
+  font-weight: 900;
 }
 
-.add-row button {
-  width: 92rpx;
-  height: 52rpx;
-  margin: 0;
-  padding: 0;
-  border-radius: 26rpx;
+.add-btn {
+  height: 56rpx;
+  padding: 0 26rpx;
+  margin: 0 0 0 16rpx;
+  border-radius: 28rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 22rpx;
-  line-height: 52rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 56rpx;
+  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
+  flex-shrink: 0;
 }
 </style>

@@ -142,10 +142,7 @@
                     <text class="price-symbol">¥</text>
                     <text class="price-num">{{ formatPrice(product.price) }}</text>
                   </view>
-                  <view class="btn-group">
-                    <button class="btn-detail" @click.stop="openPage('/pages/product/detail', { id: product.id })">详情</button>
-                    <button class="btn-add" @click.stop="addToSolution(product)">+ 报价</button>
-                  </view>
+                  <button class="btn-add" @click.stop="addToSolution(product)">+ 加入报价单</button>
                 </view>
               </view>
             </view>
@@ -250,13 +247,13 @@ const addToSolution = (product) => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f4f7fc;
+  background: linear-gradient(180deg, #eaf2ff 0%, #f4f7fc 240rpx, #f4f7fc 100%);
 }
 
 .crumb {
-  padding: 12rpx 28rpx 8rpx;
-  color: #7b889d;
-  font-size: 24rpx;
+  padding: 14rpx 28rpx 10rpx;
+  color: #647389;
+  font-size: 25rpx;
 }
 
 .crumb text:nth-child(even) {
@@ -265,17 +262,17 @@ const addToSolution = (product) => {
 }
 
 .category-search-box {
-  padding: 8rpx 24rpx 14rpx;
+  padding: 8rpx 24rpx 16rpx;
 }
 
 .design-search {
   display: flex;
   align-items: center;
-  height: 72rpx;
-  padding: 0 24rpx;
-  border-radius: 36rpx;
+  height: 76rpx;
+  padding: 0 26rpx;
+  border-radius: 38rpx;
   background: #fff;
-  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.05);
 }
 
 .design-search input {
@@ -291,20 +288,20 @@ const addToSolution = (product) => {
 
 .type-tabs-scroll {
   display: flex;
-  padding: 0 24rpx 14rpx;
+  padding: 0 24rpx 16rpx;
   gap: 16rpx;
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .type-tab-item {
-  padding: 12rpx 28rpx;
-  border-radius: 30rpx;
+  padding: 14rpx 30rpx;
+  border-radius: 32rpx;
   background: #fff;
-  color: #586477;
-  font-size: 26rpx;
+  color: #556275;
+  font-size: 27rpx;
   font-weight: 600;
-  box-shadow: 0 4rpx 12rpx rgba(23, 35, 61, 0.03);
+  box-shadow: 0 4rpx 14rpx rgba(23, 35, 61, 0.04);
   transition: all 0.2s ease;
 }
 
@@ -312,23 +309,24 @@ const addToSolution = (product) => {
   background: #2468e8;
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 6rpx 18rpx rgba(36, 104, 232, 0.3);
+  box-shadow: 0 6rpx 20rpx rgba(36, 104, 232, 0.32);
 }
 
 .series-tabs-scroll {
   display: flex;
-  padding: 0 24rpx 16rpx;
+  padding: 0 24rpx 18rpx;
   gap: 14rpx;
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .series-tab-item {
-  padding: 10rpx 22rpx;
-  border-radius: 24rpx;
-  background: #e9eff8;
-  color: #5c6a80;
+  padding: 10rpx 24rpx;
+  border-radius: 26rpx;
+  background: #e8eff8;
+  color: #556379;
   font-size: 24rpx;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
@@ -354,7 +352,7 @@ const addToSolution = (product) => {
 }
 
 .category-sidebar {
-  width: 190rpx;
+  width: 196rpx;
   background: #f7f9fc;
   border-right: 1rpx solid #edf1f7;
   height: 100%;
@@ -364,9 +362,9 @@ const addToSolution = (product) => {
   position: relative;
   display: flex;
   align-items: center;
-  height: 96rpx;
+  height: 98rpx;
   padding-left: 28rpx;
-  color: #5c6a80;
+  color: #556275;
   font-size: 26rpx;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -403,23 +401,23 @@ const addToSolution = (product) => {
   padding: 18rpx 20rpx 40rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 18rpx;
 }
 
 .series-product-card {
   display: flex;
   align-items: center;
-  padding: 20rpx;
-  border-radius: 18rpx;
+  padding: 22rpx;
+  border-radius: 20rpx;
   background: #fff;
-  box-shadow: 0 6rpx 20rpx rgba(23, 35, 61, 0.04);
+  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
 }
 
 .product-img {
-  width: 140rpx;
-  height: 140rpx;
+  width: 148rpx;
+  height: 148rpx;
   margin-right: 20rpx;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   background: #f7f9fc;
   flex-shrink: 0;
 }
@@ -437,15 +435,15 @@ const addToSolution = (product) => {
 
 .model-name {
   color: #17233d;
-  font-size: 30rpx;
-  font-weight: 800;
+  font-size: 31rpx;
+  font-weight: 900;
 }
 
 .tag-badge {
-  padding: 4rpx 10rpx;
-  border-radius: 6rpx;
-  font-size: 20rpx;
-  font-weight: 600;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 21rpx;
+  font-weight: 700;
 }
 
 .tag-badge.red {
@@ -460,9 +458,9 @@ const addToSolution = (product) => {
 
 .product-name-sub {
   display: block;
-  margin-top: 4rpx;
-  color: #6a778e;
-  font-size: 24rpx;
+  margin-top: 6rpx;
+  color: #5c6a80;
+  font-size: 25rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -471,15 +469,15 @@ const addToSolution = (product) => {
 .spec-line {
   display: block;
   margin-top: 6rpx;
-  color: #929fb2;
-  font-size: 22rpx;
+  color: #8b95a7;
+  font-size: 23rpx;
 }
 
 .price-action-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 14rpx;
+  margin-top: 16rpx;
 }
 
 .price-wrap {
@@ -494,35 +492,21 @@ const addToSolution = (product) => {
 }
 
 .price-num {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 900;
   margin-left: 2rpx;
 }
 
-.btn-group {
-  display: flex;
-  gap: 12rpx;
-}
-
-.btn-detail {
-  height: 52rpx;
-  padding: 0 20rpx;
-  border-radius: 26rpx;
-  background: #f1f4f9;
-  color: #586477;
-  font-size: 22rpx;
-  line-height: 52rpx;
-}
-
 .btn-add {
-  height: 52rpx;
-  padding: 0 22rpx;
-  border-radius: 26rpx;
+  height: 56rpx;
+  padding: 0 24rpx;
+  border-radius: 28rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 22rpx;
+  font-size: 23rpx;
   font-weight: 700;
-  line-height: 52rpx;
+  line-height: 56rpx;
+  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.28);
 }
 
 .empty-state {

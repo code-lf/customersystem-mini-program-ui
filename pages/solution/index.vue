@@ -250,26 +250,29 @@
     <up-popup
       :show="showAddPanel"
       mode="bottom"
-      round="20"
+      round="24"
       close-on-click-overlay
       safe-area-inset-bottom
       @close="showAddPanel = false"
     >
       <view class="add-panel">
         <view class="panel-head">
-          <view>
-            <text class="popup-main-title">添加空调设备到报价单</text>
-            <text class="popup-sub-title">已添加 {{ quoteItems.length }} 款 · 合计 ¥{{ formatPrice(totalPrice) }}</text>
+          <view class="panel-head-left">
+            <view class="panel-title-row">
+              <text class="popup-main-title">添加空调设备到报价单</text>
+              <text class="count-tag">已选 {{ quoteItems.length }} 款</text>
+            </view>
+            <text class="popup-sub-title">已选设备面价总额：¥{{ formatPrice(totalPrice) }}</text>
           </view>
-          <view class="panel-close" @click="showAddPanel = false">
-            <up-icon name="close" size="20" color="#8b95a7" />
+          <view class="panel-close-btn" @click="showAddPanel = false">
+            <up-icon name="close" size="18" color="#647389" />
           </view>
         </view>
 
         <!-- 弹窗搜索框 -->
         <view class="panel-search-wrap">
           <view class="panel-search-bar">
-            <up-icon name="search" size="18" color="#9aa5b5" />
+            <up-icon name="search" size="20" color="#9aa5b5" />
             <input
               v-model="addSearchKeyword"
               placeholder="搜索设备型号 (如 VK8R, VM, 室内机)..."
@@ -278,7 +281,7 @@
             <up-icon
               v-if="addSearchKeyword"
               name="close-circle-fill"
-              size="16"
+              size="18"
               color="#9aa5b5"
               @click="addSearchKeyword = ''"
             />
@@ -469,39 +472,40 @@ onShow(() => {
 .quote-page {
   min-height: 100vh;
   padding-bottom: 220rpx;
-  background: #f4f7fc;
+  background: linear-gradient(180deg, #d2e4ff 0%, #e8f1fd 280rpx, #f4f7fc 500rpx, #f4f7fc 100%);
 }
 
 .quote-header {
   display: flex;
   align-items: center;
-  height: 96rpx;
+  height: 100rpx;
   padding: 0 28rpx;
 }
 
 .quote-header-title {
-  color: #17233d;
-  font-size: 34rpx;
+  color: #15223a;
+  font-size: 36rpx;
   font-weight: 900;
+  letter-spacing: 0.5rpx;
 }
 
 .tabs-card {
   display: flex;
-  margin: 0 24rpx 16rpx;
+  margin: 0 24rpx 18rpx;
   padding: 8rpx;
-  border-radius: 20rpx;
-  background: #e9eff8;
+  border-radius: 22rpx;
+  background: #e5edf8;
 }
 
 .tab-btn {
   flex: 1;
-  height: 68rpx;
+  height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16rpx;
-  color: #647389;
-  font-size: 26rpx;
+  border-radius: 18rpx;
+  color: #586882;
+  font-size: 27rpx;
   font-weight: 700;
   transition: all 0.2s ease;
 }
@@ -518,42 +522,42 @@ onShow(() => {
 
 .product-list-card {
   overflow: hidden;
-  border-radius: 20rpx;
+  border-radius: 22rpx;
   background: #fff;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
+  box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.04);
 }
 
 .product-list-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80rpx;
-  padding: 0 24rpx;
+  height: 84rpx;
+  padding: 0 26rpx;
   border-bottom: 1rpx solid #edf1f8;
 }
 
 .list-head-title {
   color: #17233d;
-  font-size: 28rpx;
-  font-weight: 800;
+  font-size: 29rpx;
+  font-weight: 900;
 }
 
 .add-btn-small {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  padding: 8rpx 18rpx;
-  border-radius: 24rpx;
+  padding: 10rpx 22rpx;
+  border-radius: 26rpx;
   background: #edf4ff;
   color: #2468e8;
   font-size: 24rpx;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .quote-product-row {
   display: flex;
   align-items: center;
-  padding: 22rpx 24rpx;
+  padding: 24rpx 26rpx;
   border-bottom: 1rpx solid #edf1f8;
 }
 
@@ -562,10 +566,10 @@ onShow(() => {
 }
 
 .quote-product-image {
-  width: 120rpx;
-  height: 120rpx;
-  margin-right: 20rpx;
-  border-radius: 14rpx;
+  width: 130rpx;
+  height: 130rpx;
+  margin-right: 22rpx;
+  border-radius: 16rpx;
   background: #f7f9fc;
   flex-shrink: 0;
 }
@@ -578,7 +582,7 @@ onShow(() => {
 .quote-product-name {
   display: block;
   color: #17233d;
-  font-size: 28rpx;
+  font-size: 29rpx;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
@@ -589,7 +593,7 @@ onShow(() => {
   display: block;
   margin-top: 4rpx;
   color: #2468e8;
-  font-size: 24rpx;
+  font-size: 25rpx;
   font-weight: 700;
 }
 
@@ -597,7 +601,7 @@ onShow(() => {
   display: block;
   margin-top: 4rpx;
   color: #8b95a7;
-  font-size: 22rpx;
+  font-size: 23rpx;
 }
 
 .quote-product-price-row {
@@ -608,19 +612,19 @@ onShow(() => {
 }
 
 .price-symbol {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
 }
 
 .price-val {
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 900;
   margin-left: 2rpx;
 }
 
 .price-unit {
   color: #8b95a7;
-  font-size: 20rpx;
+  font-size: 22rpx;
   margin-left: 4rpx;
 }
 
@@ -629,39 +633,39 @@ onShow(() => {
   flex-direction: column;
   align-items: flex-end;
   justify-content: space-between;
-  height: 110rpx;
+  height: 114rpx;
   margin-left: 16rpx;
 }
 
 .delete-icon-wrap {
-  padding: 4rpx 6rpx;
+  padding: 6rpx 8rpx;
 }
 
 .custom-stepper {
   display: flex;
   align-items: center;
   border: 1rpx solid #dce4f0;
-  border-radius: 10rpx;
+  border-radius: 12rpx;
   overflow: hidden;
   background: #fff;
 }
 
 .step-btn {
-  width: 52rpx;
-  height: 48rpx;
+  width: 54rpx;
+  height: 50rpx;
   margin: 0;
   padding: 0;
   background: #f5f8fd;
   color: #586477;
-  font-size: 28rpx;
-  line-height: 48rpx;
+  font-size: 30rpx;
+  line-height: 50rpx;
   border-radius: 0;
 }
 
 .step-num {
-  width: 54rpx;
+  width: 56rpx;
   color: #17233d;
-  font-size: 24rpx;
+  font-size: 25rpx;
   font-weight: 700;
   text-align: center;
 }
@@ -1151,49 +1155,90 @@ onShow(() => {
 /* 弹窗添加设备 */
 .add-panel {
   max-height: 80vh;
-  padding: 24rpx 28rpx 36rpx;
+  padding: 28rpx 30rpx 40rpx;
   background: #fff;
   display: flex;
   flex-direction: column;
 }
 
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 22rpx;
+  border-bottom: 1rpx solid #edf1f8;
+}
+
+.panel-head-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.count-tag {
+  padding: 4rpx 14rpx;
+  border-radius: 12rpx;
+  background: #edf4ff;
+  color: #2468e8;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.panel-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: #f1f4f9;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
 .panel-search-wrap {
-  margin: 16rpx 0 12rpx;
+  margin: 22rpx 0 16rpx;
 }
 
 .panel-search-bar {
   display: flex;
   align-items: center;
-  height: 72rpx;
-  padding: 0 20rpx;
-  border-radius: 36rpx;
+  height: 76rpx;
+  padding: 0 24rpx;
+  border-radius: 38rpx;
   background: #f4f7fc;
+  border: 1rpx solid #e2ebf7;
 }
 
 .panel-search-bar input {
   flex: 1;
-  margin-left: 12rpx;
+  margin-left: 14rpx;
   font-size: 26rpx;
   color: #17233d;
 }
 
 .panel-product-list {
-  max-height: 600rpx;
+  max-height: 620rpx;
   overflow-y: auto;
 }
 
 .panel-product-item {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
+  padding: 22rpx 0;
   border-bottom: 1rpx solid #edf1f8;
 }
 
 .panel-p-img {
-  width: 110rpx;
-  height: 110rpx;
-  margin-right: 18rpx;
-  border-radius: 12rpx;
+  width: 124rpx;
+  height: 124rpx;
+  margin-right: 20rpx;
+  border-radius: 14rpx;
   background: #f7f9fc;
   flex-shrink: 0;
 }
@@ -1211,23 +1256,25 @@ onShow(() => {
 
 .panel-p-model {
   color: #17233d;
-  font-size: 28rpx;
-  font-weight: 800;
+  font-size: 29rpx;
+  font-weight: 900;
 }
 
 .panel-p-series {
-  padding: 2rpx 10rpx;
-  border-radius: 6rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
   background: #edf4ff;
   color: #2468e8;
-  font-size: 20rpx;
+  font-size: 22rpx;
+  font-weight: 700;
 }
 
 .panel-p-name {
   display: block;
   margin-top: 4rpx;
-  color: #647389;
-  font-size: 24rpx;
+  color: #556275;
+  font-size: 25rpx;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1237,25 +1284,28 @@ onShow(() => {
   display: block;
   margin-top: 4rpx;
   color: #8b95a7;
-  font-size: 22rpx;
+  font-size: 23rpx;
 }
 
 .panel-p-price {
   display: block;
   margin-top: 6rpx;
   color: #ef543f;
-  font-size: 26rpx;
-  font-weight: 800;
+  font-size: 30rpx;
+  font-weight: 900;
 }
 
 .panel-btn-add {
-  height: 54rpx;
-  padding: 0 24rpx;
-  border-radius: 27rpx;
+  height: 58rpx;
+  padding: 0 28rpx;
+  margin: 0 0 0 16rpx;
+  border-radius: 29rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 24rpx;
-  font-weight: 700;
-  line-height: 54rpx;
+  font-size: 25rpx;
+  font-weight: 800;
+  line-height: 58rpx;
+  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
+  flex-shrink: 0;
 }
 </style>

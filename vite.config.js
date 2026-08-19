@@ -16,6 +16,13 @@ export default defineConfig({
       'uni_modules': path.resolve(__dirname, 'uni_modules'),
     }
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ['legacy-js-api', 'import']
+      }
+    }
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,

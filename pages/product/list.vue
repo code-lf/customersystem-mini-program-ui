@@ -1,13 +1,6 @@
 <template>
   <view class="design-page list-page">
-    <AppNavbar :title="pageTitle">
-      <template #right>
-        <view class="nav-actions">
-          <view @click="toggleCollect"><up-icon :name="isCollected ? 'star-fill' : 'star'" size="18" :color="isCollected ? '#ffb020' : '#586477'" /><text>{{ isCollected ? '已收藏' : '收藏' }}</text></view>
-          <view @click="openPage('/pages/ai/chat', { question: '对比 VK8R 和 VK10R' })"><up-icon name="share" size="18" color="#586477" /><text>对比</text></view>
-        </view>
-      </template>
-    </AppNavbar>
+    <AppNavbar :title="pageTitle" />
 
     <!-- 面包屑导航 -->
     <view v-if="!isHome" class="crumb-line">
@@ -54,7 +47,7 @@
               <text class="symbol">¥</text>
               <text class="num">{{ money(product.price) }}</text>
             </view>
-            <button class="home-add-btn" @click.stop="addToSolution(product)">+ 报价</button>
+            <button class="home-add-btn" @click.stop="addToSolution(product)">+ 加入报价单</button>
           </view>
         </view>
       </view>
@@ -83,10 +76,7 @@
               <text class="price-label">参考价</text>
               <text class="price-val">¥{{ money(product.price) }}</text>
             </view>
-            <view class="btn-box">
-              <button class="btn-detail" @click.stop="openPage('/pages/product/detail', { id: product.id })">查看详情</button>
-              <button class="btn-quote" @click.stop="addToSolution(product)">加入报价单</button>
-            </view>
+            <button class="btn-quote" @click.stop="addToSolution(product)">+ 加入报价单</button>
           </view>
         </view>
       </view>
@@ -103,7 +93,6 @@ import { uiProducts } from '@/mock/ui-fixtures';
 const pageOptions = getPageOptions();
 const isHome = computed(() => pageOptions.type === 'home' || ['wall', 'cabinet'].includes(pageOptions.category));
 const currentSeries = ref('VK系列');
-const isCollected = ref(false);
 const activeFilter = ref('');
 const sortAsc = ref(true);
 
@@ -113,11 +102,6 @@ const pageTitle = computed(() => {
 });
 
 const filterLabels = computed(() => isHome.value ? ['匹数', '能效', '适用面积', '更多'] : ['冷量', '能效', '电源', '更多']);
-
-const toggleCollect = () => {
-  isCollected.value = !isCollected.value;
-  uni.showToast({ title: isCollected.value ? '已加入收藏' : '已取消收藏', icon: 'none' });
-};
 
 const selectFilter = (item) => {
   activeFilter.value = activeFilter.value === item ? '' : item;
@@ -177,21 +161,7 @@ const addToSolution = (product) => {
 .list-page {
   min-height: 100vh;
   padding: 0 24rpx 100rpx;
-  background: #f4f7fc;
-}
-
-.nav-actions {
-  display: flex;
-  gap: 20rpx;
-  color: #586477;
-  font-size: 22rpx;
-}
-
-.nav-actions view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
+  background: linear-gradient(180deg, #eaf2ff 0%, #f4f7fc 240rpx, #f4f7fc 100%);
 }
 
 .crumb-line {
