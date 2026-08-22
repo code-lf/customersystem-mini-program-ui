@@ -2,6 +2,15 @@
   <view class="crm-page my-page">
     <view class="my-safe-top" />
 
+    
+      <template v-if="isLoading">
+        <view class="skeleton-block" style="width: 100%; height: 200rpx; border-radius: 32rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 160rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 380rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 380rpx; border-radius: 24rpx; margin-bottom: 40rpx;"></view>
+      </template>
+      <template v-else>
+  
     <!-- 用户身份卡片 -->
     <view class="profile-card" @click="openPage('/pages/member/profile')">
       <view class="user-avatar-wrap">
@@ -93,15 +102,22 @@
       </view>
     </view>
 
+    </template>
     <view class="tabbar-space" />
   </view>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useUserStore } from '@/store/user';
 import { getBalance } from '@/api/member';
 import { openPage } from '@/utils/pages';
+
+
+const isLoading = ref(true);
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 400);
+});
 
 const userStore = useUserStore();
 const balance = reactive({ money: 12850, balance: 3600 });
@@ -422,5 +438,15 @@ onMounted(async () => {
 
 .tabbar-space {
   height: 160rpx;
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>

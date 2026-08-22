@@ -24,7 +24,23 @@
 
     <!-- 当前报价单内容 -->
     <template v-if="activeTab === 'current'">
-      <view v-if="quoteItems.length" class="quote-list">
+      <view v-if="isLoading" class="quote-list">
+        <view class="product-list-card">
+          <view class="product-list-head" style="border-bottom: none;">
+            <view class="skeleton-block" style="width: 200rpx; height: 32rpx; border-radius: 8rpx;"></view>
+          </view>
+          <view v-for="i in 3" :key="i" class="quote-product-row" style="border-bottom: 1rpx solid #f1f5f9;">
+            <view class="skeleton-block" style="width: 140rpx; height: 140rpx; border-radius: 12rpx; margin-right: 20rpx;"></view>
+            <view style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+              <view class="skeleton-block" style="width: 80%; height: 28rpx; margin-bottom: 12rpx; border-radius: 6rpx;"></view>
+              <view class="skeleton-block" style="width: 60%; height: 24rpx; margin-bottom: 12rpx; border-radius: 6rpx;"></view>
+              <view class="skeleton-block" style="width: 40%; height: 36rpx; border-radius: 6rpx;"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view v-else-if="quoteItems.length" class="quote-list">
         <view class="product-list-card">
           <view class="product-list-head">
             <text class="list-head-title">商品清单 ({{ quoteItems.length }} 款设备)</text>
@@ -84,7 +100,20 @@
 
     <!-- 历史报价单记录 -->
     <template v-else>
-      <view class="history-container">
+      <view v-if="isLoading" class="history-container">
+        <view v-for="i in 3" :key="i" class="history-card">
+          <view style="display: flex; justify-content: space-between; margin-bottom: 16rpx;">
+            <view class="skeleton-block" style="width: 60%; height: 32rpx; border-radius: 8rpx;"></view>
+            <view class="skeleton-block" style="width: 120rpx; height: 32rpx; border-radius: 8rpx;"></view>
+          </view>
+          <view class="skeleton-block" style="width: 80%; height: 24rpx; margin-bottom: 24rpx; border-radius: 6rpx;"></view>
+          <view style="display: flex; gap: 16rpx;">
+             <view class="skeleton-block" style="width: 100rpx; height: 24rpx; border-radius: 6rpx;"></view>
+             <view class="skeleton-block" style="width: 100rpx; height: 24rpx; border-radius: 6rpx;"></view>
+          </view>
+        </view>
+      </view>
+      <view v-else class="history-container">
         <view
           v-for="sol in historySolutions"
           :key="sol.id"
@@ -118,7 +147,7 @@
     </template>
 
     <!-- 底部固定面价合计与导出按钮 -->
-    <view v-if="activeTab === 'current' && quoteItems.length" class="quote-footer">
+    <view v-if="activeTab === 'current' && quoteItems.length && !isLoading" class="quote-footer">
       <view class="footer-left">
         <text class="footer-label">设备面价合计 (含税)</text>
         <view class="footer-price-row">
@@ -314,7 +343,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { uiProducts, uiSolutions } from '@/mock/ui-fixtures';
@@ -330,6 +359,13 @@ const safeTop = computed(() => {
 });
 
 const activeTab = ref('current');
+const isLoading = ref(true);
+watch(activeTab, () => {
+  isLoading.value = true;
+  setTimeout(() => {
+    isLoading.value = false;
+  }, 400);
+});
 const showAddPanel = ref(false);
 const showPricePanel = ref(false);
 const addSearchKeyword = ref('');
@@ -464,6 +500,8 @@ onMounted(() => {
 });
 
 onShow(() => {
+  isLoading.value = true;
+  setTimeout(() => { isLoading.value = false }, 500);
   checkPendingProduct();
 });
 </script>
@@ -1043,12 +1081,14 @@ onShow(() => {
 
 .quick-discount-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
   margin: 14rpx 0 10rpx;
 }
 
 .d-chip {
-  flex: 1;
+  padding: 0 16rpx;
+  white-space: nowrap;
   height: 50rpx;
   display: flex;
   align-items: center;
@@ -1307,5 +1347,15 @@ onShow(() => {
   line-height: 58rpx;
   box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
   flex-shrink: 0;
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>

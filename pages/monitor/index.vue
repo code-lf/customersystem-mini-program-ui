@@ -26,12 +26,31 @@
 
     <!-- 列表区 -->
     <view class="list-container">
-      <view 
-        v-for="item in filteredList" 
-        :key="item.id" 
-        class="monitor-card" 
-        @click="openPage('/pages/monitor/detail', { productId: item.id })"
-      >
+      <template v-if="isLoading">
+        <view v-for="i in 4" :key="i" class="monitor-card">
+          <view class="skeleton-block" style="width: 160rpx; height: 160rpx; border-radius: 16rpx; margin-right: 24rpx;"></view>
+          <view class="card-content">
+            <view class="card-header" style="margin-bottom: 12rpx;">
+              <view class="skeleton-block" style="width: 60%; height: 32rpx; border-radius: 6rpx;"></view>
+              <view class="skeleton-block" style="width: 100rpx; height: 32rpx; border-radius: 8rpx;"></view>
+            </view>
+            <view class="skeleton-block" style="width: 50%; height: 40rpx; margin-bottom: 8rpx; border-radius: 6rpx;"></view>
+            <view class="skeleton-block" style="width: 70%; height: 24rpx; border-radius: 6rpx; margin-bottom: 16rpx;"></view>
+            <view class="card-footer">
+              <view class="skeleton-block" style="width: 160rpx; height: 24rpx; border-radius: 6rpx;"></view>
+              <view class="skeleton-block" style="width: 130rpx; height: 52rpx; border-radius: 26rpx;"></view>
+            </view>
+          </view>
+        </view>
+      </template>
+      
+      <template v-else>
+        <view 
+          v-for="item in filteredList" 
+          :key="item.id" 
+          class="monitor-card" 
+          @click="openPage('/pages/monitor/detail', { productId: item.id })"
+        >
         <!-- 图片区 -->
         <view class="image-box">
           <image :src="item.image" mode="aspectFit" />
@@ -71,17 +90,28 @@
       <view v-if="filteredList.length === 0" class="empty-state">
         <text>暂无相关机型数据</text>
       </view>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
 import { uiProducts } from '@/mock/ui-fixtures';
 
 const active = ref('all');
+const isLoading = ref(true);
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 500);
+});
+watch(active, () => {
+  isLoading.value = true;
+  setTimeout(() => {
+    isLoading.value = false;
+  }, 400);
+});
 const tabs = [
   { label: '全部机型', value: 'all' },
   { label: '近期降价', value: 'down' },
@@ -353,6 +383,16 @@ const money = (value) => Number(value || 0).toLocaleString();
   height: 300rpx;
   color: #94a3b8;
   font-size: 28rpx;
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>
 

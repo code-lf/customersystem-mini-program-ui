@@ -3,6 +3,20 @@
     <AppNavbar title="产品中心" :show-back="false" />
 
     <view class="product-content">
+      
+      <template v-if="isLoading">
+        <view class="search-row" style="margin-bottom: 30rpx; border: none; padding: 0;">
+          <view class="skeleton-block" style="width: 100%; height: 80rpx; border-radius: 40rpx;"></view>
+        </view>
+        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 24rpx; margin-bottom: 40rpx;"></view>
+        <view style="display: flex; gap: 20rpx; margin-bottom: 40rpx;">
+          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 20rpx;"></view>
+          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 20rpx;"></view>
+        </view>
+      </template>
+      <template v-else>
+  
       <view class="search-row">
         <up-icon name="search" size="20" color="#9aa5b5" />
         <input
@@ -65,15 +79,22 @@
         </view>
       </view>
 
+      </template>
       <view class="tabbar-space" />
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
+
+
+const isLoading = ref(true);
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 400);
+});
 
 const keyword = ref('');
 
@@ -260,5 +281,15 @@ const search = () => {
 
 .tabbar-space {
   height: 140rpx;
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>

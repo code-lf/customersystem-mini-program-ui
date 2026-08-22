@@ -9,6 +9,20 @@
       <text class="brand-status">在线服务中</text>
     </view>
 
+    
+      <template v-if="isLoading">
+        <view class="skeleton-block" style="width: 100%; height: 160rpx; border-radius: 24rpx; margin-bottom: 30rpx; margin-top: 20rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 280rpx; border-radius: 32rpx; margin-bottom: 30rpx;"></view>
+        <view style="display: flex; flex-wrap: wrap; gap: 20rpx; margin-bottom: 30rpx;">
+          <view class="skeleton-block" style="width: calc(50% - 10rpx); height: 180rpx; border-radius: 24rpx;"></view>
+          <view class="skeleton-block" style="width: calc(50% - 10rpx); height: 180rpx; border-radius: 24rpx;"></view>
+          <view class="skeleton-block" style="width: calc(50% - 10rpx); height: 180rpx; border-radius: 24rpx;"></view>
+          <view class="skeleton-block" style="width: calc(50% - 10rpx); height: 180rpx; border-radius: 24rpx;"></view>
+        </view>
+        <view class="skeleton-block" style="width: 100%; height: 220rpx; border-radius: 24rpx;"></view>
+      </template>
+      <template v-else>
+  
     <!-- 问候语 -->
     <view class="hello-card">
       <text class="hello-title">下午好，张工</text>
@@ -75,13 +89,20 @@
       </view>
     </view>
 
+    </template>
     <view class="tabbar-space" />
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { openPage } from '@/utils/pages';
+
+
+const isLoading = ref(true);
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 400);
+});
 
 const safeTop = computed(() => {
   try {
@@ -371,5 +392,15 @@ const openChat = (question) => openPage('/pages/ai/chat', { question });
 
 .tabbar-space {
   height: calc(160rpx + env(safe-area-inset-bottom));
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>

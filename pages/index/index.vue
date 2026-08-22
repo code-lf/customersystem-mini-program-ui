@@ -19,6 +19,19 @@
       </view>
     </view>
 
+    
+      <template v-if="isLoading">
+        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 32rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 320rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view style="display: flex; gap: 20rpx; margin-bottom: 24rpx;">
+          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
+          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
+        </view>
+        <view class="skeleton-block" style="width: 100%; height: 200rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 180rpx; border-radius: 24rpx;"></view>
+      </template>
+      <template v-else>
+  
     <!-- 问候与专属顾问卡片 -->
     <view class="greeting-card">
       <view class="greeting-card__top">
@@ -126,6 +139,7 @@
       <text class="notice-mini__date">{{ notice.time }}</text>
     </view>
 
+    </template>
     <view class="tabbar-space" />
   </view>
 </template>
@@ -136,6 +150,12 @@ import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
 import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
+
+
+const isLoading = ref(true);
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 400);
+});
 
 const userStore = useUserStore();
 const keyword = ref('');
@@ -655,5 +675,15 @@ onMounted(async () => {
 
 .tabbar-space {
   height: 140rpx;
+}
+.skeleton-block {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 </style>
