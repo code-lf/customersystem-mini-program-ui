@@ -867,7 +867,7 @@ onShow(() => {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--window-bottom, 0);
   z-index: 25;
   display: flex;
   align-items: center;

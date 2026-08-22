@@ -126,6 +126,8 @@ const shortcuts = [
 const menus = [
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
   { title: '消息通知', desc: '价格波动与系统升级提醒', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index', badge: '3' },
+  { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
+  { title: '合作申请', desc: '申请成为认证服务商', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   { title: '意见与反馈', desc: '产品选型与功能建议', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' },
   { title: '账号与安全设置', desc: '修改企业信息与密码', icon: 'setting-fill', color: '#647389', bg: '#f0f3f8', path: '/pages/member/profile' }
 ];

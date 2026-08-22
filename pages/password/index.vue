@@ -3,11 +3,12 @@
     <AppNavbar title="密码查询" />
 
     <view class="top-tabs">
-      <text class="active">扫码查询</text>
-      <text>输入条码</text>
+      <text :class="{ active: currentTab === 0 }" @click="currentTab = 0">扫码查询</text>
+      <text :class="{ active: currentTab === 1 }" @click="currentTab = 1">输入条码</text>
     </view>
 
-    <view class="scan-panel">
+    <!-- 扫码查询 -->
+    <view v-if="currentTab === 0" class="scan-panel">
       <view class="scan-frame">
         <view />
         <view />
@@ -15,10 +16,17 @@
         <view />
       </view>
       <text>将条码置于扫码框内，即可自动识别</text>
-      <button>轻触照亮</button>
+      <button @click="handleQuery">模拟扫码查询</button>
     </view>
 
-    <view class="result-card">
+    <!-- 输入条码 -->
+    <view v-if="currentTab === 1" class="input-panel">
+      <input v-model="barcode" maxlength="13" placeholder="请输入13位条码" placeholder-class="placeholder" />
+      <button class="primary-btn" @click="handleQuery">查询密码</button>
+    </view>
+
+    <!-- 查询结果 -->
+    <view v-if="showResult" class="result-card">
       <text class="result-card__title">查询结果</text>
       <view class="product-info">
         <image src="/static/aircon/central-vk.png" mode="aspectFit" />
@@ -38,13 +46,35 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
+
+const currentTab = ref(1); // Default to input based on user request focus
+const barcode = ref('');
+const showResult = ref(false);
 
 const codes = [
   { label: '机组条码', value: 'SN25052800012345' },
   { label: '当前密码', value: 'A1B2C3D4' },
   { label: '备用密码', value: 'E5F6G7H8' }
 ];
+
+const handleQuery = () => {
+  if (currentTab.value === 1 && !barcode.value) {
+    uni.showToast({ title: '请输入条码', icon: 'none' });
+    return;
+  }
+  
+  if (currentTab.value === 1 && barcode.value) {
+    codes[0].value = barcode.value;
+  }
+  
+  uni.showLoading({ title: '查询中...' });
+  setTimeout(() => {
+    uni.hideLoading();
+    showResult.value = true;
+  }, 500);
+};
 </script>
 
 <style lang="scss" scoped>
@@ -59,6 +89,7 @@ const codes = [
   height: 72rpx;
   border-radius: 12rpx;
   background: #fff;
+  margin-bottom: 18rpx;
 }
 
 .top-tabs text {
@@ -82,7 +113,6 @@ const codes = [
   align-items: center;
   justify-content: center;
   height: 292rpx;
-  margin-top: 18rpx;
   border-radius: 16rpx;
   background: linear-gradient(135deg, #314c76, #172b4d);
   color: #fff;
@@ -123,6 +153,36 @@ const codes = [
   color: #fff;
   font-size: 20rpx;
   line-height: 40rpx;
+}
+
+.input-panel {
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: #fff;
+}
+
+.input-panel input {
+  height: 80rpx;
+  padding: 0 24rpx;
+  border: 1rpx solid #edf0f5;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #17233d;
+}
+
+.placeholder {
+  color: #b0bac7;
+}
+
+.primary-btn {
+  height: 78rpx;
+  margin: 24rpx 0 0;
+  padding: 0;
+  border-radius: 12rpx;
+  background: #2468e8;
+  color: #fff;
+  font-size: 27rpx;
+  line-height: 78rpx;
 }
 
 .result-card {
@@ -210,3 +270,4 @@ const codes = [
   text-align: center;
 }
 </style>
+
