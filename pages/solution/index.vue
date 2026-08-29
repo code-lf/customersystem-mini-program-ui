@@ -419,6 +419,46 @@ const recalculateCart = (items, mode = pricingMode.value, rate = discountRate.va
   return updatedCart;
 };
 
+/**
+ * 把 OpenAPI 的 Cart 对象转换成页面直接使用的结构。
+ *
+ * 中文说明：报价单的新增、修改数量、删除和设置折扣接口都会返回完整 Cart，
+ * 因此每次写操作成功后直接使用后端计算结果，可以保证 cart_item_id、金额、
+ * 折扣和装箱数量始终一致，避免前端自己计算后与后台产生偏差。
+ */
+const applyServerCart = (serverCart) => {
+  if (!serverCart || !Array.isArray(serverCart.items)) return false;
+
+  const normalizedItems = serverCart.items.map(item => ({
+    ...item,
+    // 编辑和删除接口要求 cart_item_id；id 仅作为模板渲染的统一键。
+    id: item.cart_item_id || item.goods_id,
+    goods_id: item.goods_id,
+    name: item.goods_name_snapshot || item.goods_name,
+    model: item.model_snapshot || item.model,
+    image: item.image_snapshot || item.image || '/static/aircon/outdoor-unit.png',
+    price: Number(item.origin_price || item.quote_price || item.price || 0),
+    quantity: Number(item.quantity || 1)
+  }));
+
+  const normalizedCart = {
+    ...serverCart,
+    items: normalizedItems,
+    goods_amount: Number(serverCart.goods_amount || 0),
+    total_quantity: Number(serverCart.total_quantity || 0),
+    pay_amount: Number(serverCart.pay_amount || 0),
+    discount_amount: Number(serverCart.discount_amount || 0)
+  };
+
+  cartData.value = normalizedCart;
+  quoteItems.value = normalizedItems;
+  pricingMode.value = serverCart.pricing_mode || 'discount';
+  discountRate.value = Number(serverCart.global_discount_rate ?? 100);
+  quoteRemark.value = serverCart.remark || '';
+  uni.setStorageSync('solution_local_cart', normalizedCart);
+  return true;
+};
+
 const isItemInQuote = (item) => {
   const gId = item.goods_id || item.id;
   return quoteItems.value.some(i => (i.goods_id || i.id) === gId);
@@ -437,24 +477,11 @@ const loadCart = async () => {
 
   try {
     const res = await getCart();
-    // 若服务端返回了真实的购物车清单并且有商品
-    if (res && res.code === 1 && res.data && Array.isArray(res.data.items) && res.data.items.length > 0) {
-      cartData.value = res.data;
-      quoteItems.value = res.data.items.map(item => ({
-        ...item,
-        id: item.cart_item_id || item.goods_id,
-        goods_id: item.goods_id,
-        name: item.goods_name_snapshot || item.goods_name,
-        model: item.model_snapshot || item.model,
-        image: item.image_snapshot || item.image || '/static/aircon/outdoor-unit.png',
-        price: Number(item.origin_price || item.quote_price || item.price || 0),
-        quantity: Number(item.quantity || 1)
-      }));
-      pricingMode.value = res.data.pricing_mode || 'discount';
-      discountRate.value = res.data.global_discount_rate || 95;
-      quoteRemark.value = res.data.remark || '';
-      uni.setStorageSync('solution_local_cart', cartData.value);
-    }
+    // 中文说明：utils/request.js 已经把 `{ code, msg, data }` 解包，
+    // 所以这里的 res 就是 Cart，不能继续写成 res.code / res.data。
+    // 服务端是报价单暂存清单的权威数据源，即使 items 为空也必须覆盖本地缓存，
+    // 否则用户在其他设备清空报价单后，本机仍会显示过期商品。
+    applyServerCart(res);
   } catch(e) {
     console.warn('loadCart backend info:', e);
   }
@@ -464,7 +491,8 @@ const loadHistory = async () => {
   const localRecords = uni.getStorageSync('solution_history_records') || [];
   try {
     const res = await getSolutionList({ limit: 100 });
-    const serverList = (res && res.data && Array.isArray(res.data)) ? res.data : [];
+    // 报价列表解包后是 QuotePageData，其中 data 才是当前页的数组。
+    const serverList = Array.isArray(res?.data) ? res.data : [];
     if (serverList.length > 0) {
       const serverMapped = serverList.map(item => ({
         ...item,
@@ -480,7 +508,10 @@ const loadHistory = async () => {
       historySolutions.value = [...localRecords, ...serverMapped.filter(s => !localRecords.some(l => l.id === s.id))];
       return;
     }
-  } catch(e) {}
+  } catch(e) {
+    // 历史列表失败时允许展示本地缓存，但保留日志便于联调排查。
+    console.warn('loadHistory backend info:', e);
+  }
 
   historySolutions.value = localRecords;
 };
@@ -536,8 +567,13 @@ const changeItemQty = async (item, delta) => {
   recalculateCart(currentList);
 
   try {
-    await editCartItem(item.id, { quantity: newQty });
-  } catch(e) {}
+    const updatedCart = await editCartItem(item.cart_item_id || item.id, { quantity: newQty });
+    applyServerCart(updatedCart);
+  } catch(e) {
+    // 乐观更新失败时重新读取后端，撤销界面中的临时数量。
+    console.warn('editCartItem error:', e);
+    await loadCart();
+  }
 };
 
 const removeItem = async (id) => {
@@ -546,8 +582,12 @@ const removeItem = async (id) => {
   uni.showToast({ title: '已移除设备', icon: 'none' });
 
   try {
-    await removeCartItem(id);
-  } catch(e) {}
+    const updatedCart = await removeCartItem(id);
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('removeCartItem error:', e);
+    await loadCart();
+  }
 };
 
 const openAddPanel = (mode = 'search') => {
@@ -586,8 +626,12 @@ const addProductToQuote = async (product) => {
 
   // 2. 异步同步到后端API
   try {
-    await addCartItem({ goods_id: gId, quantity: 1 });
-  } catch(e) {}
+    const updatedCart = await addCartItem({ goods_id: gId, quantity: 1 });
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('addCartItem error:', e);
+    await loadCart();
+  }
 };
 
 const applyPricing = async () => {
@@ -596,11 +640,15 @@ const applyPricing = async () => {
   uni.showToast({ title: '价格配置已更新', icon: 'success' });
 
   try {
-    await setCartDiscount({
+    const updatedCart = await setCartDiscount({
       pricing_mode: pricingMode.value,
       global_discount_rate: pricingMode.value === 'discount' ? discountRate.value : 100
     });
-  } catch(e) {}
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('setCartDiscount error:', e);
+    await loadCart();
+  }
 };
 
 const exportQuote = async () => {
@@ -610,50 +658,61 @@ const exportQuote = async () => {
   }
   uni.showLoading({ title: '正在生成报价单...' });
 
-  const recordId = 'QT_' + Date.now();
-  const quoteNo = 'QT' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + Math.floor(1000 + Math.random() * 9000);
-  const titleName = '方案报价单 - ' + (quoteItems.value[0]?.name || '格宏电器空调系统方案');
-
-  const newQuoteRecord = {
-    id: recordId,
-    quote_id: recordId,
-    quote_no: quoteNo,
-    title: titleName,
-    subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
-    contact_name_snapshot: '贵宾客户',
-    customerName: '贵宾客户',
-    date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    create_time_text: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    status: 'draft',
-    quote_status: 'draft',
-    items: JSON.parse(JSON.stringify(quoteItems.value)),
-    totalPrice: finalTotal.value,
-    pay_amount: finalTotal.value,
-    goods_amount: totalPrice.value,
-    discount_amount: discountAmount.value,
-    discount_rate: discountRate.value,
-    pricing_mode: pricingMode.value,
-    remark: quoteRemark.value
-  };
-
   try {
-    await exportCart({ extra_amount: 0, remark: quoteRemark.value, clear_cart: 1 });
-  } catch(e) {}
+    // exportCart 的返回值已经解包为 QuoteExportData：
+    // `{ quote_id, quote_no, pay_amount }`。只有后端真正创建成功后，
+    // 才能清空本地报价单暂存数据并提示成功，不能再用随机编号伪造成功记录。
+    const createdQuote = await exportCart({
+      extra_amount: 0,
+      remark: quoteRemark.value,
+      clear_cart: 1
+    });
 
-  // 存入本地历史方案
-  const localHistory = uni.getStorageSync('solution_history_records') || [];
-  localHistory.unshift(newQuoteRecord);
-  uni.setStorageSync('solution_history_records', localHistory);
+    if (!createdQuote?.quote_id) {
+      throw new Error('后端未返回 quote_id，无法确认报价单是否创建成功');
+    }
 
-  // 清空当前清单
-  recalculateCart([]);
-  showPricePanel.value = false;
-  uni.hideLoading();
-  uni.showToast({ title: '报价单生成成功', icon: 'success' });
+    const nowText = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    const newQuoteRecord = {
+      id: createdQuote.quote_id,
+      quote_id: createdQuote.quote_id,
+      quote_no: createdQuote.quote_no || '',
+      title: createdQuote.quote_no ? `方案报价单 (${createdQuote.quote_no})` : '方案报价单',
+      subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
+      contact_name_snapshot: '贵宾客户',
+      customerName: '贵宾客户',
+      date: nowText,
+      create_time_text: nowText,
+      status: 'draft',
+      quote_status: 'draft',
+      items: JSON.parse(JSON.stringify(quoteItems.value)),
+      totalPrice: Number(createdQuote.pay_amount ?? finalTotal.value),
+      pay_amount: Number(createdQuote.pay_amount ?? finalTotal.value),
+      goods_amount: totalPrice.value,
+      discount_amount: discountAmount.value,
+      discount_rate: discountRate.value,
+      pricing_mode: pricingMode.value,
+      remark: quoteRemark.value
+    };
 
-  // 刷新历史
-  loadHistory();
-  activeTab.value = 'history';
+    // 保存一份本地快照，让接口列表刷新前也能立即看到刚创建的报价单。
+    const localHistory = uni.getStorageSync('solution_history_records') || [];
+    localHistory.unshift(newQuoteRecord);
+    uni.setStorageSync('solution_history_records', localHistory);
+
+    // clear_cart=1 已要求后端清空报价单暂存数据，这里同步清理本地缓存和界面。
+    recalculateCart([]);
+    showPricePanel.value = false;
+    uni.showToast({ title: '报价单生成成功', icon: 'success' });
+
+    await loadHistory();
+    activeTab.value = 'history';
+  } catch (error) {
+    // 请求层已经负责展示后端错误；这里仅记录上下文，并保留当前报价单供用户重试。
+    console.error('exportQuote error:', error);
+  } finally {
+    uni.hideLoading();
+  }
 };
 
 const checkPendingProduct = async () => {

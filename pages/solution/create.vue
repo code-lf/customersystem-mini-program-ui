@@ -37,9 +37,12 @@ import { reactive } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { saveSolution } from '@/api/solution';
 import { replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 
-// 中文说明：创建报价单页只负责生成一个空报价单骨架，真正的商品增删改价在“报价单编辑”页完成。
-// 这样后续接真实接口时，只需要把 saveSolution 切到后台接口，页面表单结构不用重写。
+// 中文说明：这个页面来自旧版 UI Mock，其 title/customerName/projectName 字段以及
+// `/solution/save` 路径都不在当前 OpenAPI 中。真实后端的 POST /crm/quote 要求 items
+// 至少有一项，所以不能从本页创建“空报价单”。真实 API 模式下应回到报价单 tab，
+// 先选择商品，再生成正式报价单；Mock 模式仍保留旧交互，方便查看历史设计稿。
 const form = reactive({
   title: '',
   customerName: '',
@@ -52,6 +55,21 @@ const create = async () => {
     return;
   }
 
+  if (appConfig.apiMode !== 'mock') {
+    // 不再向真实服务器发送 OpenAPI 中不存在的 `/solution/save` 请求，
+    // 也不把 title/customerName/projectName 错当成 QuoteCreateInput。
+    uni.showModal({
+      title: '请先选择商品',
+      content: '当前接口不支持创建空报价单。请在报价单页面加入商品并确认价格后生成报价单。',
+      showCancel: false,
+      success: () => {
+        uni.switchTab({ url: '/pages/solution/index' });
+      }
+    });
+    return;
+  }
+
+  // 只有 Mock 模式会进入这里，调用旧版内存数据接口。
   const result = await saveSolution({
     title: form.title.trim(),
     customerName: form.customerName.trim(),

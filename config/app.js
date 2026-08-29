@@ -18,6 +18,17 @@ const config = {
   baseUrl: 'https://3e0eee0e.r25.cpolar.top/api',
   timeout: 60000,
 
+  // 阿里云百炼 AI 助手配置。
+  // appId 可以公开，但 DASHSCOPE_API_KEY 必须只配置在后端服务器环境变量中。
+  aiAssistant: {
+    appId: '64455b17fc2c43efbc8ce2832c4eece4',
+    // 小程序调用自己的后端代理；最终请求地址为 baseUrl + /ai/ask。
+    proxyPath: 'ai/ask',
+    timeout: 120000,
+    // 发送给后端的历史消息上限，20 条大约对应 10 轮用户与助手对话。
+    maxHistoryMessages: 20
+  },
+
   memberApiMode: 'inherit',
   memberBaseUrl: '',
 

@@ -140,12 +140,14 @@
 import { nextTick, onMounted, ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
-import { uiProducts } from '@/mock/ui-fixtures';
+import { askAi } from '@/api/ai-assistant';
 
 const pageOptions = getPageOptions();
 const inputContent = ref('');
 const isThinking = ref(false);
 const scrollTop = ref(0);
+// sessionId 由后端/百炼返回，用于让连续问题属于同一场会话。
+const sessionId = ref('');
 
 const quickChips = [
   '120㎡ 办公室方案',
@@ -154,19 +156,8 @@ const quickChips = [
   '多联机选型原则'
 ];
 
-const messages = ref([
-  {
-    id: 1,
-    role: 'user',
-    text: '请帮我推荐一套适合 120㎡ 办公室使用的中央空调方案'
-  },
-  {
-    id: 2,
-    role: 'ai',
-    text: '好的，根据 120㎡ 办公空间的人员密集度与冷热负荷要求，建议冷量配置在 25kW~28kW 之间。为您推荐以下两款高效节能多联机方案：',
-    products: [uiProducts[0], uiProducts[1]]
-  }
-]);
+// 欢迎语已经固定显示在模板中，因此不再预置会被误认为真实结果的 Mock 对话。
+const messages = ref([]);
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -195,17 +186,22 @@ const clearChat = () => {
     success: (res) => {
       if (res.confirm) {
         messages.value = [];
+        // 清空聊天时同时结束旧会话，下一条问题会建立新的上下文。
+        sessionId.value = '';
         uni.showToast({ title: '已清空', icon: 'none' });
       }
     }
   });
 };
 
-const sendMessage = (text) => {
+const sendMessage = async (text) => {
   if (!text || !text.trim() || isThinking.value) return;
 
   const userText = text.trim();
   inputContent.value = '';
+
+  // AI 请求需要的是发送前的历史，避免把当前问题在 history 和 question 中重复提交。
+  const historyBeforeQuestion = [...messages.value];
 
   // 插入用户消息
   messages.value.push({
@@ -216,39 +212,29 @@ const sendMessage = (text) => {
   scrollToBottom();
 
   isThinking.value = true;
+  try {
+    const result = await askAi(userText, historyBeforeQuestion, {
+      sessionId: sessionId.value
+    });
 
-  // 模拟 AI 生成回复与机型匹配
-  setTimeout(() => {
-    isThinking.value = false;
-    let replyText = '';
-    let matchedProducts = [];
-
-    const lower = userText.toLowerCase();
-
-    if (lower.includes('120') || lower.includes('办公室') || lower.includes('推荐') || lower.includes('方案')) {
-      replyText = '为您匹配了 120㎡ 办公场景的高能效多联机外机与静音内机组合，具有极速制冷、分室智能温控与超低待机功耗特性：';
-      matchedProducts = [uiProducts[0], uiProducts[1]];
-    } else if (lower.includes('对比') || lower.includes('区别') || lower.includes('vk8r') || lower.includes('vk10r')) {
-      replyText = '【VK8R vs VK10R 核心对比】：\n1. 制冷量：VK8R 为 25.2kW (8HP)，VK10R 为 28.0kW (10HP)；\n2. 适用面积：VK8R 适用 90-120㎡，VK10R 适用 100-130㎡；\n3. 能效等级：两款均为全直流变频一级能效，VK10R 在大负荷连续运转下能效更优。';
-      matchedProducts = [uiProducts[0], uiProducts[1]];
-    } else if (lower.includes('参数') || lower.includes('规格') || lower.includes('能效')) {
-      replyText = '【VK 系列多联机技术规范】：\n• 压缩机：全直流变频喷气增焓技术\n• 冷媒：环境友好型 R410A\n• 能效：IPLV(C) 高达 6.50\n• 电源：380V 3N~ 50Hz\n• 运行温度范围：-25℃ ~ 55℃ 宽温域稳定运行。';
-      matchedProducts = [uiProducts[0]];
-    } else if (lower.includes('资料') || lower.includes('手册') || lower.includes('说明书')) {
-      replyText = '已为您调阅《VK 系列产品选型样本》、《安装使用说明书》及《能效认证证书》。您可在“产品资料”标签页或直接下载 PDF 查看。';
-    } else {
-      replyText = `收到您的咨询：“${userText}”。格宏电器选型系统支持多联机、模块机、分体式空调及生活家电的精细化测算与一键报价生成，您可以点击下方推荐机型加入方案。`;
-      matchedProducts = [uiProducts[0], uiProducts[2]];
-    }
-
+    if (result.sessionId) sessionId.value = result.sessionId;
     messages.value.push({
       id: Date.now() + 1,
       role: 'ai',
-      text: replyText,
-      products: matchedProducts
+      text: result.text,
+      products: result.products
     });
+  } catch (error) {
+    console.error('AI assistant request failed:', error);
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'ai',
+      text: 'AI 助手暂时连接失败，请检查网络或稍后重试。'
+    });
+  } finally {
+    isThinking.value = false;
     scrollToBottom();
-  }, 600);
+  }
 };
 
 onMounted(() => {

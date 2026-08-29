@@ -1,8 +1,3 @@
-import { apiPost } from '../utils/api';
-
-/**
- * AI 问答接口。Mock 阶段返回产品卡片，真实接入时保持参数和返回结构不变。
- */
-export function askAi(question, history = []) {
-  return apiPost('ai/ask', { question, history });
-}
+// 兼容旧引用路径：真实实现统一放在 ai-assistant.js，后续只维护一个接入文件。
+export { askAi } from './ai-assistant';
+export { default } from './ai-assistant';

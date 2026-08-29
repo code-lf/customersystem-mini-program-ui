@@ -4,10 +4,10 @@
   "private": true,
   "description": "通用的 uni-app Vue 3 项目模板",
   "scripts": {
-    "dev": "UNI_INPUT_DIR=. uni -p h5",
-    "build": "UNI_INPUT_DIR=. uni build -p h5",
-    "dev:h5": "UNI_INPUT_DIR=. uni -p h5",
-    "build:h5": "UNI_INPUT_DIR=. uni build -p h5"
+    "dev": "cross-env UNI_INPUT_DIR=. uni -p h5",
+    "build": "cross-env UNI_INPUT_DIR=. uni build -p h5",
+    "dev:h5": "cross-env UNI_INPUT_DIR=. uni -p h5",
+    "build:h5": "cross-env UNI_INPUT_DIR=. uni build -p h5"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5020420260813003",
