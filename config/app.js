@@ -40,8 +40,8 @@ const config = {
     codeField: 'code',
     dataField: 'data',
     messageField: 'msg',
-    // niucloud 后端成功码为 1，兼容常见的 0 和 HTTP 风格 200。
-    successCodes: [0, 1, 200]
+    // niucloud / ThinkPHP 成功码为 1，HTTP 风格为 200；code: 0 为业务失败（如未绑定经销商）
+    successCodes: [1, 200]
   },
 
   // 登录与鉴权配置。

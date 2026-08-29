@@ -1,5 +1,6 @@
 import { login as authLogin } from './auth';
-import { getMemberInfo } from './member';
+import { getMemberInfo, updateMemberInfo, modifyMemberField } from './member';
+import { uploadFile } from './common';
 
 /**
  * 登录
@@ -14,5 +15,26 @@ export function login(data) {
  */
 export function getUserInfo() {
   return getMemberInfo();
+}
+
+/**
+ * 更新用户个人资料
+ */
+export function updateUserInfo(data) {
+  return updateMemberInfo(data);
+}
+
+/**
+ * 修改指定字段
+ */
+export function updateUserField(field, value) {
+  return modifyMemberField(field, value);
+}
+
+/**
+ * 上传头像文件
+ */
+export function uploadUserAvatar(filePath) {
+  return uploadFile(filePath, 'file');
 }
  

@@ -138,6 +138,7 @@
               <text class="price-num">{{ formatPrice(sol.total) }}</text>
             </view>
             <view class="history-btns">
+              <button class="btn-history-del" @click.stop="handleDeleteHistoryQuote(sol)">删除</button>
               <button class="btn-history-edit" @click.stop="openPage('/pages/solution/edit', { id: sol.id })">编辑</button>
               <button class="btn-history-view" @click.stop="openPage('/pages/solution/share', { id: sol.id })">查看预览</button>
             </view>
@@ -275,7 +276,7 @@
       </view>
     </up-popup>
 
-    <!-- 添加设备弹窗 (搜索 / 选型) -->
+    <!-- 添加设备弹窗 (支持中央/家用分类、二级筛选与型号检索) -->
     <up-popup
       :show="showAddPanel"
       mode="bottom"
@@ -285,26 +286,27 @@
       @close="showAddPanel = false"
     >
       <view class="add-panel">
+        <!-- 顶部面板头部 -->
         <view class="panel-head">
           <view class="panel-head-left">
             <view class="panel-title-row">
-              <text class="popup-main-title">添加空调设备到报价单</text>
-              <text class="count-tag">已选 {{ quoteItems.length }} 款</text>
+              <text class="popup-main-title">选配设备加入报价单</text>
+              <text class="count-tag">已选 {{ quoteItems.length }} 款 ({{ totalCount }} 台)</text>
             </view>
-            <text class="popup-sub-title">已选设备面价总额：¥{{ formatPrice(totalPrice) }}</text>
+            <text class="popup-sub-title">可按中央空调、家用空调分类筛选或直接搜索型号</text>
           </view>
           <view class="panel-close-btn" @click="showAddPanel = false">
             <up-icon name="close" size="18" color="#647389" />
           </view>
         </view>
 
-        <!-- 弹窗搜索框 -->
+        <!-- 搜索框 -->
         <view class="panel-search-wrap">
           <view class="panel-search-bar">
             <up-icon name="search" size="20" color="#9aa5b5" />
             <input
               v-model="addSearchKeyword"
-              placeholder="搜索设备型号 (如 VK8R, VM, 室内机)..."
+              placeholder="输入型号(如 GMV、VK8R、35G)或品名搜索..."
               placeholder-class="placeholder"
             />
             <up-icon
@@ -317,32 +319,105 @@
           </view>
         </view>
 
+        <!-- 主场景/品类 Tab 切换 -->
+        <view class="scope-tabs">
+          <view
+            v-for="tab in candidateScopes"
+            :key="tab.id"
+            class="scope-tab-item"
+            :class="{ active: selectedScope === tab.id }"
+            @click="handleSelectScope(tab.id)"
+          >
+            <text class="scope-tab-title">{{ tab.name }}</text>
+          </view>
+        </view>
+
+        <!-- 二级细分分类胶囊 (Subcategory Chips) -->
+        <scroll-view v-if="availableSubCategories.length > 1" class="subcat-scroll" scroll-x :show-scrollbar="false">
+          <view class="subcat-list">
+            <view
+              v-for="sub in availableSubCategories"
+              :key="sub.id"
+              class="subcat-chip"
+              :class="{ active: selectedSubCategory === sub.id }"
+              @click="selectedSubCategory = sub.id"
+            >
+              <text>{{ sub.name }}</text>
+            </view>
+          </view>
+        </scroll-view>
+
         <!-- 候选商品列表 -->
         <scroll-view class="panel-product-list" scroll-y>
+          <!-- 空状态 -->
+          <view v-if="filteredCandidates.length === 0" class="panel-empty-box">
+            <image class="empty-icon-img" src="/static/aircon/central-default.png" mode="aspectFit" />
+            <text class="empty-text">未找到符合该分类条件的设备</text>
+            <button class="empty-reset-btn" @click="resetCandidateFilters">查看全部设备</button>
+          </view>
+
+          <!-- 商品卡片列表 -->
           <view
-            v-for="item in candidateProducts"
+            v-for="item in filteredCandidates"
             :key="item.goods_id || item.id"
             class="panel-product-item"
+            :class="{ 'is-selected-card': getItemCountInQuote(item) > 0 }"
           >
-            <image class="panel-p-img" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+            <view class="panel-p-img-wrap">
+              <image class="panel-p-img" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+              <text class="p-type-badge" :class="getTypeBadgeClass(item)">
+                {{ getProductTypeTag(item) }}
+              </text>
+            </view>
+
             <view class="panel-p-info">
               <view class="panel-p-model-row">
                 <text class="panel-p-model">{{ item.model || '标准型号' }}</text>
-                <text v-if="item.category_name" class="panel-p-series">{{ item.category_name }}</text>
               </view>
               <text class="panel-p-name">{{ item.goods_name || item.name }}</text>
               <text class="panel-p-spec">{{ item.spec || '高效节能 · 变频冷暖' }}</text>
-              <text class="panel-p-price">¥{{ formatPrice(item.price) }}</text>
+              
+              <view class="panel-p-bottom-row">
+                <view class="price-box">
+                  <text class="price-symbol">¥</text>
+                  <text class="price-num">{{ formatPrice(item.price) }}</text>
+                </view>
+                <text v-if="item.category_name" class="panel-p-series">{{ item.category_name }}</text>
+              </view>
             </view>
-            <button
-              class="panel-btn-add"
-              :class="{ 'is-in-quote': isItemInQuote(item) }"
-              @click="addProductToQuote(item)"
-            >
-              {{ isItemInQuote(item) ? '+ 再加1台' : '+ 加入' }}
-            </button>
+
+            <!-- 右侧加减与添加操作 -->
+            <view class="panel-action-box">
+              <view v-if="getItemCountInQuote(item) > 0" class="candidate-stepper">
+                <button class="step-btn minus" @click="changeCandidateItemQty(item, -1)">-</button>
+                <text class="step-val">{{ getItemCountInQuote(item) }}</text>
+                <button class="step-btn plus" @click="changeCandidateItemQty(item, 1)">+</button>
+              </view>
+              <button
+                v-else
+                class="panel-btn-add"
+                @click="addProductToQuote(item)"
+              >
+                + 加入
+              </button>
+            </view>
           </view>
         </scroll-view>
+
+        <!-- 弹窗底部汇总条 -->
+        <view class="panel-bottom-bar">
+          <view class="panel-bottom-info">
+            <text class="bottom-total-label">当前方案设备总额</text>
+            <view class="bottom-price-row">
+              <text class="bottom-symbol">¥</text>
+              <text class="bottom-price">{{ formatPrice(totalPrice) }}</text>
+              <text class="bottom-count">({{ totalCount }} 台设备)</text>
+            </view>
+          </view>
+          <button class="panel-confirm-btn" @click="showAddPanel = false">
+            完成选型 ({{ quoteItems.length }}款)
+          </button>
+        </view>
       </view>
     </up-popup>
   </view>
@@ -352,8 +427,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
-import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList } from '@/api/solution';
-import { getProductList } from '@/api/product';
+import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
+import { getProductList, getProductCategories } from '@/api/product';
 
 const safeTop = computed(() => {
   try {
@@ -371,11 +446,20 @@ const isLoading = ref(false);
 const showAddPanel = ref(false);
 const showPricePanel = ref(false);
 const addSearchKeyword = ref('');
+const selectedScope = ref('all'); // 'all' | 'central' | 'home' | 'accessory'
+const selectedSubCategory = ref('all');
 const pricingMode = ref('discount');
 const discountRate = ref(95);
 const customTotalInput = ref('');
 const taxRate = ref(13);
 const quoteRemark = ref('');
+
+const candidateScopes = [
+  { id: 'all', name: '全部品类' },
+  { id: 'central', name: '中央 / 多联机' },
+  { id: 'home', name: '家用空调' },
+  { id: 'accessory', name: '空气能 / 配件' }
+];
 
 const quoteItems = ref([]);
 const cartData = ref({
@@ -386,6 +470,119 @@ const cartData = ref({
 });
 const historySolutions = ref([]);
 const candidateProducts = ref([]);
+
+const isCentralProduct = (item) => {
+  const str = `${item.category_name || ''} ${item.name || ''} ${item.goods_name || ''} ${item.model || ''}`.toLowerCase();
+  return /大多联|多联机|商用|中央|gmv|vrf|风管|水机|daikin|大金|模块机/.test(str);
+};
+
+const isHomeProduct = (item) => {
+  const str = `${item.category_name || ''} ${item.name || ''} ${item.goods_name || ''} ${item.model || ''}`.toLowerCase();
+  return /家用|挂机|柜机|分体|美的|tcl|春兰|三菱电机|三菱重工|kfr-/.test(str) && !isCentralProduct(item);
+};
+
+const isAccessoryProduct = (item) => {
+  const str = `${item.category_name || ''} ${item.name || ''} ${item.goods_name || ''} ${item.model || ''}`.toLowerCase();
+  return /空气能|水之沁|线控|遥控|配件|晶弘|生活家电|风扇|电火锅|电饭煲|洗衣机|净水/.test(str);
+};
+
+const getProductTypeTag = (item) => {
+  if (isCentralProduct(item)) return '大多联/中央';
+  if (isHomeProduct(item)) return '家用空调';
+  if (isAccessoryProduct(item)) return '配件/辅材';
+  return item.category_name || '空调设备';
+};
+
+const getTypeBadgeClass = (item) => {
+  if (isCentralProduct(item)) return 'badge-central';
+  if (isHomeProduct(item)) return 'badge-home';
+  if (isAccessoryProduct(item)) return 'badge-accessory';
+  return 'badge-default';
+};
+
+const availableSubCategories = computed(() => {
+  let list = candidateProducts.value;
+  if (selectedScope.value === 'central') {
+    list = list.filter(isCentralProduct);
+  } else if (selectedScope.value === 'home') {
+    list = list.filter(isHomeProduct);
+  } else if (selectedScope.value === 'accessory') {
+    list = list.filter(isAccessoryProduct);
+  }
+  
+  const subSet = new Set();
+  list.forEach(item => {
+    if (item.category_name && item.category_name.trim()) {
+      subSet.add(item.category_name.trim());
+    }
+  });
+
+  const listChips = Array.from(subSet).map(name => ({ id: name, name }));
+  return [{ id: 'all', name: '全部' }, ...listChips];
+});
+
+const filteredCandidates = computed(() => {
+  let list = candidateProducts.value;
+
+  // 1. 大场景主分类过滤
+  if (selectedScope.value === 'central') {
+    list = list.filter(isCentralProduct);
+  } else if (selectedScope.value === 'home') {
+    list = list.filter(isHomeProduct);
+  } else if (selectedScope.value === 'accessory') {
+    list = list.filter(isAccessoryProduct);
+  }
+
+  // 2. 二级细分分类过滤
+  if (selectedSubCategory.value && selectedSubCategory.value !== 'all') {
+    list = list.filter(item => item.category_name === selectedSubCategory.value);
+  }
+
+  // 3. 关键词过滤（型号、品名、参数模糊匹配）
+  const kw = addSearchKeyword.value.trim().toLowerCase();
+  if (kw) {
+    list = list.filter(item => {
+      const target = `${item.model || ''} ${item.name || ''} ${item.goods_name || ''} ${item.category_name || ''} ${item.spec || ''}`.toLowerCase();
+      return target.includes(kw);
+    });
+  }
+
+  return list;
+});
+
+const handleSelectScope = (scopeId) => {
+  selectedScope.value = scopeId;
+  selectedSubCategory.value = 'all';
+};
+
+const resetCandidateFilters = () => {
+  selectedScope.value = 'all';
+  selectedSubCategory.value = 'all';
+  addSearchKeyword.value = '';
+};
+
+const getItemCountInQuote = (item) => {
+  const gId = item.goods_id || item.id;
+  const found = quoteItems.value.find(i => (i.goods_id || i.id) === gId);
+  return found ? (Number(found.quantity) || 1) : 0;
+};
+
+const changeCandidateItemQty = async (item, delta) => {
+  const gId = item.goods_id || item.id;
+  const target = quoteItems.value.find(i => (i.goods_id || i.id) === gId);
+  if (!target && delta > 0) {
+    await addProductToQuote(item);
+    return;
+  }
+  if (target) {
+    const currentQty = Number(target.quantity) || 1;
+    if (currentQty + delta <= 0) {
+      await removeItem(target.cart_item_id || target.id);
+    } else {
+      await changeItemQty(target, delta);
+    }
+  }
+};
 
 // 核心：计算与同步报价单价格与数量
 const recalculateCart = (items, mode = pricingMode.value, rate = discountRate.value, customTotal = customTotalInput.value, remark = quoteRemark.value) => {
@@ -494,18 +691,23 @@ const loadHistory = async () => {
     // 报价列表解包后是 QuotePageData，其中 data 才是当前页的数组。
     const serverList = Array.isArray(res?.data) ? res.data : [];
     if (serverList.length > 0) {
-      const serverMapped = serverList.map(item => ({
-        ...item,
-        id: item.quote_id || item.id,
-        title: item.quote_no ? `方案报价单 (${item.quote_no})` : '方案报价单',
-        subtitle: item.remark || `共 ${item.item_count || (item.items || []).length} 项设备`,
-        customerName: item.contact_name_snapshot || '贵宾客户',
-        date: item.create_time_text || item.create_time || '今日',
-        status: item.quote_status || 'draft',
-        items: item.items || Array(item.item_count || 1).fill({}),
-        totalPrice: item.pay_amount || item.total_price || 0
-      }));
-      historySolutions.value = [...localRecords, ...serverMapped.filter(s => !localRecords.some(l => l.id === s.id))];
+      const serverMapped = serverList.map(item => {
+        const itemPrice = item.pay_amount ?? item.total_price ?? item.totalPrice ?? item.total ?? 0;
+        return {
+          ...item,
+          id: item.quote_id || item.id,
+          quote_id: item.quote_id || item.id,
+          title: item.title || (item.quote_no ? `方案报价单 (${item.quote_no})` : '方案报价单'),
+          subtitle: item.remark || `共 ${item.item_count || (item.items || []).length} 项设备`,
+          customerName: item.contact_name_snapshot || '贵宾客户',
+          date: item.create_time_text || item.create_time || '今日',
+          status: item.quote_status || 'draft',
+          items: item.items || Array(item.item_count || 1).fill({}),
+          totalPrice: itemPrice,
+          total: itemPrice
+        };
+      });
+      historySolutions.value = [...serverMapped, ...localRecords.filter(l => !serverMapped.some(s => s.id === l.id))];
       return;
     }
   } catch(e) {
@@ -516,21 +718,75 @@ const loadHistory = async () => {
   historySolutions.value = localRecords;
 };
 
+const handleDeleteHistoryQuote = (sol) => {
+  const quoteId = sol.quote_id || sol.id;
+  uni.showModal({
+    title: '删除报价单',
+    content: `确定要删除「${sol.title || '该报价单'}」吗？删除后不可恢复。`,
+    confirmText: '确定删除',
+    confirmColor: '#ef4444',
+    cancelText: '取消',
+    success: async (res) => {
+      if (res.confirm) {
+        uni.showLoading({ title: '正在删除...' });
+        try {
+          if (quoteId) {
+            await deleteQuote(quoteId).catch((err) => {
+              console.warn('deleteQuote API warning:', err);
+            });
+          }
+
+          // 同步清理本地缓存与界面列表
+          const localRecords = (uni.getStorageSync('solution_history_records') || []).filter(
+            (r) => String(r.id) !== String(quoteId) && String(r.quote_id) !== String(quoteId)
+          );
+          uni.setStorageSync('solution_history_records', localRecords);
+
+          historySolutions.value = historySolutions.value.filter(
+            (s) => String(s.id) !== String(quoteId) && String(s.quote_id) !== String(quoteId)
+          );
+
+          uni.showToast({ title: '已删除报价单', icon: 'success' });
+          await loadHistory();
+        } catch (e) {
+          uni.showToast({ title: e?.message || '删除失败', icon: 'none' });
+        } finally {
+          uni.hideLoading();
+        }
+      }
+    }
+  });
+};
+
 const loadCandidates = async () => {
   try {
-    const res = await getProductList({ keyword: addSearchKeyword.value, limit: 30 });
+    const res = await getProductList({ keyword: addSearchKeyword.value || '', limit: 300 });
     const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
-    candidateProducts.value = list.map(item => ({
-      ...item,
-      id: item.goods_id || item.id,
-      goods_id: item.goods_id || item.id,
-      name: item.goods_name || item.name,
-      model: item.model || item.type || '标准型号',
-      category_name: item.category_name,
-      spec: item.spec || '高效节能 · 变频冷暖',
-      image: item.image || '/static/aircon/outdoor-unit.png',
-      price: Number(item.price || 0)
-    }));
+    if (list.length > 0) {
+      candidateProducts.value = list.map(item => {
+        const itemPrice = Number(item.price || item.cost || item.quote_price || item.chengbencost || item.mockUnitPrice || 0);
+        let specStr = item.spec;
+        if (!specStr) {
+          const specParts = [];
+          if (item.pishu) specParts.push(item.pishu);
+          if (item.nengxiao) specParts.push(`${item.nengxiao}能效`);
+          if (item.lengnuan) specParts.push(item.lengnuan);
+          if (item.db_type) specParts.push(item.db_type);
+          specStr = specParts.length > 0 ? specParts.join(' · ') : '高效节能 · 变频冷暖';
+        }
+        return {
+          ...item,
+          id: item.goods_id || item.id,
+          goods_id: item.goods_id || item.id,
+          name: item.goods_name || item.name || '空调设备',
+          model: item.model || item.type || '标准型号',
+          category_name: item.category_name,
+          spec: specStr,
+          image: item.image || (isCentralProduct(item) ? '/static/aircon/central-default.png' : (isHomeProduct(item) ? '/static/aircon/home-green.png' : '/static/aircon/outdoor-unit.png')),
+          price: itemPrice
+        };
+      });
+    }
   } catch(e) {
     console.error('loadCandidates error:', e);
   }
@@ -707,9 +963,15 @@ const exportQuote = async () => {
 
     await loadHistory();
     activeTab.value = 'history';
+
+    // 成功后自动打开客户预览报价单页面
+    setTimeout(() => {
+      openPage('/pages/solution/share', { id: createdQuote.quote_id });
+    }, 400);
   } catch (error) {
-    // 请求层已经负责展示后端错误；这里仅记录上下文，并保留当前报价单供用户重试。
     console.error('exportQuote error:', error);
+    const msg = error?.message || '生成报价单失败';
+    uni.showToast({ title: msg, icon: 'none', duration: 2500 });
   } finally {
     uni.hideLoading();
   }
@@ -1098,7 +1360,20 @@ const checkPendingProduct = async () => {
 
 .history-btns {
   display: flex;
+  align-items: center;
   gap: 12rpx;
+}
+
+.btn-history-del {
+  height: 56rpx;
+  padding: 0 20rpx;
+  border-radius: 28rpx;
+  background: #fff;
+  border: 1rpx solid #fee2e2;
+  color: #ef4444;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 54rpx;
 }
 
 .btn-history-edit {
@@ -1416,8 +1691,8 @@ const checkPendingProduct = async () => {
 
 /* 弹窗添加设备 */
 .add-panel {
-  max-height: 80vh;
-  padding: 28rpx 30rpx 40rpx;
+  max-height: 86vh;
+  padding: 28rpx 30rpx 20rpx;
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -1427,7 +1702,7 @@ const checkPendingProduct = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 22rpx;
+  padding-bottom: 20rpx;
   border-bottom: 1rpx solid #edf1f8;
 }
 
@@ -1464,15 +1739,15 @@ const checkPendingProduct = async () => {
 }
 
 .panel-search-wrap {
-  margin: 22rpx 0 16rpx;
+  margin: 18rpx 0 14rpx;
 }
 
 .panel-search-bar {
   display: flex;
   align-items: center;
-  height: 76rpx;
+  height: 72rpx;
   padding: 0 24rpx;
-  border-radius: 38rpx;
+  border-radius: 36rpx;
   background: #f4f7fc;
   border: 1rpx solid #e2ebf7;
 }
@@ -1480,29 +1755,179 @@ const checkPendingProduct = async () => {
 .panel-search-bar input {
   flex: 1;
   margin-left: 14rpx;
-  font-size: 26rpx;
+  font-size: 25rpx;
   color: #17233d;
 }
 
+/* 主分类 Tab */
+.scope-tabs {
+  display: flex;
+  background: #f1f4f9;
+  border-radius: 18rpx;
+  padding: 6rpx;
+  margin-bottom: 14rpx;
+}
+
+.scope-tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 14rpx;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: #ffffff;
+    box-shadow: 0 4rpx 12rpx rgba(18, 38, 77, 0.08);
+
+    .scope-tab-title {
+      color: #2468e8;
+      font-weight: 800;
+    }
+  }
+}
+
+.scope-tab-title {
+  color: #647389;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+/* 二级细分胶囊标签 */
+.subcat-scroll {
+  white-space: nowrap;
+  margin-bottom: 16rpx;
+}
+
+.subcat-list {
+  display: flex;
+  gap: 12rpx;
+  padding: 4rpx 2rpx;
+}
+
+.subcat-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 52rpx;
+  padding: 0 24rpx;
+  border-radius: 26rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  color: #475569;
+  font-size: 23rpx;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+
+  &.active {
+    background: #edf4ff;
+    border-color: #93c5fd;
+    color: #2468e8;
+    font-weight: 800;
+  }
+}
+
+/* 候选商品列表 */
 .panel-product-list {
-  max-height: 620rpx;
+  max-height: 520rpx;
+  min-height: 280rpx;
   overflow-y: auto;
+}
+
+.panel-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx 0;
+}
+
+.empty-icon-img {
+  width: 140rpx;
+  height: 140rpx;
+  opacity: 0.5;
+  margin-bottom: 16rpx;
+}
+
+.empty-text {
+  color: #8b95a7;
+  font-size: 25rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-reset-btn {
+  height: 60rpx;
+  padding: 0 32rpx;
+  border-radius: 30rpx;
+  background: #edf4ff;
+  color: #2468e8;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 60rpx;
+  border: 1rpx solid #bfdbfe;
 }
 
 .panel-product-item {
   display: flex;
   align-items: center;
-  padding: 22rpx 0;
-  border-bottom: 1rpx solid #edf1f8;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  border: 1rpx solid #edf1f8;
+  transition: all 0.2s ease;
+
+  &.is-selected-card {
+    background: #fcfdff;
+    border-color: #bfdbfe;
+    box-shadow: 0 4rpx 16rpx rgba(36, 104, 232, 0.08);
+  }
+}
+
+.panel-p-img-wrap {
+  position: relative;
+  width: 130rpx;
+  height: 130rpx;
+  margin-right: 20rpx;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .panel-p-img {
-  width: 124rpx;
-  height: 124rpx;
-  margin-right: 20rpx;
-  border-radius: 14rpx;
-  background: #f7f9fc;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.p-type-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2rpx 10rpx;
+  border-bottom-right-radius: 12rpx;
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 24rpx;
+
+  &.badge-central {
+    background: #2468e8;
+    color: #ffffff;
+  }
+
+  &.badge-home {
+    background: #10b981;
+    color: #ffffff;
+  }
+
+  &.badge-accessory {
+    background: #f59e0b;
+    color: #ffffff;
+  }
+
+  &.badge-default {
+    background: #64748b;
+    color: #ffffff;
+  }
 }
 
 .panel-p-info {
@@ -1517,25 +1942,16 @@ const checkPendingProduct = async () => {
 }
 
 .panel-p-model {
-  color: #17233d;
-  font-size: 29rpx;
+  color: #0f172a;
+  font-size: 28rpx;
   font-weight: 900;
-}
-
-.panel-p-series {
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  background: #edf4ff;
-  color: #2468e8;
-  font-size: 22rpx;
-  font-weight: 700;
 }
 
 .panel-p-name {
   display: block;
-  margin-top: 4rpx;
-  color: #556275;
-  font-size: 25rpx;
+  margin-top: 2rpx;
+  color: #475569;
+  font-size: 24rpx;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1545,39 +1961,159 @@ const checkPendingProduct = async () => {
 .panel-p-spec {
   display: block;
   margin-top: 4rpx;
-  color: #8b95a7;
-  font-size: 23rpx;
+  color: #94a3b8;
+  font-size: 22rpx;
 }
 
-.panel-p-price {
-  display: block;
-  margin-top: 6rpx;
-  color: #ef543f;
-  font-size: 30rpx;
+.panel-p-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+
+.price-box {
+  display: flex;
+  align-items: baseline;
+}
+
+.price-symbol {
+  color: #ef4444;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.price-num {
+  color: #ef4444;
+  font-size: 32rpx;
   font-weight: 900;
+  margin-left: 2rpx;
+}
+
+.panel-p-series {
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+/* 操作区域 */
+.panel-action-box {
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.candidate-stepper {
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 32rpx;
+  padding: 4rpx;
+  border: 1rpx solid #e2e8f0;
+}
+
+.step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 48rpx;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.06);
+
+  &.plus {
+    background: #2468e8;
+    color: #ffffff;
+  }
+}
+
+.step-val {
+  min-width: 44rpx;
+  text-align: center;
+  font-size: 25rpx;
+  font-weight: 800;
+  color: #0f172a;
+  padding: 0 6rpx;
 }
 
 .panel-btn-add {
-  height: 58rpx;
+  height: 56rpx;
   padding: 0 28rpx;
-  margin: 0 0 0 16rpx;
-  border-radius: 29rpx;
+  border-radius: 28rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 25rpx;
+  font-size: 24rpx;
   font-weight: 800;
-  line-height: 58rpx;
-  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
-  flex-shrink: 0;
+  line-height: 56rpx;
+  box-shadow: 0 4rpx 12rpx rgba(36, 104, 232, 0.25);
   border: none;
-
-  &.is-in-quote {
-    background: #edf4ff;
-    color: #2468e8;
-    box-shadow: none;
-    border: 1rpx solid #c7dcff;
-  }
 }
+
+/* 弹窗底部汇总条 */
+.panel-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 18rpx;
+  margin-top: 12rpx;
+  border-top: 1rpx solid #edf1f8;
+}
+
+.panel-bottom-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-total-label {
+  color: #8b95a7;
+  font-size: 21rpx;
+  font-weight: 600;
+}
+
+.bottom-price-row {
+  display: flex;
+  align-items: baseline;
+  margin-top: 2rpx;
+}
+
+.bottom-symbol {
+  color: #ef4444;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.bottom-price {
+  color: #ef4444;
+  font-size: 34rpx;
+  font-weight: 900;
+  margin-left: 2rpx;
+}
+
+.bottom-count {
+  color: #64748b;
+  font-size: 22rpx;
+  margin-left: 8rpx;
+}
+
+.panel-confirm-btn {
+  height: 72rpx;
+  padding: 0 36rpx;
+  border-radius: 36rpx;
+  background: #2468e8;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 800;
+  line-height: 72rpx;
+  box-shadow: 0 6rpx 18rpx rgba(36, 104, 232, 0.3);
+}
+
 .skeleton-block {
   background: #e2e8f0;
   background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);

@@ -74,6 +74,11 @@ export function getSolutionDetail(id) {
   return apiGet(`crm/quote/${id}`);
 }
 
+/** 删除历史报价单 */
+export function deleteQuote(id) {
+  return apiDelete(`crm/quote/${id}`);
+}
+
 /** 发送报价 */
 export function sendQuote(id) {
   return apiPut(`crm/quote/${id}/send`);

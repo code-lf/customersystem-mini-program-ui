@@ -139,7 +139,7 @@ function handleResponse(response, options = {}) {
   const messageField = responseConfig.messageField || 'msg';
   const businessCode = body && typeof body === 'object' ? body[codeField] : undefined;
   const hasBusinessCode = businessCode !== undefined && businessCode !== null;
-  const successCodes = responseConfig.successCodes || [0, 200];
+  const successCodes = responseConfig.successCodes || [1, 200];
   const statusSuccess = statusCode >= 200 && statusCode < 300;
   const businessSuccess = !hasBusinessCode || successCodes.some((code) => String(code) === String(businessCode));
 

@@ -25,6 +25,16 @@ export function getMemberInfo() {
   return apiGet('member/member', {}, getMemberRequestOptions());
 }
 
+/** 修改会员资料 (整体更新) */
+export function updateMemberInfo(data = {}) {
+  return apiPut('member/member', data, getMemberRequestOptions());
+}
+
+/** 修改特定会员字段 (如 nickname, headimg) */
+export function modifyMemberField(field, value) {
+  return apiPut(`member/modify/${field}`, { [field]: value }, getMemberRequestOptions());
+}
+
 export function getBalance() {
   return apiGet('member/account/balance', {}, getMemberRequestOptions());
 }

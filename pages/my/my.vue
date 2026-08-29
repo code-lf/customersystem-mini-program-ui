@@ -12,8 +12,8 @@
       <template v-else>
   
     <!-- 用户身份卡片 -->
-    <view class="profile-card" @click="handleProfileClick">
-      <view class="user-avatar-wrap">
+    <view class="profile-card">
+      <view class="user-avatar-wrap" @click.stop="handleAvatarOrEditClick">
         <image
           v-if="userStore.isLoggedIn && (userStore.userInfo.avatar || userStore.userInfo.headimg)"
           class="user-avatar"
@@ -23,11 +23,15 @@
         <view v-else class="avatar-placeholder">
           <up-icon name="account" size="32" color="#8c9cb0" />
         </view>
-        <view class="avatar-verified-dot" :class="{ 'avatar-dot--unverified': !userStore.isLoggedIn }">
-          <up-icon :name="userStore.isLoggedIn ? 'checkmark' : 'lock'" size="10" color="#fff" />
+        <view v-if="userStore.isLoggedIn" class="avatar-camera-badge">
+          <up-icon name="camera-fill" size="11" color="#fff" />
+        </view>
+        <view v-else class="avatar-verified-dot avatar-dot--unverified">
+          <up-icon name="lock" size="10" color="#fff" />
         </view>
       </view>
-      <view class="profile-info">
+
+      <view class="profile-info" @click="handleProfileClick">
         <view class="name-line">
           <text class="user-name">{{ userStore.isLoggedIn ? (userStore.userInfo.nickname || userStore.userInfo.username || '格宏用户') : '点击登录/注册' }}</text>
           <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn }">
@@ -43,7 +47,12 @@
           <text class="user-mobile">{{ userStore.isLoggedIn ? (userStore.userInfo.mobile || userStore.userInfo.username || '已认证账号') : '账号密码 / 手机号一键登录' }}</text>
         </view>
       </view>
-      <view class="profile-arrow">
+
+      <!-- 修改设置 / 个人资料设置 齿轮图标按钮 -->
+      <view v-if="userStore.isLoggedIn" class="profile-setting-btn" @click.stop="openEditProfileModal">
+        <up-icon name="setting" size="20" color="#627792" />
+      </view>
+      <view v-else class="profile-arrow" @click="handleProfileClick">
         <up-icon name="arrow-right" size="18" color="#9bb0cc" />
       </view>
     </view>
@@ -118,6 +127,159 @@
       </button>
     </view>
 
+    <!-- 修改用户资料 / 设置 底部抽屉弹窗 -->
+    <up-popup
+      :show="showEditProfileModal"
+      mode="bottom"
+      round="28"
+      :closeable="false"
+      @close="showEditProfileModal = false"
+    >
+      <view class="edit-profile-panel">
+        <view class="edit-panel-header">
+          <view class="edit-header-left">
+            <text class="edit-panel-title">修改个人资料</text>
+            <text class="edit-panel-subtitle">定制您在报价单与系统中的展示信息</text>
+          </view>
+          <view class="edit-close-btn" @click="showEditProfileModal = false">
+            <up-icon name="close" size="18" color="#647389" />
+          </view>
+        </view>
+
+        <scroll-view scroll-y class="edit-panel-scroll">
+          <view class="edit-panel-body">
+            <!-- 头像选择与上传 -->
+            <view class="avatar-edit-section">
+              <view class="avatar-preview-box" @click="chooseAvatarImage">
+                <view class="avatar-preview-wrap">
+                  <image
+                    class="avatar-preview-img"
+                    :src="editForm.avatar || '/static/avatars/avatar-demo.png'"
+                    mode="aspectFill"
+                  />
+                </view>
+                <view class="avatar-change-badge">
+                  <up-icon name="camera-fill" size="12" color="#ffffff" />
+                </view>
+              </view>
+              <text class="avatar-tip-text">点击头像或通过下方方式更换</text>
+
+              <view class="avatar-action-btns">
+                <!-- #ifdef MP-WEIXIN -->
+                <button class="btn-avatar-source wx" open-type="chooseAvatar" @chooseavatar="onChooseWxAvatar">
+                  <up-icon name="weixin-fill" size="14" color="#07c160" />
+                  <text>微信头像</text>
+                </button>
+                <!-- #endif -->
+                <button class="btn-avatar-source" @click="chooseAvatarImage">
+                  <up-icon name="photo" size="14" color="#2468e8" />
+                  <text>相册 / 拍照</text>
+                </button>
+              </view>
+
+              <!-- 精选头像预设：支持国风/中国风、动漫二次元、商务暖通分类 -->
+              <view class="preset-avatars-wrap">
+                <view class="preset-header-row">
+                  <text class="preset-label">精选头像风格：</text>
+                  <view class="preset-category-tabs">
+                    <view
+                      v-for="cat in avatarCategories"
+                      :key="cat.key"
+                      class="cat-tab-item"
+                      :class="{ active: currentAvatarCat === cat.key }"
+                      @click="currentAvatarCat = cat.key"
+                    >
+                      <text>{{ cat.name }}</text>
+                    </view>
+                  </view>
+                </view>
+
+                <view class="preset-list">
+                  <view
+                    v-for="item in currentPresetList"
+                    :key="item.id"
+                    class="preset-item-wrap"
+                    :class="{ active: editForm.avatar === item.url }"
+                    @click="editForm.avatar = item.url"
+                  >
+                    <image class="preset-item-img" :src="item.url" mode="aspectFill" />
+                    <view v-if="editForm.avatar === item.url" class="preset-check">
+                      <up-icon name="checkmark" size="9" color="#fff" />
+                    </view>
+                    <text class="preset-item-name">{{ item.name.split('·')[1] || item.name }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <!-- 资料输入项 -->
+            <view class="edit-form-group">
+              <view class="form-item">
+                <view class="form-item-label-row">
+                  <text class="form-label">用户姓名 / 昵称</text>
+                  <text class="form-required">*</text>
+                </view>
+                <view class="form-input-wrap">
+                  <input
+                    v-model="editForm.nickname"
+                    type="nickname"
+                    class="form-input"
+                    placeholder="请输入您的姓名或昵称"
+                    maxlength="20"
+                  />
+                  <view v-if="editForm.nickname" class="clear-btn" @click="editForm.nickname = ''">
+                    <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
+                  </view>
+                </view>
+              </view>
+
+              <view class="form-item">
+                <view class="form-item-label-row">
+                  <text class="form-label">认证企业 / 经销商名称</text>
+                </view>
+                <view class="form-input-wrap">
+                  <input
+                    v-model="editForm.company_name"
+                    class="form-input"
+                    placeholder="请输入所属暖通公司或门店名称"
+                    maxlength="30"
+                  />
+                  <view v-if="editForm.company_name" class="clear-btn" @click="editForm.company_name = ''">
+                    <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
+                  </view>
+                </view>
+              </view>
+
+              <view class="form-item">
+                <view class="form-item-label-row">
+                  <text class="form-label">服务职位 / 身份</text>
+                </view>
+                <view class="form-input-wrap">
+                  <input
+                    v-model="editForm.position"
+                    class="form-input"
+                    placeholder="如：暖通工程师、销售总监、专属顾问"
+                    maxlength="20"
+                  />
+                  <view v-if="editForm.position" class="clear-btn" @click="editForm.position = ''">
+                    <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- 底部提交操作 -->
+        <view class="edit-panel-footer">
+          <button class="btn-cancel" @click="showEditProfileModal = false">取消</button>
+          <button class="btn-save-profile" :disabled="isSaving" :loading="isSaving" @click="handleSaveProfile">
+            保存个人信息
+          </button>
+        </view>
+      </view>
+    </up-popup>
+
     </template>
     <view class="tabbar-space" />
   </view>
@@ -127,12 +289,128 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
-import { getBalance } from '@/api/member';
+import { getBalance, updateMemberInfo } from '@/api/member';
+import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
+import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 
 const isLoading = ref(true);
+const isSaving = ref(false);
 const userStore = useUserStore();
 const balance = reactive({ money: 0, balance: 0 });
+
+const showEditProfileModal = ref(false);
+const currentAvatarCat = ref('guofeng');
+const avatarCategories = AVATAR_CATEGORIES;
+
+const currentPresetList = computed(() => {
+  return PRESET_AVATAR_GROUPS[currentAvatarCat.value] || PRESET_AVATAR_GROUPS.guofeng || [];
+});
+
+const editForm = reactive({
+  nickname: '',
+  avatar: '',
+  company_name: '',
+  position: ''
+});
+
+const handleAvatarOrEditClick = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+  } else {
+    openEditProfileModal();
+  }
+};
+
+const openEditProfileModal = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+    return;
+  }
+  const u = userStore.userInfo || {};
+  editForm.nickname = u.nickname || u.username || '张工';
+  editForm.avatar = u.avatar || u.headimg || '/static/avatars/avatar-demo.png';
+  editForm.company_name = u.company_name || '格宏电器科技有限公司';
+  editForm.position = u.position || '销售工程师';
+  showEditProfileModal.value = true;
+};
+
+// 微信小程序 chooseAvatar 快速获取
+const onChooseWxAvatar = (e) => {
+  const avatarUrl = e?.detail?.avatarUrl;
+  if (avatarUrl) {
+    editForm.avatar = avatarUrl;
+    uni.showToast({ title: '已选择微信头像', icon: 'none' });
+  }
+};
+
+// 从手机相册或拍照选择
+const chooseAvatarImage = () => {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (res) => {
+      const tempFilePath = res.tempFilePaths[0];
+      if (!tempFilePath) return;
+
+      editForm.avatar = tempFilePath;
+      uni.showLoading({ title: '正在上传头像...' });
+      try {
+        const uploadRes = await uploadFile(tempFilePath).catch(() => null);
+        if (uploadRes && (uploadRes.url || uploadRes.file_path)) {
+          editForm.avatar = uploadRes.url || uploadRes.file_path;
+        }
+        uni.showToast({ title: '头像已就绪', icon: 'success' });
+      } catch (err) {
+        // 本地预览仍保留
+        uni.showToast({ title: '已选择图片', icon: 'none' });
+      } finally {
+        uni.hideLoading();
+      }
+    }
+  });
+};
+
+// 保存修改
+const handleSaveProfile = async () => {
+  const nickname = editForm.nickname.trim();
+  if (!nickname) {
+    uni.showToast({ title: '请输入姓名或昵称', icon: 'none' });
+    return;
+  }
+
+  isSaving.value = true;
+  uni.showLoading({ title: '正在保存资料...' });
+  try {
+    const payload = {
+      nickname: nickname,
+      headimg: editForm.avatar,
+      avatar: editForm.avatar,
+      company_name: editForm.company_name.trim() || '格宏电器科技有限公司',
+      position: editForm.position.trim() || '销售工程师'
+    };
+
+    await updateMemberInfo(payload).catch((err) => {
+      console.warn('updateMemberInfo API warn:', err);
+    });
+
+    // 同步更新 Pinia Store 与 Storage
+    const updated = {
+      ...userStore.userInfo,
+      ...payload
+    };
+    userStore.setUserInfo(updated);
+
+    uni.showToast({ title: '个人资料已更新', icon: 'success' });
+    showEditProfileModal.value = false;
+  } catch (error) {
+    uni.showToast({ title: error?.message || '保存失败，请重试', icon: 'none' });
+  } finally {
+    isSaving.value = false;
+    uni.hideLoading();
+  }
+};
 
 const displayBalance = computed(() => {
   if (!userStore.isLoggedIn) return '--';
@@ -305,6 +583,41 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   border-radius: 50%;
   background: #2468e8;
   border: 3rpx solid #fff;
+}
+
+.avatar-camera-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+  border: 3rpx solid #fff;
+  box-shadow: 0 4rpx 10rpx rgba(36, 104, 232, 0.35);
+}
+
+.profile-setting-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1rpx solid #e2e8f0;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.92);
+    background: #e2e8f0;
+  }
 }
 
 .profile-info {
@@ -582,6 +895,332 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 .tabbar-space {
   height: 160rpx;
 }
+
+/* 个人资料修改设置弹窗 */
+.edit-profile-panel {
+  background: #ffffff;
+  padding: 32rpx 32rpx calc(env(safe-area-inset-bottom) + 32rpx);
+  border-top-left-radius: 36rpx;
+  border-top-right-radius: 36rpx;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.edit-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-panel-title {
+  color: #0f172a;
+  font-size: 32rpx;
+  font-weight: 800;
+}
+
+.edit-panel-subtitle {
+  color: #94a3b8;
+  font-size: 23rpx;
+  margin-top: 4rpx;
+}
+
+.edit-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #f1f5f9;
+}
+
+.edit-panel-scroll {
+  max-height: 62vh;
+  flex: 1;
+}
+
+.edit-panel-body {
+  padding: 24rpx 0 10rpx;
+}
+
+/* 头像编辑区域 */
+.avatar-edit-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx dashed #e2e8f0;
+}
+
+.avatar-preview-box {
+  position: relative;
+  width: 144rpx;
+  height: 144rpx;
+  cursor: pointer;
+}
+
+.avatar-preview-wrap {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4rpx solid #2468e8;
+  box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.18);
+  background: #f8fafc;
+}
+
+.avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.avatar-change-badge {
+  position: absolute;
+  right: -4rpx;
+  bottom: -4rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+  border: 4rpx solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 10rpx rgba(36, 104, 232, 0.35);
+}
+
+.avatar-tip-text {
+  color: #94a3b8;
+  font-size: 21rpx;
+  margin-top: 14rpx;
+}
+
+.avatar-action-btns {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 18rpx;
+}
+
+.btn-avatar-source {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 54rpx;
+  padding: 0 24rpx;
+  border-radius: 27rpx;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 23rpx;
+  font-weight: 600;
+  line-height: 54rpx;
+  border: none;
+
+  &.wx {
+    background: #e8f8ee;
+    color: #07c160;
+  }
+}
+
+.preset-avatars-wrap {
+  width: 100%;
+  margin-top: 24rpx;
+  background: #f8fafc;
+  padding: 20rpx 20rpx 16rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid #f1f5f9;
+}
+
+.preset-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.preset-label {
+  color: #334155;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.preset-category-tabs {
+  display: flex;
+  gap: 8rpx;
+  background: #e2e8f0;
+  padding: 4rpx;
+  border-radius: 24rpx;
+}
+
+.cat-tab-item {
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #64748b;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: #ffffff;
+    color: #2468e8;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  }
+}
+
+.preset-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+  justify-items: center;
+}
+
+.preset-item-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.2s ease;
+
+  &.active {
+    border-color: #2468e8;
+    background: #edf4ff;
+    box-shadow: 0 4rpx 12rpx rgba(36, 104, 232, 0.18);
+  }
+}
+
+.preset-item-img {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.preset-item-name {
+  color: #64748b;
+  font-size: 19rpx;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.preset-check {
+  position: absolute;
+  right: 12rpx;
+  top: 60rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: #2468e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #fff;
+}
+
+/* 资料表单区域 */
+.edit-form-group {
+  margin-top: 20rpx;
+}
+
+.form-item {
+  margin-bottom: 22rpx;
+}
+
+.form-item-label-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+
+.form-label {
+  color: #334155;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.form-required {
+  color: #ef4444;
+  margin-left: 6rpx;
+  font-size: 24rpx;
+}
+
+.form-input-wrap {
+  display: flex;
+  align-items: center;
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 18rpx;
+  transition: all 0.2s ease;
+
+  &:focus-within {
+    border-color: #2468e8;
+    background: #ffffff;
+    box-shadow: 0 0 0 4rpx rgba(36, 104, 232, 0.08);
+  }
+}
+
+.form-input {
+  flex: 1;
+  font-size: 26rpx;
+  color: #0f172a;
+}
+
+.clear-btn {
+  padding: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 弹窗底部操作条 */
+.edit-panel-footer {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 36rpx;
+}
+
+.btn-cancel {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 80rpx;
+  border: none;
+}
+
+.btn-save-profile {
+  flex: 2;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 800;
+  line-height: 80rpx;
+  border: none;
+  box-shadow: 0 6rpx 20rpx rgba(36, 104, 232, 0.3);
+}
+
 .skeleton-block {
   background: #e2e8f0;
   background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);

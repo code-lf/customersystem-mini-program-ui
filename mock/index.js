@@ -284,6 +284,28 @@ export default function mockRequest({ method = 'GET', url = '', data = {} } = {}
   if (key === 'POST login' || key === 'POST login/mobile' || key === 'POST weapp/login') return success({ token: state.token, user: state.user });
   if (key === 'POST logout') { state.token = ''; return success(true); }
   if (key === 'GET member/member') return success(state.user);
+  if (key === 'PUT member/member') {
+    state.user = { ...state.user, ...(data || {}) };
+    if (data?.headimg && !data?.avatar) state.user.avatar = data.headimg;
+    if (data?.avatar && !data?.headimg) state.user.headimg = data.avatar;
+    return success(state.user);
+  }
+  if (key === 'PUT member/modify/nickname') {
+    state.user.nickname = data?.nickname || state.user.nickname;
+    return success(state.user);
+  }
+  if (key === 'PUT member/modify/headimg') {
+    state.user.headimg = data?.headimg || state.user.headimg;
+    state.user.avatar = data?.headimg || state.user.avatar;
+    return success(state.user);
+  }
+  if (key === 'POST common/upload' || key === 'POST file/image') {
+    return success({
+      url: data?.filePath || '/static/avatars/avatar-demo.png',
+      file_path: data?.filePath || '/static/avatars/avatar-demo.png',
+      id: Date.now()
+    });
+  }
   if (key === 'GET member/account/balance') return success(state.balance);
   if (key === 'GET member/account/balance_list') {
     const tradeType = String(data.trade_type || '');
