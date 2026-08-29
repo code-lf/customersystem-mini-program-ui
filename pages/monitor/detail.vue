@@ -3,6 +3,31 @@
 import { onMounted, ref } from 'vue';
 import { getMonitorList } from '@/api/monitor';
 import { getPageOptions } from '@/utils/pages';
-const item=ref(null); onMounted(async()=>{const options=getPageOptions();const result=await getMonitorList();item.value=(result.list||[]).find(row=>String(row.productId)===String(options.productId));});
+
+const item = ref(null);
+onMounted(async () => {
+  try {
+    const options = getPageOptions();
+    const result = await getMonitorList();
+    const watches = result.data || [];
+    const watch = watches.find(row => String(row.goods_id) === String(options.productId));
+    if (watch) {
+      item.value = {
+        product: {
+          name: watch.goods_name_snapshot,
+          model: watch.model_snapshot,
+          image: watch.image_snapshot
+        },
+        currentPrice: watch.last_price || watch.base_price,
+        history: [
+          { date: watch.create_time_text, price: watch.base_price }
+        ]
+      };
+      if (watch.last_price && watch.last_price !== watch.base_price) {
+        item.value.history.unshift({ date: watch.last_notify_time_text || '最近', price: watch.last_price });
+      }
+    }
+  } catch(e) {}
+});
 </script>
 <style lang="scss" scoped>.product{display:flex;align-items:center}.product image{width:150rpx;height:150rpx;margin-right:20rpx;background:#f4f8ff;border-radius:14rpx}.product text{display:block}.product text:first-child{color:#17233d;font-size:28rpx;font-weight:600}.product text:last-child{margin-top:8rpx;color:#8b95a7;font-size:22rpx}.current{display:flex;justify-content:space-between;padding:30rpx 0;margin-top:24rpx;border-top:1rpx solid #edf0f5;border-bottom:1rpx solid #edf0f5;color:#8b95a7;font-size:25rpx}.current text:last-child{color:#ef543f;font-size:38rpx;font-weight:700}.history-title{margin-top:26rpx;color:#17233d;font-size:28rpx;font-weight:600}.history-row{display:flex;justify-content:space-between;padding:18rpx 0;color:#718098;font-size:24rpx;border-bottom:1rpx solid #edf0f5}.history-row text:last-child{color:#17233d}</style>

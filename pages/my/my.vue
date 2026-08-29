@@ -12,31 +12,35 @@
       <template v-else>
   
     <!-- 用户身份卡片 -->
-    <view class="profile-card" @click="openPage('/pages/member/profile')">
+    <view class="profile-card" @click="handleProfileClick">
       <view class="user-avatar-wrap">
         <image
+          v-if="userStore.isLoggedIn && (userStore.userInfo.avatar || userStore.userInfo.headimg)"
           class="user-avatar"
-          :src="userStore.userInfo.avatar || '/static/avatars/avatar-demo.png'"
+          :src="userStore.userInfo.avatar || userStore.userInfo.headimg"
           mode="aspectFill"
         />
-        <view class="avatar-verified-dot">
-          <up-icon name="checkmark" size="10" color="#fff" />
+        <view v-else class="avatar-placeholder">
+          <up-icon name="account" size="32" color="#8c9cb0" />
+        </view>
+        <view class="avatar-verified-dot" :class="{ 'avatar-dot--unverified': !userStore.isLoggedIn }">
+          <up-icon :name="userStore.isLoggedIn ? 'checkmark' : 'lock'" size="10" color="#fff" />
         </view>
       </view>
       <view class="profile-info">
         <view class="name-line">
-          <text class="user-name">{{ userStore.userInfo.nickname || '张工' }}</text>
-          <view class="vip-role-badge">
-            <text>认证服务商</text>
+          <text class="user-name">{{ userStore.isLoggedIn ? (userStore.userInfo.nickname || userStore.userInfo.username || '格宏用户') : '点击登录/注册' }}</text>
+          <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn }">
+            <text>{{ userStore.isLoggedIn ? (userStore.userInfo.role_name || userStore.userInfo.member_level_name || '认证会员') : '未登录' }}</text>
           </view>
         </view>
         <view class="meta-row">
-          <up-icon name="home" size="13" color="#7a8b9e" />
-          <text class="company-name">{{ userStore.userInfo.company_name || '格宏暖通科技有限公司' }}</text>
+          <up-icon :name="userStore.isLoggedIn ? 'home' : 'lock'" size="13" color="#7a8b9e" />
+          <text class="company-name">{{ userStore.isLoggedIn ? (userStore.userInfo.company_name || '格宏电器科技有限公司') : '登录后查看专属经销商政策与报价' }}</text>
         </view>
         <view class="meta-row">
-          <up-icon name="phone" size="13" color="#9aa7b8" />
-          <text class="user-mobile">{{ userStore.userInfo.mobile || '138 8888 8888' }}</text>
+          <up-icon :name="userStore.isLoggedIn ? 'phone' : 'info-circle'" size="13" color="#9aa7b8" />
+          <text class="user-mobile">{{ userStore.isLoggedIn ? (userStore.userInfo.mobile || userStore.userInfo.username || '已认证账号') : '账号密码 / 手机号一键登录' }}</text>
         </view>
       </view>
       <view class="profile-arrow">
@@ -46,22 +50,22 @@
 
     <!-- 资金与账户资产卡片 -->
     <view class="balance-card">
-      <view class="balance-item" @click="openPage('/pages/member/balance')">
+      <view class="balance-item" @click="handleBalanceClick">
         <text class="b-label">账户可用余额 (元)</text>
         <view class="b-price-row">
           <text class="b-symbol">¥</text>
-          <text class="b-val">{{ formatMoney(balance.money || 12850) }}</text>
+          <text class="b-val">{{ userStore.isLoggedIn ? formatMoney(displayBalance) : '--' }}</text>
         </view>
       </view>
       <view class="balance-divider" />
-      <view class="balance-item" @click="openPage('/pages/member/balance')">
-        <text class="b-label">待结算金额 (元)</text>
+      <view class="balance-item" @click="handleBalanceClick">
+        <text class="b-label">账户收益 / 零钱 (元)</text>
         <view class="b-price-row b-price-row--sub">
           <text class="b-symbol">¥</text>
-          <text class="b-val">{{ formatMoney(balance.balance || 3600) }}</text>
+          <text class="b-val">{{ userStore.isLoggedIn ? formatMoney(displayMoney) : '--' }}</text>
         </view>
       </view>
-      <button class="withdraw-btn" @click="openPage('/pages/member/balance')">提现</button>
+      <button class="withdraw-btn" @click="handleWithdrawClick">{{ userStore.isLoggedIn ? '提现' : '去登录' }}</button>
     </view>
 
     <!-- 常用业务快捷入口 4 宫格 -->
@@ -102,6 +106,18 @@
       </view>
     </view>
 
+    <!-- 登录/退出操作按钮 -->
+    <view class="auth-action-box">
+      <button v-if="userStore.isLoggedIn" class="logout-btn" @click="handleLogout">
+        <up-icon name="reload" size="16" color="#8b95a7" />
+        <text>切换 / 重新登录账号</text>
+      </button>
+      <button v-else class="login-action-btn" @click="openPage('/pages/auth/login')">
+        <up-icon name="weixin-fill" size="18" color="#ffffff" />
+        <text>微信 / 手机号一键登录与注册</text>
+      </button>
+    </view>
+
     </template>
     <view class="tabbar-space" />
   </view>
@@ -109,18 +125,91 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getBalance } from '@/api/member';
-import { openPage } from '@/utils/pages';
-
+import { openPage, replacePage } from '@/utils/pages';
 
 const isLoading = ref(true);
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 400);
+const userStore = useUserStore();
+const balance = reactive({ money: 0, balance: 0 });
+
+const displayBalance = computed(() => {
+  if (!userStore.isLoggedIn) return '--';
+  if (userStore.userInfo && userStore.userInfo.balance !== undefined && userStore.userInfo.balance !== null) {
+    return userStore.userInfo.balance;
+  }
+  return balance.balance ?? 0;
 });
 
-const userStore = useUserStore();
-const balance = reactive({ money: 12850, balance: 3600 });
+const displayMoney = computed(() => {
+  if (!userStore.isLoggedIn) return '--';
+  if (userStore.userInfo && (userStore.userInfo.money !== undefined || userStore.userInfo.commission !== undefined)) {
+    return userStore.userInfo.money ?? userStore.userInfo.commission ?? 0;
+  }
+  return balance.money ?? 0;
+});
+
+const handleBalanceClick = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+  } else {
+    openPage('/pages/member/balance');
+  }
+};
+
+const handleWithdrawClick = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+  } else {
+    openPage('/pages/member/balance');
+  }
+};
+
+const refreshMemberData = async () => {
+  if (userStore.token) {
+    await userStore.fetchUserInfo().catch(() => {});
+    try {
+      const res = await getBalance();
+      if (res && (res.money !== undefined || res.balance !== undefined)) {
+        Object.assign(balance, res);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+};
+
+onShow(() => {
+  refreshMemberData();
+});
+
+onMounted(async () => {
+  await refreshMemberData();
+  setTimeout(() => { isLoading.value = false }, 300);
+});
+
+const handleProfileClick = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+  } else {
+    openPage('/pages/member/profile');
+  }
+};
+
+const handleLogout = () => {
+  uni.showModal({
+    title: '提示',
+    content: '确定要切换或重新登录账号吗？',
+    confirmText: '去登录',
+    success: (res) => {
+      if (res.confirm) {
+        userStore.logout();
+        openPage('/pages/auth/login');
+      }
+    }
+  });
+};
 
 const safeTop = computed(() => {
   try {
@@ -149,17 +238,6 @@ const menus = [
 ];
 
 const formatMoney = (value) => Number(value || 0).toLocaleString();
-
-onMounted(async () => {
-  try {
-    const res = await getBalance();
-    if (res && res.money !== undefined) {
-      Object.assign(balance, res);
-    }
-  } catch (e) {
-    // ignore
-  }
-});
 </script>
 
 <style lang="scss" scoped>
@@ -200,6 +278,19 @@ onMounted(async () => {
   background: #edf4ff;
   border: 4rpx solid #fff;
   box-shadow: 0 4rpx 16rpx rgba(36, 104, 232, 0.12);
+  display: block;
+}
+
+.avatar-placeholder {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #edf3fa;
+  border: 4rpx solid #fff;
+  box-shadow: 0 4rpx 16rpx rgba(36, 104, 232, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .avatar-verified-dot {
@@ -243,6 +334,58 @@ onMounted(async () => {
   font-size: 20rpx;
   font-weight: 700;
   box-shadow: 0 2rpx 8rpx rgba(36, 104, 232, 0.25);
+}
+
+.vip-role-badge.role-badge--unlogin {
+  background: #e2e8f0;
+  color: #64748b;
+  box-shadow: none;
+}
+
+.vip-role-badge.role-badge--normal {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2rpx 8rpx rgba(16, 185, 129, 0.25);
+}
+
+.avatar-verified-dot.avatar-dot--unverified {
+  background: #9aa7b8;
+}
+
+.auth-action-box {
+  margin-top: 28rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.logout-btn {
+  width: 100%;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  color: #64748b;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.login-action-btn {
+  width: 100%;
+  height: 88rpx;
+  border-radius: 44rpx;
+  background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.25);
 }
 
 .meta-row {

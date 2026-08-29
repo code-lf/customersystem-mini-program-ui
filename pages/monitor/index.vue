@@ -99,35 +99,54 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
-import { uiProducts } from '@/mock/ui-fixtures';
+import { getMonitorList } from '@/api/monitor';
 
 const active = ref('all');
 const isLoading = ref(true);
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 500);
-});
-watch(active, () => {
+const watches = ref([]);
+
+const loadWatches = async () => {
   isLoading.value = true;
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 400);
+  try {
+    const res = await getMonitorList({ limit: 100 });
+    watches.value = res.data || [];
+  } catch(e) {}
+  isLoading.value = false;
+};
+
+onMounted(() => {
+  loadWatches();
 });
+
+watch(active, () => {
+  // locally filter
+});
+
 const tabs = [
   { label: '全部机型', value: 'all' },
   { label: '近期降价', value: 'down' },
   { label: '价格波动', value: 'changed' }
 ];
 
-// 模拟数据源
-const allItems = computed(() => uiProducts.filter((item) => item.category === 'multi').map((item, index) => ({
-  ...item,
-  change: index === 1 ? 0 : (index + 1) * 600
-})));
+const allItems = computed(() => {
+  return watches.value.map((item) => {
+    return {
+      ...item,
+      id: item.goods_id,
+      model: item.model_snapshot,
+      image: item.image_snapshot,
+      price: item.last_price || item.base_price,
+      change: (item.base_price || 0) - (item.last_price || 0)
+    };
+  });
+});
 
-// 根据当前 tab 过滤数据
 const filteredList = computed(() => {
-  if (active.value === 'down' || active.value === 'changed') {
+  if (active.value === 'down') {
     return allItems.value.filter(item => item.change > 0);
+  }
+  if (active.value === 'changed') {
+    return allItems.value.filter(item => item.change !== 0);
   }
   return allItems.value;
 });

@@ -5,8 +5,8 @@
     <view class="brand-row">
       <view><up-icon name="home" size="18" color="#fff" /></view>
       <view>
-        <text>格宏暖通科技有限公司</text>
-        <text>专业暖通 · 品质服务</text>
+        <text>格宏电器科技有限公司</text>
+        <text>专业电器 · 品质服务</text>
       </view>
     </view>
 

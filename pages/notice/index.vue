@@ -23,14 +23,73 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
-import { uiNotices } from '@/mock/ui-fixtures';
+import { getNotices, getNoticeCategories } from '@/api/content';
 
-const tabs = ['全部', '最新通知', '价格调整', '活动政策'];
 const active = ref('全部');
-const shownNotices = computed(() => active.value === '全部' ? uiNotices : uiNotices.filter((item) => item.type === active.value));
+const isLoading = ref(true);
+
+const uiNotices = ref([]);
+const categories = ref([{ id: 0, category_name: '全部' }]);
+
+const loadNotices = async () => {
+  isLoading.value = true;
+  try {
+    const [catRes, listRes] = await Promise.allSettled([
+      getNoticeCategories(),
+      getNotices({ limit: 100 })
+    ]);
+    
+    if (catRes.status === 'fulfilled' && catRes.value) {
+      const rawCats = Array.isArray(catRes.value)
+        ? catRes.value
+        : (Array.isArray(catRes.value.data) ? catRes.value.data : []);
+      if (rawCats.length > 0) {
+        categories.value = [{ id: 0, category_name: '全部' }, ...rawCats];
+      }
+    }
+    
+    if (listRes.status === 'fulfilled' && listRes.value) {
+      const val = listRes.value;
+      const rawArticles = Array.isArray(val)
+        ? val
+        : (Array.isArray(val.data) ? val.data : (val.data?.data || []));
+      
+      if (rawArticles.length > 0) {
+        uiNotices.value = rawArticles.map(n => ({
+          id: n.article_id || n.id,
+          title: n.article_title || n.title,
+          tag: n.category_name || '调价公告',
+          date: n.publish_time_text || (n.publish_time ? new Date(n.publish_time * 1000).toLocaleDateString() : ''),
+          views: n.read_count || n.read_visitor_count || 1,
+          image: n.cover_image || '',
+          type: n.category_name || '调价公告'
+        }));
+      }
+    }
+  } catch(e) {
+    console.warn('loadNotices error:', e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadNotices();
+});
+
+const shownNotices = computed(() => {
+  if (active.value === '全部') return uiNotices.value;
+  return uiNotices.value.filter((item) => item.type === active.value);
+});
+
+const tabs = computed(() => categories.value.map(c => c.category_name));
+
+const handleTabClick = (tab) => {
+  active.value = tab;
+};
 </script>
 
 <style lang="scss" scoped>

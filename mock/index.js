@@ -16,8 +16,8 @@ const demoUser = {
   username: 'demo',
   mobile: '13800000000',
   avatar: '/static/avatars/avatar-demo.png',
-  company_name: '格宏暖通科技有限公司',
-  company: '格宏暖通科技有限公司',
+  company_name: '格宏电器科技有限公司',
+  company: '格宏电器科技有限公司',
   position: '销售工程师',
   weapp_openid: 'mock-openid'
 };

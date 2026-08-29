@@ -6,36 +6,23 @@
  */
 const config = {
   // 应用的基础信息，可用于页面标题、日志和埋点。
-  appName: 'UniApp Template',
+  appName: '格宏助手',
   appVersion: '1.0.0',
 
   // 接口模式：mock 用于前端独立开发，api 用于后续切换真实后台接口。
-  apiMode: 'mock',
+  apiMode: 'api',
   mockDelay: 300,
 
   // 接口环境配置。切换为 api 后，把 baseUrl 换成真实服务地址即可。
   env: 'development',
-  baseUrl: 'https://api.example.com',
+  baseUrl: 'https://3e0eee0e.r25.cpolar.top/api',
   timeout: 60000,
 
-  // 中文说明：
-  // 这里单独给“会员/余额/提现”链路留一个可独立切换真实接口的配置。
-  // 这么做的目的，是避免全局还在 mock 开发时，余额提现页面必须跟着一起切换。
-  // 你后续如果已经有 niucloud 的真实接口地址，只需要把 memberApiMode 改成 'api'，
-  // 再把 memberBaseUrl 填成真实后端地址即可。
-  // 例如：
-  // memberApiMode: 'api',
-  // memberBaseUrl: 'https://你的域名/api/'
-  //
-  // 三种模式含义：
-  // 1. inherit：继承全局 apiMode（默认）
-  // 2. mock：会员链路固定走 mock
-  // 3. api：会员链路固定走真实接口
   memberApiMode: 'inherit',
   memberBaseUrl: '',
 
   // 请求头中的客户端标识，后端可以据此区分 App、H5 和小程序请求。
-  clientType: 'uni-app',
+  clientType: '1',
 
   // 响应数据约定。不同后端只需要调整字段名和成功码，不必重写请求封装。
   response: {
@@ -53,8 +40,8 @@ const config = {
     userInfoKey: 'wap_member_info',
     headerName: 'token',
     tokenPrefix: '',
-    // 没有登录页的项目可以留空，避免模板请求失败后跳转到不存在的页面。
-    loginPath: '',
+    // 登录页地址
+    loginPath: '/pages/auth/login',
     autoRedirect: false,
     // 这些接口不会自动带 Authorization 请求头。
     whiteList: ['/login', '/captcha', '/register']

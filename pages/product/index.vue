@@ -58,10 +58,10 @@
           v-for="item in categoryEntrances"
           :key="item.title"
           class="category-item"
-          @click="openPage(item.path, item.query)"
+          @click="openCategoryItem(item)"
         >
-          <view class="category-item__icon">
-            <up-icon :name="item.icon" size="26" color="#2468e8" />
+          <view class="category-item__icon" :class="'cat-icon--' + (item.theme || 'blue')">
+            <up-icon :name="item.icon" size="26" :color="item.color || '#2468e8'" />
           </view>
           <text>{{ item.title }}</text>
         </view>
@@ -71,11 +71,12 @@
         <text>快速筛选</text>
       </view>
       <view class="quick-filter">
-        <view v-for="item in quickFilters" :key="item.title" @click="openPage('/pages/product/list', item.query)">
-          <view>
-            <up-icon :name="item.icon" size="26" color="#2468e8" />
+        <view v-for="item in quickFilters" :key="item.title" class="quick-filter__item" @click="openQuickFilter(item)">
+          <view class="filter-icon-box">
+            <up-icon :name="item.icon" size="24" :color="item.color || '#2468e8'" />
           </view>
-          <text>{{ item.title }}</text>
+          <text class="filter-title-text">{{ item.title }}</text>
+          <text class="filter-sub-text">{{ item.sub }}</text>
         </view>
       </view>
 
@@ -89,32 +90,55 @@
 import { ref, onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
-
+import { getProductCategories } from '@/api/product';
 
 const isLoading = ref(true);
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 400);
+const categoryTree = ref([]);
+
+onMounted(async () => {
+  try {
+    const res = await getProductCategories();
+    categoryTree.value = Array.isArray(res) ? res : (res?.data || []);
+  } catch(e) {}
+  setTimeout(() => { isLoading.value = false }, 300);
 });
 
 const keyword = ref('');
 
+// 真实业务分类映射
 const categoryEntrances = [
-  { title: '多联机', icon: 'grid', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '模块机', icon: 'photo', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '风管机', icon: 'file-text', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '末端设备', icon: 'list', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '控制系统', icon: 'scan', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '配件耗材', icon: 'grid', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '新风系统', icon: 'setting', path: '/pages/product/category', query: { type: 'central' } },
-  { title: '全部产品', icon: 'more-dot-fill', path: '/pages/product/list', query: { type: 'central' } }
+  { title: '格力多联', icon: 'grid', color: '#2468e8', theme: 'blue', type: 'central', category_id: 40, name: '格力大多联' },
+  { title: '家用空调', icon: 'gift', color: '#10b981', theme: 'green', type: 'home', category_id: 14, name: '格力家用空调' },
+  { title: '格力风管', icon: 'file-text', color: '#0ea5e9', theme: 'sky', type: 'central', category_id: 51, name: '格力风管机' },
+  { title: '商用空调', icon: 'home', color: '#6366f1', theme: 'indigo', type: 'central', category_id: 18, name: '格力中央空调' },
+  { title: '春兰柜机', icon: 'tags', color: '#f59e0b', theme: 'amber', type: 'home', category: 'cabinet', category_id: 19, name: '春兰' },
+  { title: '生活电器', icon: 'scan', color: '#ec4899', theme: 'pink', type: 'home', category_id: 25, name: '格力生活家电' },
+  { title: '辅材配件', icon: 'setting', color: '#8b5cf6', theme: 'purple', type: 'central', category_id: 29, name: '辅材类' },
+  { title: '全部电器', icon: 'more-dot-fill', color: '#64748b', theme: 'gray', path: '/pages/product/list' }
 ];
 
 const quickFilters = [
-  { title: '按应用场景', icon: 'map', query: { type: 'central' } },
-  { title: '按冷量范围', icon: 'rmb-circle', query: { type: 'central' } },
-  { title: '能效等级', icon: 'checkmark-circle', query: { type: 'central' } },
-  { title: '品牌系列', icon: 'star', query: { type: 'central' } }
+  { title: '商用办公', sub: '多联机/中央空调', icon: 'map', color: '#2468e8', query: { type: 'central', keyword: 'GMV' } },
+  { title: '大匹数柜机', sub: '春兰/10P商用', icon: 'rmb-circle', color: '#f59e0b', query: { type: 'home', category: 'cabinet', filter_horse: '10P' } },
+  { title: '家用静音', sub: '一级能效/变频', icon: 'checkmark-circle', color: '#10b981', query: { type: 'home', category: 'wall' } },
+  { title: '辅材工程', sub: '安装配件/耗材', icon: 'star', color: '#8b5cf6', query: { category_id: 29 } }
 ];
+
+const openCategoryItem = (item) => {
+  if (item.path) {
+    openPage(item.path);
+    return;
+  }
+  if (item.type === 'home') {
+    openPage('/pages/product/category', { type: 'home', category_id: item.category_id });
+  } else {
+    openPage('/pages/product/category', { type: 'central', category_id: item.category_id });
+  }
+};
+
+const openQuickFilter = (item) => {
+  openPage('/pages/product/list', item.query);
+};
 
 const search = () => {
   const text = keyword.value.trim();
@@ -240,43 +264,92 @@ const search = () => {
 }
 
 .filter-title {
-  margin-top: 32rpx;
+  margin-top: 36rpx;
 }
 
 .category-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 28rpx 10rpx;
-  padding: 4rpx 2rpx 2rpx;
+  padding: 8rpx 2rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(23, 35, 61, 0.04);
 }
 
-.category-item,
-.quick-filter > view {
+.category-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 12rpx 0;
   color: #17233d;
   font-size: 25rpx;
   font-weight: 600;
 }
 
-.category-item__icon,
-.quick-filter > view > view {
+.category-item__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 80rpx;
-  height: 80rpx;
+  width: 86rpx;
+  height: 86rpx;
   margin-bottom: 14rpx;
-  border-radius: 22rpx;
-  background: #f1f5ff;
+  border-radius: 24rpx;
+  transition: transform 0.2s ease;
+
+  &.cat-icon--blue { background: #edf4ff; }
+  &.cat-icon--green { background: #e8f8f0; }
+  &.cat-icon--sky { background: #e0f2fe; }
+  &.cat-icon--indigo { background: #eef2ff; }
+  &.cat-icon--amber { background: #fef3c7; }
+  &.cat-icon--pink { background: #fce7f3; }
+  &.cat-icon--purple { background: #f3e8ff; }
+  &.cat-icon--gray { background: #f1f5f9; }
+}
+
+.category-item:active .category-item__icon {
+  transform: scale(0.94);
 }
 
 .quick-filter {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx 10rpx;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
   padding: 2rpx 2rpx 12rpx;
+}
+
+.quick-filter__item {
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.04);
+  position: relative;
+}
+
+.filter-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 16rpx;
+  background: #f4f8fe;
+  margin-bottom: 14rpx;
+}
+
+.filter-title-text {
+  color: #17233d;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 38rpx;
+}
+
+.filter-sub-text {
+  margin-top: 6rpx;
+  color: #8b95a7;
+  font-size: 22rpx;
 }
 
 .tabbar-space {

@@ -1,6 +1,6 @@
 {
-  "name": "Customer System Mini Program",
-  "description": "Air conditioning customer management and solution quotation mini program built with uni-app and uview-plus",
+  "name": "格宏电器客户报价与选型系统",
+  "description": "格宏电器科技有限公司客户管理、产品选型与方案报价小程序",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

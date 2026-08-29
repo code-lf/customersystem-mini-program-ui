@@ -74,7 +74,7 @@ function getUserStore() {
 function getHeader(options) {
   const header = {
     'Content-Type': 'application/json',
-    'source-client': config.clientType,
+    'channel': config.clientType,
     ...(options.header || {})
   };
   const userStore = getUserStore();

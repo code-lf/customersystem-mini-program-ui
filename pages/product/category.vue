@@ -8,20 +8,30 @@
         <view class="design-search">
           <up-icon name="search" size="18" color="#9aa5b5" />
           <input
-            v-model="searchKeyword"
+            v-model="homeSearchKeyword"
             placeholder="搜索家用空调产品型号、系列..."
             placeholder-class="placeholder"
+            @confirm="handleHomeSearch"
           />
+          <up-icon
+            v-if="homeSearchKeyword"
+            name="close-circle-fill"
+            size="16"
+            color="#9aa5b5"
+            @click="homeSearchKeyword = ''"
+          />
+          <button class="search-confirm-btn" @click="handleHomeSearch">搜索</button>
         </view>
       </view>
+
       <view
-        v-for="item in uiCategories.home"
+        v-for="item in homeCategories"
         :key="item.id"
         class="home-category__card"
-        @click="openPage('/pages/product/list', { type: 'home', category: item.id })"
+        @click="openPage('/pages/product/list', { type: 'home', category: item.id, category_id: item.category_id })"
       >
         <view class="home-category__info">
-          <text class="home-category__title">{{ item.name }}</text>
+          <text class="home-category__title">{{ item.category_name }}</text>
           <text class="home-category__desc">{{ item.desc }}</text>
           <view class="home-category__badge">
             <text>共 {{ item.count }} 款型号</text>
@@ -39,8 +49,7 @@
         <text>中央空调</text>
         <text> › </text>
         <text>{{ activeTypeName }}</text>
-        <text v-if="activeSeries"> › {{ activeSeries }}</text>
-        <text v-if="activeSideCategory && activeSideCategory !== '全部'"> › {{ activeSideCategory }}</text>
+        <text v-if="activeSideCategory && activeSideCategory !== '全部' && activeSideCategoryName"> › {{ activeSideCategoryName }}</text>
       </view>
 
       <!-- 搜索与快捷筛选 -->
@@ -62,36 +71,26 @@
         </view>
       </view>
 
-      <!-- 一级分类导航 -->
-      <view class="type-tabs-scroll">
-        <view
-          v-for="item in uiCategories.central"
-          :key="item.id"
-          class="type-tab-item"
-          :class="{ active: activeType === item.id }"
-          @click="selectType(item.id)"
-        >
-          <text>{{ item.name }}</text>
+      <!-- 一级分类标签栏 (多行排列 + 默认一行 + 展开全部) -->
+      <view class="type-tag-section">
+        <view class="tag-section-header">
+          <text class="tag-section-title">品牌 / 一级分类 ({{ categories.length }})</text>
+          <view class="tag-expand-btn" @click="isTagExpanded = !isTagExpanded">
+            <text>{{ isTagExpanded ? '收起' : '展开全部' }}</text>
+            <up-icon :name="isTagExpanded ? 'arrow-up' : 'arrow-down'" size="13" color="#2468e8" />
+          </view>
         </view>
-      </view>
 
-      <!-- 二级系列横向标签 -->
-      <view class="series-tabs-scroll">
-        <view
-          class="series-tab-item"
-          :class="{ active: activeSeries === '' }"
-          @click="activeSeries = ''"
-        >
-          <text>全部系列</text>
-        </view>
-        <view
-          v-for="item in uiCategories.series"
-          :key="item"
-          class="series-tab-item"
-          :class="{ active: activeSeries === item }"
-          @click="selectSeries(item)"
-        >
-          <text>{{ item }}</text>
+        <view class="tag-container" :class="{ 'is-collapsed': !isTagExpanded, 'is-expanded': isTagExpanded }">
+          <view
+            v-for="item in categories"
+            :key="item.id"
+            class="type-tag-item"
+            :class="{ active: activeType === item.id }"
+            @click="selectType(item.id)"
+          >
+            <text class="type-tag-text">{{ item.category_name }}</text>
+          </view>
         </view>
       </view>
 
@@ -108,14 +107,14 @@
             <text>全部设备</text>
           </view>
           <view
-            v-for="name in uiCategories.centralSide"
-            :key="name"
+            v-for="item in (categories.find(c => c.id === activeType)?.children || [])"
+            :key="item.id"
             class="sidebar-item"
-            :class="{ active: activeSideCategory === name }"
-            @click="activeSideCategory = name"
+            :class="{ active: activeSideCategory === item.id }"
+            @click="selectSideCategory(item.id)"
           >
             <view class="active-bar" />
-            <text>{{ name }}</text>
+            <text>{{ item.category_name }}</text>
           </view>
         </scroll-view>
 
@@ -124,25 +123,25 @@
           <view v-if="filteredProducts.length" class="product-list-container">
             <view
               v-for="product in filteredProducts"
-              :key="product.id"
+              :key="product.goods_id"
               class="series-product-card"
-              @click="openPage('/pages/product/detail', { id: product.id })"
+              @click="openPage('/pages/product/detail', { id: product.goods_id })"
             >
-              <image class="product-img" :src="product.image" mode="aspectFit" />
+              <image class="product-img" :src="product.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
               <view class="product-info">
                 <view class="model-row">
                   <text class="model-name">{{ product.model }}</text>
                   <text v-if="product.tag" class="tag-badge red">{{ product.tag }}</text>
                   <text v-if="product.greenTag" class="tag-badge green">{{ product.greenTag }}</text>
                 </view>
-                <text class="product-name-sub">{{ product.name }}</text>
-                <text class="spec-line">{{ (product.specs || []).slice(0, 2).join(' | ') }}</text>
+                <text class="product-name-sub">{{ product.goods_name }}</text>
+                <text class="spec-line">{{ (product.spec || []).slice(0, 2).join(' | ') || product.category_name }}</text>
                 <view class="price-action-row">
                   <view class="price-wrap">
                     <text class="price-symbol">¥</text>
                     <text class="price-num">{{ formatPrice(product.price) }}</text>
                   </view>
-                  <button class="btn-add" @click.stop="addToSolution(product)">+ 加入报价单</button>
+                  <button class="btn-add" @click.stop="addToSolution(product)">+ 报价单</button>
                 </view>
               </view>
             </view>
@@ -151,7 +150,7 @@
           <view v-else class="empty-state">
             <up-icon name="info-circle" size="48" color="#b7c5d8" />
             <text class="empty-title">未找到匹配的型号</text>
-            <text class="empty-sub">可尝试清除搜索词或切换系列与设备分类</text>
+            <text class="empty-sub">可尝试清除搜索词或切换左侧分类</text>
             <button class="btn-reset" @click="resetFilters">重置筛选</button>
           </view>
         </scroll-view>
@@ -161,75 +160,174 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
-import { uiCategories, uiProducts } from '@/mock/ui-fixtures';
+import { getProductCategories, getProductList } from '@/api/product';
 
 const pageOptions = getPageOptions();
 const isHome = computed(() => pageOptions.type === 'home');
-const searchKeyword = ref('');
-const activeType = ref('multi');
-const activeSeries = ref('');
+
+const categories = ref([]);
+const activeType = ref(0);
 const activeSideCategory = ref('全部');
+const isTagExpanded = ref(false);
+
+const searchKeyword = ref('');
+const homeSearchKeyword = ref('');
+const products = ref([]);
+const allGoodsCount = ref(0);
+const wallGoodsCount = ref(0);
+const cabinetGoodsCount = ref(0);
+const isLoading = ref(false);
 
 const activeTypeName = computed(() => {
-  const current = uiCategories.central.find((item) => item.id === activeType.value);
-  return current ? current.name : '多联机';
+  const current = categories.value.find((item) => item.id === activeType.value);
+  return current ? current.category_name : '分类';
+});
+
+const activeSideCategoryName = computed(() => {
+  if (activeSideCategory.value === '全部') return '全部';
+  const currentParent = categories.value.find((item) => item.id === activeType.value);
+  const child = (currentParent?.children || []).find((c) => c.id === activeSideCategory.value);
+  return child ? child.category_name : '';
+});
+
+// 家用空调动态卡片数量
+const homeCategories = computed(() => {
+  return [
+    {
+      id: 'wall',
+      category_name: '壁挂式空调',
+      category_id: 14,
+      desc: '节能静音 / 快速冷暖',
+      count: wallGoodsCount.value || 1,
+      image: '/static/aircon/home-green.png'
+    },
+    {
+      id: 'cabinet',
+      category_name: '柜式空调',
+      category_id: 19,
+      desc: '大风量 / 快速制冷制热',
+      count: cabinetGoodsCount.value || 1,
+      image: '/static/aircon/home-cabinet-green.png'
+    }
+  ];
+});
+
+const handleHomeSearch = () => {
+  openPage('/pages/product/list', {
+    type: 'home',
+    keyword: homeSearchKeyword.value
+  });
+};
+
+const loadCategories = async () => {
+  try {
+    const res = await getProductCategories();
+    const rawList = Array.isArray(res) ? res : (res?.data || []);
+    categories.value = rawList;
+    if (categories.value.length > 0) {
+      if (pageOptions.category_id) {
+        const targetId = Number(pageOptions.category_id);
+        const exists = categories.value.find(c => c.id === targetId);
+        if (exists) {
+          activeType.value = targetId;
+        } else {
+          activeType.value = categories.value[0].id;
+        }
+      } else {
+        activeType.value = categories.value[0].id;
+      }
+    }
+  } catch(e) {
+    console.warn('loadCategories error:', e);
+  }
+};
+
+const loadProducts = async () => {
+  isLoading.value = true;
+  try {
+    const params = { limit: 100 };
+    if (activeSideCategory.value && activeSideCategory.value !== '全部') {
+      params.category_id = activeSideCategory.value;
+    } else if (activeType.value) {
+      params.category_id = activeType.value;
+    }
+    if (searchKeyword.value) {
+      params.keyword = searchKeyword.value;
+    }
+
+    const res = await getProductList(params);
+    const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    products.value = list;
+  } catch(e) {
+    console.warn('loadProducts error:', e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const loadOverallGoodsCounts = async () => {
+  try {
+    const res = await getProductList({ limit: 100 });
+    const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    allGoodsCount.value = list.length;
+    
+    // 计算真实壁挂式与柜式匹配数
+    const wallItems = list.filter(g => (g.category_name || '').includes('家用') || (g.goods_name || '').includes('挂') || (g.model || '').includes('26') || (g.category_id === 14));
+    const cabinetItems = list.filter(g => (g.category_name || '').includes('春兰') || (g.goods_name || '').includes('柜') || (g.model || '').includes('LF') || (g.category_id === 19));
+    
+    wallGoodsCount.value = wallItems.length || 1;
+    cabinetGoodsCount.value = cabinetItems.length || 1;
+  } catch(e) {}
+};
+
+onMounted(async () => {
+  await loadCategories();
+  await loadProducts();
+  await loadOverallGoodsCounts();
+});
+
+watch([activeSideCategory, activeType], () => {
+  loadProducts();
+});
+
+watch(searchKeyword, () => {
+  loadProducts();
 });
 
 const selectType = (typeId) => {
   activeType.value = typeId;
+  activeSideCategory.value = '全部';
 };
 
-const selectSeries = (seriesName) => {
-  activeSeries.value = activeSeries.value === seriesName ? '' : seriesName;
+const selectSideCategory = (id) => {
+  activeSideCategory.value = id;
 };
 
 const resetFilters = () => {
   searchKeyword.value = '';
-  activeSeries.value = '';
   activeSideCategory.value = '全部';
+  loadProducts();
 };
 
 const filteredProducts = computed(() => {
-  return uiProducts.filter((item) => {
-    // 筛选只展示空调类
-    if (item.category === 'wall' || item.category === 'cabinet') {
-      return false;
-    }
-
-    // 系列筛选
-    if (activeSeries.value && item.series && item.series !== activeSeries.value) {
-      return false;
-    }
-
-    // 侧边栏设备类型筛选
-    if (activeSideCategory.value && activeSideCategory.value !== '全部' && item.subCategory) {
-      if (item.subCategory !== activeSideCategory.value) {
-        return false;
-      }
-    }
-
-    // 关键词搜索
-    if (searchKeyword.value.trim()) {
-      const kw = searchKeyword.value.trim().toLowerCase();
-      const combined = `${item.model || ''} ${item.name || ''} ${item.series || ''} ${item.subCategory || ''} ${(item.specs || []).join(' ')}`.toLowerCase();
-      if (!combined.includes(kw)) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+  if (!searchKeyword.value) return products.value;
+  const kw = searchKeyword.value.toLowerCase().trim();
+  return products.value.filter(p => 
+    (p.goods_name && p.goods_name.toLowerCase().includes(kw)) ||
+    (p.model && p.model.toLowerCase().includes(kw)) ||
+    (p.category_name && p.category_name.toLowerCase().includes(kw))
+  );
 });
 
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 const addToSolution = (product) => {
   uni.setStorageSync('pendingSolutionProduct', {
-    id: product.id,
-    name: product.name,
+    id: product.goods_id,
+    name: product.goods_name,
     model: product.model,
     image: product.image,
     price: product.price,
@@ -250,10 +348,80 @@ const addToSolution = (product) => {
   background: linear-gradient(180deg, #eaf2ff 0%, #f4f7fc 240rpx, #f4f7fc 100%);
 }
 
+.home-category {
+  padding: 0 24rpx;
+}
+
+.home-category__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 6rpx 20rpx rgba(23, 35, 61, 0.05);
+
+  &:first-of-type {
+    background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+    border: 1px solid #dcebfe;
+  }
+
+  &:last-of-type {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    border: 1px solid #dcfce7;
+  }
+
+  image {
+    width: 200rpx;
+    height: 160rpx;
+  }
+}
+
+.home-category__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-category__title {
+  color: #17233d;
+  font-size: 34rpx;
+  font-weight: 800;
+}
+
+.home-category__desc {
+  margin-top: 8rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.home-category__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-top: 18rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  color: #2468e8;
+  font-size: 22rpx;
+  font-weight: 700;
+  box-shadow: 0 2rpx 8rpx rgba(36, 104, 232, 0.12);
+  width: fit-content;
+}
+
+.central-category-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: calc(100vh - 88rpx);
+  overflow: hidden;
+}
+
 .crumb {
-  padding: 14rpx 28rpx 10rpx;
+  padding: 10rpx 28rpx 6rpx;
   color: #647389;
-  font-size: 25rpx;
+  font-size: 24rpx;
 }
 
 .crumb text:nth-child(even) {
@@ -262,14 +430,14 @@ const addToSolution = (product) => {
 }
 
 .category-search-box {
-  padding: 8rpx 24rpx 16rpx;
+  padding: 6rpx 24rpx 12rpx;
 }
 
 .design-search {
   display: flex;
   align-items: center;
   height: 76rpx;
-  padding: 0 26rpx;
+  padding: 0 20rpx 0 26rpx;
   border-radius: 38rpx;
   background: #fff;
   box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.05);
@@ -282,108 +450,136 @@ const addToSolution = (product) => {
   color: #17233d;
 }
 
-.placeholder {
-  color: #9aa5b5;
-}
-
-.type-tabs-scroll {
-  display: flex;
-  padding: 0 24rpx 16rpx;
-  gap: 16rpx;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.type-tab-item {
-  padding: 14rpx 30rpx;
-  border-radius: 32rpx;
-  background: #fff;
-  color: #556275;
-  font-size: 27rpx;
-  font-weight: 600;
-  box-shadow: 0 4rpx 14rpx rgba(23, 35, 61, 0.04);
-  transition: all 0.2s ease;
-}
-
-.type-tab-item.active {
+.search-confirm-btn {
+  height: 52rpx;
+  line-height: 52rpx;
+  padding: 0 22rpx;
+  border-radius: 26rpx;
   background: #2468e8;
   color: #fff;
+  font-size: 22rpx;
   font-weight: 700;
-  box-shadow: 0 6rpx 20rpx rgba(36, 104, 232, 0.32);
+  margin: 0;
+  border: none;
 }
 
-.series-tabs-scroll {
+/* 一级分类标签栏 (多行排列 + 默认一行 + 展开全部) */
+.type-tag-section {
+  padding: 0 24rpx 14rpx;
+}
+
+.tag-section-header {
   display: flex;
-  padding: 0 24rpx 18rpx;
-  gap: 14rpx;
-  overflow-x: auto;
-  white-space: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
 }
 
-.series-tab-item {
+.tag-section-title {
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.tag-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  color: #2468e8;
+  font-size: 22rpx;
+  font-weight: 700;
+  padding: 4rpx 8rpx;
+}
+
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  transition: max-height 0.3s ease;
+
+  &.is-collapsed {
+    max-height: 60rpx;
+    overflow: hidden;
+  }
+
+  &.is-expanded {
+    max-height: 420rpx;
+    overflow-y: auto;
+    padding-bottom: 8rpx;
+  }
+}
+
+.type-tag-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10rpx 24rpx;
-  border-radius: 26rpx;
-  background: #e8eff8;
-  color: #556379;
+  border-radius: 28rpx;
+  background: #ffffff;
+  color: #475569;
   font-size: 24rpx;
   font-weight: 600;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2rpx 6rpx rgba(15, 23, 42, 0.04);
   transition: all 0.2s ease;
+
+  &.active {
+    background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border-color: #2468e8;
+    box-shadow: 0 6rpx 16rpx rgba(36, 104, 232, 0.3);
+  }
 }
 
-.series-tab-item.active {
-  background: #dbe8ff;
-  color: #2468e8;
-  font-weight: 700;
-}
-
-.central-category-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+.type-tag-text {
+  white-space: nowrap;
 }
 
 .category-body {
-  flex: 1;
   display: flex;
-  min-height: 0;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
   background: #fff;
-  border-top: 1rpx solid #eef2f8;
+  border-top: 1rpx solid #eef2f7;
 }
 
 .category-sidebar {
-  width: 196rpx;
+  width: 190rpx;
+  height: 100%;
   background: #f7f9fc;
   border-right: 1rpx solid #edf1f7;
-  height: 100%;
 }
 
 .sidebar-item {
   position: relative;
+  height: 96rpx;
   display: flex;
   align-items: center;
-  height: 98rpx;
-  padding-left: 28rpx;
-  color: #556275;
-  font-size: 26rpx;
+  justify-content: center;
+  padding: 0 16rpx;
+  color: #64748b;
+  font-size: 25rpx;
   font-weight: 500;
-  transition: all 0.2s ease;
+  text-align: center;
+  line-height: 1.3;
+
+  &.active {
+    background: #ffffff;
+    color: #2468e8;
+    font-weight: 800;
+  }
 }
 
-.sidebar-item.active {
-  background: #fff;
-  color: #2468e8;
-  font-weight: 700;
-}
-
-.sidebar-item .active-bar {
+.active-bar {
   display: none;
   position: absolute;
   left: 0;
   top: 24rpx;
   bottom: 24rpx;
   width: 8rpx;
-  border-radius: 0 6rpx 6rpx 0;
+  border-radius: 0 4rpx 4rpx 0;
   background: #2468e8;
 }
 
@@ -394,37 +590,40 @@ const addToSolution = (product) => {
 .product-scroll {
   flex: 1;
   height: 100%;
-  background: #f4f7fc;
+  padding: 16rpx 20rpx;
+  box-sizing: border-box;
 }
 
 .product-list-container {
-  padding: 18rpx 20rpx 40rpx;
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 16rpx;
 }
 
 .series-product-card {
   display: flex;
-  align-items: center;
-  padding: 22rpx;
-  border-radius: 20rpx;
-  background: #fff;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
+  padding: 20rpx;
+  border-radius: 18rpx;
+  background: #ffffff;
+  border: 1px solid #f1f4f9;
+  box-shadow: 0 4rpx 14rpx rgba(23, 35, 61, 0.04);
 }
 
 .product-img {
-  width: 148rpx;
-  height: 148rpx;
-  margin-right: 20rpx;
-  border-radius: 16rpx;
-  background: #f7f9fc;
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 14rpx;
+  background: #f8fafc;
+  margin-right: 18rpx;
   flex-shrink: 0;
 }
 
 .product-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .model-row {
@@ -434,79 +633,78 @@ const addToSolution = (product) => {
 }
 
 .model-name {
-  color: #17233d;
-  font-size: 31rpx;
-  font-weight: 900;
+  color: #0f172a;
+  font-size: 28rpx;
+  font-weight: 800;
 }
 
 .tag-badge {
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  font-size: 21rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 20rpx;
   font-weight: 700;
-}
 
-.tag-badge.red {
-  background: #fff0ed;
-  color: #ef543f;
-}
-
-.tag-badge.green {
-  background: #e9f8f0;
-  color: #2fa777;
+  &.red {
+    background: #fef2f2;
+    color: #ef4444;
+  }
+  &.green {
+    background: #f0fdf4;
+    color: #10b981;
+  }
 }
 
 .product-name-sub {
-  display: block;
-  margin-top: 6rpx;
-  color: #5c6a80;
-  font-size: 25rpx;
-  overflow: hidden;
+  color: #64748b;
+  font-size: 22rpx;
+  margin-top: 4rpx;
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .spec-line {
-  display: block;
-  margin-top: 6rpx;
-  color: #8b95a7;
-  font-size: 23rpx;
+  color: #94a3b8;
+  font-size: 20rpx;
+  margin-top: 4rpx;
 }
 
 .price-action-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16rpx;
+  margin-top: 12rpx;
+  padding-top: 10rpx;
+  border-top: 1rpx solid #f8fafc;
 }
 
 .price-wrap {
   display: flex;
   align-items: baseline;
-  color: #ef543f;
+  color: #ef4444;
+  font-weight: 800;
 }
 
 .price-symbol {
-  font-size: 24rpx;
-  font-weight: 700;
+  font-size: 20rpx;
 }
 
 .price-num {
-  font-size: 34rpx;
-  font-weight: 900;
+  font-size: 28rpx;
   margin-left: 2rpx;
 }
 
 .btn-add {
-  height: 56rpx;
-  padding: 0 24rpx;
-  border-radius: 28rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  padding: 0 20rpx;
+  margin: 0;
+  border-radius: 24rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 23rpx;
+  font-size: 20rpx;
   font-weight: 700;
-  line-height: 56rpx;
-  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.28);
+  border: none;
 }
 
 .empty-state {
@@ -514,94 +712,37 @@ const addToSolution = (product) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 100rpx 40rpx;
+  padding: 100rpx 30rpx;
   text-align: center;
 }
 
 .empty-title {
-  margin-top: 24rpx;
-  color: #586477;
-  font-size: 30rpx;
+  margin-top: 20rpx;
+  color: #1e293b;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
 .empty-sub {
-  margin-top: 10rpx;
-  color: #929fb2;
-  font-size: 24rpx;
-  line-height: 36rpx;
+  margin-top: 8rpx;
+  color: #94a3b8;
+  font-size: 22rpx;
 }
 
 .btn-reset {
-  margin-top: 32rpx;
-  padding: 0 36rpx;
-  height: 64rpx;
-  border-radius: 32rpx;
-  background: #2468e8;
-  color: #fff;
-  font-size: 24rpx;
-  line-height: 64rpx;
-}
-
-/* 家用空调选型入口样式 */
-.home-category {
-  padding: 18rpx 24rpx;
-}
-
-.home-category__card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 260rpx;
-  margin-top: 24rpx;
-  padding: 36rpx;
-  border-radius: 24rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.05);
-}
-
-.home-category__card:first-of-type {
-  background: linear-gradient(135deg, #e4f2ff 0%, #f1f8ff 100%);
-}
-
-.home-category__card:last-of-type {
-  background: linear-gradient(135deg, #e4f8ed 0%, #f2fcf6 100%);
-}
-
-.home-category__info {
-  flex: 1;
-}
-
-.home-category__title {
-  display: block;
-  color: #17233d;
-  font-size: 36rpx;
-  font-weight: 900;
-}
-
-.home-category__desc {
-  display: block;
-  margin-top: 12rpx;
-  color: #647389;
-  font-size: 25rpx;
-}
-
-.home-category__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6rpx;
-  margin-top: 36rpx;
-  padding: 8rpx 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.85);
+  margin-top: 28rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 32rpx;
+  border-radius: 30rpx;
+  background: #edf4ff;
   color: #2468e8;
   font-size: 24rpx;
   font-weight: 700;
+  border: none;
 }
 
-.home-category__card image {
-  width: 220rpx;
-  height: 220rpx;
-  margin-left: 20rpx;
+.placeholder {
+  color: #9aa5b5;
 }
 </style>

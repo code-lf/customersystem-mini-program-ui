@@ -1,7 +1,7 @@
 {
-    "name" : "Pisa_app",
+    "name" : "格宏助手",
     "appid" : "__UNI__A14DA30",
-    "description" : "",
+    "description" : "格宏电器选型与方案报价小程序",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -50,7 +50,7 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "wx3f67907c363e7313",
+        "appid" : "wx96b8b2823a01e728",
         "setting" : {
             "urlCheck" : false,
             "es6" : true,

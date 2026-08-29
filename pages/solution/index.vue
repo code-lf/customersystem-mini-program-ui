@@ -321,20 +321,26 @@
         <scroll-view class="panel-product-list" scroll-y>
           <view
             v-for="item in candidateProducts"
-            :key="item.id"
+            :key="item.goods_id || item.id"
             class="panel-product-item"
           >
-            <image class="panel-p-img" :src="item.image" mode="aspectFit" />
+            <image class="panel-p-img" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
             <view class="panel-p-info">
               <view class="panel-p-model-row">
-                <text class="panel-p-model">{{ item.model }}</text>
-                <text v-if="item.series" class="panel-p-series">{{ item.series }}</text>
+                <text class="panel-p-model">{{ item.model || '标准型号' }}</text>
+                <text v-if="item.category_name" class="panel-p-series">{{ item.category_name }}</text>
               </view>
-              <text class="panel-p-name">{{ item.name }}</text>
-              <text class="panel-p-spec">{{ (item.specs || []).slice(0, 2).join(' | ') }}</text>
+              <text class="panel-p-name">{{ item.goods_name || item.name }}</text>
+              <text class="panel-p-spec">{{ item.spec || '高效节能 · 变频冷暖' }}</text>
               <text class="panel-p-price">¥{{ formatPrice(item.price) }}</text>
             </view>
-            <button class="panel-btn-add" @click="addProductToQuote(item)">+ 加入</button>
+            <button
+              class="panel-btn-add"
+              :class="{ 'is-in-quote': isItemInQuote(item) }"
+              @click="addProductToQuote(item)"
+            >
+              {{ isItemInQuote(item) ? '+ 再加1台' : '+ 加入' }}
+            </button>
           </view>
         </scroll-view>
       </view>
@@ -346,7 +352,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
-import { uiProducts, uiSolutions } from '@/mock/ui-fixtures';
+import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList } from '@/api/solution';
+import { getProductList } from '@/api/product';
 
 const safeTop = computed(() => {
   try {
@@ -359,13 +366,8 @@ const safeTop = computed(() => {
 });
 
 const activeTab = ref('current');
-const isLoading = ref(true);
-watch(activeTab, () => {
-  isLoading.value = true;
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 400);
-});
+const isLoading = ref(false);
+
 const showAddPanel = ref(false);
 const showPricePanel = ref(false);
 const addSearchKeyword = ref('');
@@ -375,135 +377,296 @@ const customTotalInput = ref('');
 const taxRate = ref(13);
 const quoteRemark = ref('');
 
-// 默认真实暖通报价条目
-const quoteItems = reactive([
-  {
-    id: 101,
-    model: 'VK8R',
-    name: 'VK8R 多联式空调室外机',
-    spec: '8HP · 25.2kW · IPLV(C) 6.50',
-    price: 26800,
-    quantity: 2,
-    image: '/static/aircon/outdoor-unit.png'
-  },
-  {
-    id: 109,
-    model: 'VK-IN36',
-    name: 'VK系列 静音超薄风管室内机',
-    spec: '1.5匹 · 3.6kW · 超薄190mm',
-    price: 3600,
-    quantity: 6,
-    image: '/static/aircon/home-green.png'
-  },
-  {
-    id: 111,
-    model: 'XF-800',
-    name: '全热交换新风处理机组',
-    spec: '800m³/h风量 · PM2.5双向流',
-    price: 8900,
-    quantity: 1,
-    image: '/static/aircon/central-default.png'
+const quoteItems = ref([]);
+const cartData = ref({
+  goods_amount: 0,
+  total_quantity: 0,
+  pay_amount: 0,
+  discount_amount: 0
+});
+const historySolutions = ref([]);
+const candidateProducts = ref([]);
+
+// 核心：计算与同步报价单价格与数量
+const recalculateCart = (items, mode = pricingMode.value, rate = discountRate.value, customTotal = customTotalInput.value, remark = quoteRemark.value) => {
+  const goods_amount = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
+  const total_quantity = items.reduce((sum, it) => sum + Number(it.quantity || 1), 0);
+  let pay_amount = goods_amount;
+  let discount_amount = 0;
+  
+  if (mode === 'discount') {
+    pay_amount = Math.round(goods_amount * (Number(rate || 100) / 100) * 100) / 100;
+    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
+  } else if (mode === 'total' && customTotal) {
+    pay_amount = Number(customTotal);
+    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
   }
-]);
 
-const historySolutions = reactive(JSON.parse(JSON.stringify(uiSolutions)));
+  const updatedCart = {
+    items,
+    goods_amount,
+    total_quantity,
+    pay_amount,
+    discount_amount,
+    pricing_mode: mode,
+    global_discount_rate: rate,
+    remark
+  };
+  
+  cartData.value = updatedCart;
+  quoteItems.value = items;
+  uni.setStorageSync('solution_local_cart', updatedCart);
+  return updatedCart;
+};
 
-const candidateProducts = computed(() => {
-  if (!addSearchKeyword.value.trim()) return uiProducts;
-  const kw = addSearchKeyword.value.trim().toLowerCase();
-  return uiProducts.filter((p) => `${p.model} ${p.name} ${p.series || ''} ${p.subCategory || ''}`.toLowerCase().includes(kw));
+const isItemInQuote = (item) => {
+  const gId = item.goods_id || item.id;
+  return quoteItems.value.some(i => (i.goods_id || i.id) === gId);
+};
+
+const loadCart = async () => {
+  // 优先加载本地持久化数据
+  const localCart = uni.getStorageSync('solution_local_cart');
+  if (localCart && Array.isArray(localCart.items)) {
+    quoteItems.value = localCart.items;
+    cartData.value = localCart;
+    pricingMode.value = localCart.pricing_mode || 'discount';
+    discountRate.value = localCart.global_discount_rate || 95;
+    quoteRemark.value = localCart.remark || '';
+  }
+
+  try {
+    const res = await getCart();
+    // 若服务端返回了真实的购物车清单并且有商品
+    if (res && res.code === 1 && res.data && Array.isArray(res.data.items) && res.data.items.length > 0) {
+      cartData.value = res.data;
+      quoteItems.value = res.data.items.map(item => ({
+        ...item,
+        id: item.cart_item_id || item.goods_id,
+        goods_id: item.goods_id,
+        name: item.goods_name_snapshot || item.goods_name,
+        model: item.model_snapshot || item.model,
+        image: item.image_snapshot || item.image || '/static/aircon/outdoor-unit.png',
+        price: Number(item.origin_price || item.quote_price || item.price || 0),
+        quantity: Number(item.quantity || 1)
+      }));
+      pricingMode.value = res.data.pricing_mode || 'discount';
+      discountRate.value = res.data.global_discount_rate || 95;
+      quoteRemark.value = res.data.remark || '';
+      uni.setStorageSync('solution_local_cart', cartData.value);
+    }
+  } catch(e) {
+    console.warn('loadCart backend info:', e);
+  }
+};
+
+const loadHistory = async () => {
+  const localRecords = uni.getStorageSync('solution_history_records') || [];
+  try {
+    const res = await getSolutionList({ limit: 100 });
+    const serverList = (res && res.data && Array.isArray(res.data)) ? res.data : [];
+    if (serverList.length > 0) {
+      const serverMapped = serverList.map(item => ({
+        ...item,
+        id: item.quote_id || item.id,
+        title: item.quote_no ? `方案报价单 (${item.quote_no})` : '方案报价单',
+        subtitle: item.remark || `共 ${item.item_count || (item.items || []).length} 项设备`,
+        customerName: item.contact_name_snapshot || '贵宾客户',
+        date: item.create_time_text || item.create_time || '今日',
+        status: item.quote_status || 'draft',
+        items: item.items || Array(item.item_count || 1).fill({}),
+        totalPrice: item.pay_amount || item.total_price || 0
+      }));
+      historySolutions.value = [...localRecords, ...serverMapped.filter(s => !localRecords.some(l => l.id === s.id))];
+      return;
+    }
+  } catch(e) {}
+
+  historySolutions.value = localRecords;
+};
+
+const loadCandidates = async () => {
+  try {
+    const res = await getProductList({ keyword: addSearchKeyword.value, limit: 30 });
+    const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    candidateProducts.value = list.map(item => ({
+      ...item,
+      id: item.goods_id || item.id,
+      goods_id: item.goods_id || item.id,
+      name: item.goods_name || item.name,
+      model: item.model || item.type || '标准型号',
+      category_name: item.category_name,
+      spec: item.spec || '高效节能 · 变频冷暖',
+      image: item.image || '/static/aircon/outdoor-unit.png',
+      price: Number(item.price || 0)
+    }));
+  } catch(e) {
+    console.error('loadCandidates error:', e);
+  }
+};
+
+watch(addSearchKeyword, () => {
+  loadCandidates();
 });
 
-const totalPrice = computed(() => quoteItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0));
-const totalCount = computed(() => quoteItems.reduce((sum, item) => sum + (item.quantity || 1), 0));
-
-const finalTotal = computed(() => {
-  if (pricingMode.value === 'total') {
-    const inputTotal = Number(customTotalInput.value || 0);
-    return inputTotal > 0 ? inputTotal : totalPrice.value;
-  }
-  return Math.round(totalPrice.value * discountRate.value / 100);
+onShow(() => {
+  loadCart();
+  loadHistory();
+  checkPendingProduct();
 });
 
+const totalPrice = computed(() => cartData.value.goods_amount || 0);
+const totalCount = computed(() => cartData.value.total_quantity || 0);
+const finalTotal = computed(() => cartData.value.pay_amount || 0);
 const finalDiscount = computed(() => {
   if (!totalPrice.value) return 100;
   return Math.round(finalTotal.value / totalPrice.value * 10000) / 100;
 });
-
-const discountAmount = computed(() => Math.max(totalPrice.value - finalTotal.value, 0));
+const discountAmount = computed(() => cartData.value.discount_amount || 0);
 
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
-const changeItemQty = (item, delta) => {
-  item.quantity = Math.max(1, Number(item.quantity || 1) + delta);
+const changeItemQty = async (item, delta) => {
+  const currentList = [...quoteItems.value];
+  const target = currentList.find(i => (i.goods_id || i.id) === (item.goods_id || item.id));
+  if (!target) return;
+  const newQty = Number(target.quantity || 1) + delta;
+  if (newQty < 1) return;
+  target.quantity = newQty;
+  recalculateCart(currentList);
+
+  try {
+    await editCartItem(item.id, { quantity: newQty });
+  } catch(e) {}
 };
 
-const removeItem = (id) => {
-  const idx = quoteItems.findIndex((item) => item.id === id);
-  if (idx >= 0) {
-    quoteItems.splice(idx, 1);
-    uni.showToast({ title: '已移除设备', icon: 'none' });
-  }
+const removeItem = async (id) => {
+  const currentList = quoteItems.value.filter(i => (i.goods_id || i.id) !== id && i.id !== id);
+  recalculateCart(currentList);
+  uni.showToast({ title: '已移除设备', icon: 'none' });
+
+  try {
+    await removeCartItem(id);
+  } catch(e) {}
 };
 
 const openAddPanel = (mode = 'search') => {
-  addSearchKeyword.value = '';
+  if (mode === 'select') {
+    openPage('/pages/product/category');
+    return;
+  }
   showAddPanel.value = true;
+  loadCandidates();
 };
 
-const addProductToQuote = (product) => {
-  const existed = quoteItems.find((item) => item.model === product.model || item.id === product.id);
-  if (existed) {
-    existed.quantity += 1;
+const addProductToQuote = async (product) => {
+  const gId = product.goods_id || product.id;
+  const currentList = [...quoteItems.value];
+  const existingIndex = currentList.findIndex(i => (i.goods_id || i.id) === gId);
+  
+  if (existingIndex > -1) {
+    currentList[existingIndex].quantity = (Number(currentList[existingIndex].quantity) || 1) + 1;
   } else {
-    quoteItems.push({
-      id: product.id || Date.now(),
-      model: product.model,
-      name: product.name,
-      spec: Array.isArray(product.specs) ? product.specs.slice(0, 2).join(' · ') : product.name,
-      price: product.price,
-      quantity: 1,
-      image: product.image || '/static/aircon/outdoor-unit.png'
+    currentList.push({
+      id: gId,
+      goods_id: gId,
+      cart_item_id: gId,
+      name: product.goods_name || product.name || '空调设备',
+      model: product.model || product.type || '标准型号',
+      spec: product.spec || (Array.isArray(product.specs) ? product.specs.slice(0, 2).join(' | ') : '高效节能 · 变频冷暖'),
+      image: product.image || '/static/aircon/outdoor-unit.png',
+      price: Number(product.price || 0),
+      quantity: 1
     });
   }
-  uni.showToast({ title: `已加入 ${product.model}`, icon: 'success' });
+
+  // 1. 立即触发本地响应与UI实时刷新
+  recalculateCart(currentList);
+  uni.showToast({ title: '已加入报价单', icon: 'success' });
+
+  // 2. 异步同步到后端API
+  try {
+    await addCartItem({ goods_id: gId, quantity: 1 });
+  } catch(e) {}
 };
 
-const exportQuote = () => {
-  uni.setStorageSync('quoteExportSetting', {
-    pricingMode: pricingMode.value,
-    discountRate: finalDiscount.value,
-    totalPrice: finalTotal.value,
-    taxRate: taxRate.value,
-    remark: quoteRemark.value,
-    items: quoteItems
-  });
+const applyPricing = async () => {
+  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
   showPricePanel.value = false;
-  openPage('/pages/solution/share', { id: 1 });
+  uni.showToast({ title: '价格配置已更新', icon: 'success' });
+
+  try {
+    await setCartDiscount({
+      pricing_mode: pricingMode.value,
+      global_discount_rate: pricingMode.value === 'discount' ? discountRate.value : 100
+    });
+  } catch(e) {}
 };
 
-// 当从其他页面（如产品详情、产品列表、AI推荐）点击“加入报价单”时，自动同步
-const checkPendingProduct = () => {
+const exportQuote = async () => {
+  if (!quoteItems.value.length) {
+    uni.showToast({ title: '请先添加产品', icon: 'none' });
+    return;
+  }
+  uni.showLoading({ title: '正在生成报价单...' });
+
+  const recordId = 'QT_' + Date.now();
+  const quoteNo = 'QT' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + Math.floor(1000 + Math.random() * 9000);
+  const titleName = '方案报价单 - ' + (quoteItems.value[0]?.name || '格宏电器空调系统方案');
+
+  const newQuoteRecord = {
+    id: recordId,
+    quote_id: recordId,
+    quote_no: quoteNo,
+    title: titleName,
+    subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
+    contact_name_snapshot: '贵宾客户',
+    customerName: '贵宾客户',
+    date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    create_time_text: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    status: 'draft',
+    quote_status: 'draft',
+    items: JSON.parse(JSON.stringify(quoteItems.value)),
+    totalPrice: finalTotal.value,
+    pay_amount: finalTotal.value,
+    goods_amount: totalPrice.value,
+    discount_amount: discountAmount.value,
+    discount_rate: discountRate.value,
+    pricing_mode: pricingMode.value,
+    remark: quoteRemark.value
+  };
+
+  try {
+    await exportCart({ extra_amount: 0, remark: quoteRemark.value, clear_cart: 1 });
+  } catch(e) {}
+
+  // 存入本地历史方案
+  const localHistory = uni.getStorageSync('solution_history_records') || [];
+  localHistory.unshift(newQuoteRecord);
+  uni.setStorageSync('solution_history_records', localHistory);
+
+  // 清空当前清单
+  recalculateCart([]);
+  showPricePanel.value = false;
+  uni.hideLoading();
+  uni.showToast({ title: '报价单生成成功', icon: 'success' });
+
+  // 刷新历史
+  loadHistory();
+  activeTab.value = 'history';
+};
+
+const checkPendingProduct = async () => {
   try {
     const pending = uni.getStorageSync('pendingSolutionProduct');
-    if (pending && pending.name) {
-      addProductToQuote(pending);
+    if (pending && (pending.name || pending.goods_name || pending.id || pending.goods_id)) {
       uni.removeStorageSync('pendingSolutionProduct');
+      await addProductToQuote(pending);
     }
   } catch (e) {
-    // ignore
+    console.error(e);
   }
 };
-
-onMounted(() => {
-  checkPendingProduct();
-});
-
-onShow(() => {
-  isLoading.value = true;
-  setTimeout(() => { isLoading.value = false }, 500);
-  checkPendingProduct();
-});
 </script>
 
 <style lang="scss" scoped>
@@ -1347,6 +1510,14 @@ onShow(() => {
   line-height: 58rpx;
   box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
   flex-shrink: 0;
+  border: none;
+
+  &.is-in-quote {
+    background: #edf4ff;
+    color: #2468e8;
+    box-shadow: none;
+    border: 1rpx solid #c7dcff;
+  }
 }
 .skeleton-block {
   background: #e2e8f0;

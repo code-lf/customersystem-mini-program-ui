@@ -1,6 +1,6 @@
 <template>
   <view class="chat-page">
-    <AppNavbar title="AI 智能暖通助手">
+    <AppNavbar title="AI 智能电器助手">
       <template #right>
         <view class="clear-history-btn" @click="clearChat">
           <up-icon name="trash" size="18" color="#586477" />
@@ -21,7 +21,7 @@
           <image class="avatar" src="/static/aircon/ai-robot-card.png" mode="aspectFit" />
           <view class="ai-content">
             <view class="ai-bubble">
-              <text class="text-body">您好！我是格宏智能暖通 AI 助手。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。请问今天有什么可以帮您？</text>
+              <text class="text-body">您好！我是格宏智能电器 AI 助手。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。请问今天有什么可以帮您？</text>
             </view>
           </view>
         </view>
@@ -237,7 +237,7 @@ const sendMessage = (text) => {
     } else if (lower.includes('资料') || lower.includes('手册') || lower.includes('说明书')) {
       replyText = '已为您调阅《VK 系列产品选型样本》、《安装使用说明书》及《能效认证证书》。您可在“产品资料”标签页或直接下载 PDF 查看。';
     } else {
-      replyText = `收到您的咨询：“${userText}”。格宏暖通系统支持多联机、模块机及分体式空调的精细化负荷测算与一键报价生成，您可以点击下方推荐机型加入方案。`;
+      replyText = `收到您的咨询：“${userText}”。格宏电器选型系统支持多联机、模块机、分体式空调及生活家电的精细化测算与一键报价生成，您可以点击下方推荐机型加入方案。`;
       matchedProducts = [uiProducts[0], uiProducts[2]];
     }
 

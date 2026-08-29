@@ -1,40 +1,59 @@
 const fs = require('fs');
 let content = fs.readFileSync('pages/index/index.vue', 'utf-8');
 
-if (!content.includes('isLoading = ref')) {
-  if (content.includes('import ')) {
-      content = content.replace(/import {([^}]+)} from 'vue';/, (match, p1) => {
-        let imports = p1.split(',').map(s => s.trim());
-        if (!imports.includes('onMounted')) imports.push('onMounted');
-        if (!imports.includes('ref')) imports.push('ref');
-        return `import { ${imports.join(', ')} } from 'vue';`;
-      });
-      content = content.replace(/(<script setup>[\s\S]*?)(const|let|function|return)/, `$1\nconst isLoading = ref(true);\nonMounted(() => {\n  setTimeout(() => { isLoading.value = false }, 400);\n});\n\n$2`);
-  } else {
-      content = content.replace(/<script setup>/, `<script setup>\nimport { ref, onMounted } from 'vue';\nconst isLoading = ref(true);\nonMounted(() => {\n  setTimeout(() => { isLoading.value = false }, 400);\n});\n`);
-  }
-}
+const newScript = `<script setup>
+import { onMounted, ref } from 'vue';
+import { useUserStore } from '@/store/user';
+import { getNotices } from '@/api/content';
+import { getSolutionList } from '@/api/solution';
+import { openPage } from '@/utils/pages';
 
-if (!content.includes('.skeleton-block')) {
-  content = content.replace(/<\/style>/, `.skeleton-block {\n  background: #e2e8f0;\n  background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);\n  background-size: 400% 100%;\n  animation: skeleton-shimmer 1.4s ease infinite;\n}\n@keyframes skeleton-shimmer {\n  0% { background-position: 100% 50%; }\n  100% { background-position: 0 50%; }\n}\n</style>`);
-}
+const isLoading = ref(true);
+const userStore = useUserStore();
+const keyword = ref('');
+const notices = ref([]);
+const solutions = ref([]);
 
-if (!content.includes('v-if="isLoading"')) {
-  const skeleton = `
-      <template v-if="isLoading">
-        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 32rpx; margin-bottom: 24rpx;"></view>
-        <view class="skeleton-block" style="width: 100%; height: 320rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
-        <view style="display: flex; gap: 20rpx; margin-bottom: 24rpx;">
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
-        </view>
-        <view class="skeleton-block" style="width: 100%; height: 200rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
-        <view class="skeleton-block" style="width: 100%; height: 180rpx; border-radius: 24rpx;"></view>
-      </template>
-      <template v-else>
-  `;
-  content = content.replace(/<!-- 问候与专属顾问卡片 -->/, `${skeleton}\n    <!-- 问候与专属顾问卡片 -->`);
-  content = content.replace(/<view class="tabbar-space" \/>/, `</template>\n    <view class="tabbar-space" />`);
-}
+const quickTools = [
+  { title: '型号查询', icon: 'search', path: '/pages/password/index' },
+  { title: '我的报价单', icon: 'file-text-fill', path: '/pages/solution/index' },
+  { title: '新建方案', icon: 'order', path: '/pages/solution/index' },
+  { title: '产品对比', icon: 'grid-fill', path: '/pages/product/list' },
+  { title: '资料中心', icon: 'coupon', path: '/pages/product/index' }
+];
+
+const formatMoney = (value) => Number(value || 0).toLocaleString();
+
+const handleSearch = () => {
+  const text = keyword.value.trim();
+  if (!text) return;
+  openPage('/pages/product/list', { keyword: text });
+};
+
+onMounted(async () => {
+  isLoading.value = true;
+  try {
+    const [noticeResult, solutionResult] = await Promise.all([getNotices({ limit: 10 }), getSolutionList({ limit: 10 })]);
+    notices.value = noticeResult.data && noticeResult.data.data ? noticeResult.data.data.map(n => ({
+      id: n.article_id,
+      title: n.article_title,
+      type: n.category_name,
+      time: n.publish_time_text,
+      image: n.cover_image
+    })) : [];
+    solutions.value = solutionResult.data && solutionResult.data.data ? solutionResult.data.data.map(item => ({
+      id: item.quote_id,
+      title: item.quote_no,
+      items: item.items || Array(item.item_count).fill({}),
+      totalPrice: item.pay_amount,
+      customerName: item.contact_name_snapshot,
+      date: item.create_time_text
+    })) : [];
+  } catch(e) {}
+  isLoading.value = false;
+});
+</script>`;
+
+content = content.replace(/<script setup>[\s\S]*?<\/script>/, newScript);
 fs.writeFileSync('pages/index/index.vue', content);
-console.log('patched index/index.vue');
+console.log('patched home index');

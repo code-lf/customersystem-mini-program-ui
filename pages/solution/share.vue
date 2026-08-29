@@ -3,12 +3,12 @@
     <AppNavbar title="客户方案报价预览" />
 
     <view class="preview-card">
-      <!-- 暖通公司信息栏 -->
+      <!-- 电器公司信息栏 -->
       <view class="company-row">
         <view class="company-icon"><up-icon name="home" size="20" color="#fff" /></view>
         <view class="company-text">
-          <text class="company-name">格宏暖通工程科技有限公司</text>
-          <text class="company-tagline">专业暖通设计 · 一线品质把控 · 贴心售后维保</text>
+          <text class="company-name">格宏电器科技有限公司</text>
+          <text class="company-tagline">专业空调电器 · 一线品质把控 · 贴心售后维保</text>
         </view>
       </view>
 
@@ -43,8 +43,8 @@
       <view class="contact-row">
         <image class="engineer-avatar" src="/static/avatars/avatar-demo.png" mode="aspectFill" />
         <view class="engineer-info">
-          <text class="engineer-name">张工 (资深暖通方案工程师)</text>
-          <text class="engineer-org">浙江格宏工程技术部 · 专属顾问</text>
+          <text class="engineer-name">张工 (资深方案工程师)</text>
+          <text class="engineer-org">格宏电器工程技术部 · 专属顾问</text>
           <text class="engineer-tel">服务热线：138 8888 8888</text>
         </view>
         <button class="call-btn" @click="call">

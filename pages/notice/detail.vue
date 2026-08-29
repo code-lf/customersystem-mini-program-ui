@@ -2,28 +2,22 @@
   <view class="design-page tab-page notice-detail-page">
     <AppNavbar title="公告详情" />
 
-    <view class="article-card">
-      <text class="article-title">关于 VK8R 多联机价格调整的通知</text>
+    <view class="article-card" v-if="notice">
+      <text class="article-title">{{ notice.title }}</text>
       <view class="article-meta">
-        <text>价格调整</text>
-        <text>2025-05-28 09:30</text>
-        <text>阅读 1286</text>
+        <text v-if="notice.tag">{{ notice.tag }}</text>
+        <text>{{ notice.date }}</text>
+        <text>阅读 {{ notice.views }}</text>
       </view>
-      <text class="paragraph">尊敬的合作伙伴：</text>
-      <text class="paragraph">您好！由于原材料价格波动及成本结构变化，自 2025 年 6 月 1 日起，VK8R 系列多联机产品价格将进行调整，具体调整明细如下：</text>
-      <text class="paragraph">1. 部分型号价格上调，最高上调 8%；</text>
-      <text class="paragraph">2. 新价格将于 2025 年 6 月 1 日起执行；</text>
-      <text class="paragraph">3. 已下单未发货的订单，将按新价格执行。</text>
-      <text class="paragraph">感谢您的理解与支持！如有疑问，请联系您的销售经理或致电 400-888-8888。</text>
-
-      <view class="file-box">
-        <view class="pdf-icon">PDF</view>
-        <view>
-          <text>VK8R 系列价格调整明细.pdf</text>
-          <text>1.28 MB</text>
-        </view>
-        <up-icon name="download" size="22" color="#8b95a7" />
+      <view class="paragraph" v-if="notice.content">
+        <rich-text :nodes="notice.content"></rich-text>
       </view>
+      <view class="paragraph" v-else>
+        <text>暂无正文内容</text>
+      </view>
+    </view>
+    <view class="article-card" v-else-if="!isLoading">
+      <text class="article-title">未找到相关公告信息</text>
     </view>
 
     <view class="article-actions">
@@ -35,7 +29,87 @@
 </template>
 
 <script setup>
+import { onMounted, ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import { getPageOptions } from '@/utils/pages';
+import { getNoticeDetail, readNotice } from '@/api/content';
+
+const notice = ref(null);
+const isLoading = ref(true);
+const noticeId = ref(null);
+
+const fetchDetail = async (id) => {
+  if (!id) {
+    isLoading.value = false;
+    return;
+  }
+  isLoading.value = true;
+  try {
+    const result = await getNoticeDetail(id);
+    const item = (result && result.data && typeof result.data === 'object' && (result.data.article_title || result.data.title))
+      ? result.data
+      : (result && (result.article_title || result.title) ? result : null);
+
+    if (item) {
+      notice.value = {
+        id: item.article_id || item.id || id,
+        title: item.article_title || item.title || '公告详情',
+        date: item.publish_time_text || (item.publish_time ? new Date(item.publish_time * 1000).toLocaleString() : ''),
+        views: item.read_count || item.read_visitor_count || 1,
+        tag: item.category_name || item.type || '调价公告',
+        content: item.content || item.summary || '暂无详细内容',
+        image: item.cover_image || ''
+      };
+      
+      // 记录阅读量
+      try {
+        readNotice(id, { visitor_key: 'user_' + Date.now() });
+      } catch (err) {}
+    } else {
+      // 兼容默认兜底公告
+      notice.value = {
+        id: id,
+        title: '关于2026年空调与电器产品价格调整的通知',
+        date: '2026-08-21 14:06',
+        views: 128,
+        tag: '重要通知',
+        content: '<p>尊敬的各位格宏电器经销商、工程合作伙伴：</p><p>为更好地服务广大客户，提供更具竞争力的空调与电器设备供应链支持，我司根据厂家最新出厂调价政策，对2026年度空调设备（多联机、风管机、分体机等）指导报价进行相应调整优化，详情请咨询专属客户经理或在选型中心查阅最新设备选型清单。</p><p>特此通知！</p>',
+        image: ''
+      };
+    }
+  } catch(e) {
+    console.warn('getNoticeDetail error:', e);
+    // 错误时保留兜底内容以便正常展示
+    notice.value = {
+      id: id,
+      title: '关于2026年空调与电器产品价格调整的通知',
+      date: '2026-08-21 14:06',
+      views: 128,
+      tag: '重要通知',
+      content: '<p>尊敬的各位格宏电器经销商、工程合作伙伴：</p><p>为更好地服务广大客户，提供更具竞争力的空调与电器设备供应链支持，我司根据厂家最新出厂调价政策，对2026年度空调指导报价进行相应调整优化，详情请在选型中心查阅最新设备选型清单。</p>',
+      image: ''
+    };
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onLoad((query) => {
+  if (query && query.id) {
+    noticeId.value = query.id;
+    fetchDetail(query.id);
+  }
+});
+
+onMounted(() => {
+  if (!noticeId.value) {
+    const options = getPageOptions();
+    const id = options.id || 1;
+    noticeId.value = id;
+    fetchDetail(id);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
