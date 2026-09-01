@@ -432,13 +432,18 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
 import { getProductList, getProductCategories } from '@/api/product';
 import { getNavMetrics } from '@/utils/system';
+import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const metrics = computed(() => getNavMetrics());
+// 不分享当前用户的报价单数据，只分享小程序公共首页入口。
+const SHARE_TITLE = '格宏助手｜专业空调选型与报价';
+onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
+onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 const activeTab = ref('current');
 const isLoading = ref(false);
 
@@ -796,6 +801,7 @@ watch(addSearchKeyword, () => {
 });
 
 onShow(() => {
+  showMiniProgramShareMenu();
   loadCart();
   loadHistory();
   checkPendingProduct();
