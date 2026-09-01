@@ -18,7 +18,7 @@
       <view class="chat-inner">
         <!-- 欢迎气泡 -->
         <view class="message-row ai-row">
-          <image class="avatar" src="/static/aircon/ai-robot-card.png" mode="aspectFit" />
+          <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
           <view class="ai-content">
             <view class="ai-bubble">
               <text class="text-body">您好！我是格宏智能电器 AI 助手。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。请问今天有什么可以帮您？</text>
@@ -41,7 +41,7 @@
           </template>
 
           <template v-else>
-            <image class="avatar" src="/static/aircon/ai-robot-card.png" mode="aspectFit" />
+            <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
             <view class="ai-content">
               <view class="ai-bubble">
                 <text class="text-body">{{ msg.text }}</text>
@@ -82,7 +82,7 @@
 
         <!-- 输入思考中动画 -->
         <view v-if="isThinking" class="message-row ai-row">
-          <image class="avatar" src="/static/aircon/ai-robot-card.png" mode="aspectFit" />
+          <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
           <view class="ai-content">
             <view class="ai-bubble thinking-bubble">
               <view class="dot" />

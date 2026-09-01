@@ -32,7 +32,7 @@
     <!-- AI 机器人视觉形象 -->
     <view class="robot-wrap" @click="openChat('你好，请介绍一下你能帮我做什么')">
       <view class="robot-glow" />
-      <image class="robot-img" src="/static/aircon/ai-robot.png" mode="aspectFit" />
+      <image class="robot-img" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" mode="aspectFit" />
       <view class="robot-chip">
         <up-icon name="chat-fill" size="14" color="#2468e8" />
         <text>点击与我立即交流</text>

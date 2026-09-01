@@ -49,9 +49,9 @@ const state = {
     { id: 3, type: 'system', title: '系统公告', content: '系统将在今晚进行例行维护。', time: '06-01', unread: false }
   ],
   notices: [
-    { id: 1, type: '价格调整', title: '关于 VK 系列多联机价格调整的通知', summary: '部分型号价格上调，具体调整请查看公告详情。', time: '2026-06-01', views: 1286, image: '/static/aircon/central-default.png' },
-    { id: 2, type: '系统公告', title: '格宏助手小程序功能升级公告', summary: '产品资料、报价单和价格监控功能已上线。', time: '2026-05-20', views: 842, image: '/static/aircon/notice-cloud.png' },
-    { id: 3, type: '活动政策', title: '2026 年夏季促销活动政策发布', summary: '夏季活动进行中，欢迎关注最新政策。', time: '2026-05-15', views: 1765, image: '/static/aircon/notice-summer.png' }
+    { id: 1, type: '价格调整', title: '关于 VK 系列多联机价格调整的通知', summary: '部分型号价格上调，具体调整请查看公告详情。', time: '2026-06-01', views: 1286, image: 'http://gh.starall.cn/static/resource/aircon/central-default.png' },
+    { id: 2, type: '系统公告', title: '格宏助手小程序功能升级公告', summary: '产品资料、报价单和价格监控功能已上线。', time: '2026-05-20', views: 842, image: 'http://gh.starall.cn/static/resource/aircon/notice-cloud.png' },
+    { id: 3, type: '活动政策', title: '2026 年夏季促销活动政策发布', summary: '夏季活动进行中，欢迎关注最新政策。', time: '2026-05-15', views: 1765, image: 'http://gh.starall.cn/static/resource/aircon/notice-summer.png' }
   ],
   cashouts: [
     {

@@ -51,7 +51,7 @@
           </view>
 
           <view v-for="item in quoteItems" :key="item.id" class="quote-product-row">
-            <image class="quote-product-image" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+            <image class="quote-product-image" :src="item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
             <view class="quote-product-info">
               <text class="quote-product-name">{{ item.name }}</text>
               <text class="quote-product-model">{{ item.model || item.type }}</text>
@@ -351,7 +351,7 @@
         <scroll-view class="panel-product-list" scroll-y>
           <!-- 空状态 -->
           <view v-if="filteredCandidates.length === 0" class="panel-empty-box">
-            <image class="empty-icon-img" src="/static/aircon/central-default.png" mode="aspectFit" />
+            <image class="empty-icon-img" src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
             <text class="empty-text">未找到符合该分类条件的设备</text>
             <button class="empty-reset-btn" @click="resetCandidateFilters">查看全部设备</button>
           </view>
@@ -364,7 +364,7 @@
             :class="{ 'is-selected-card': getItemCountInQuote(item) > 0 }"
           >
             <view class="panel-p-img-wrap">
-              <image class="panel-p-img" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+              <image class="panel-p-img" :src="item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
               <text class="p-type-badge" :class="getTypeBadgeClass(item)">
                 {{ getProductTypeTag(item) }}
               </text>
@@ -633,7 +633,7 @@ const applyServerCart = (serverCart) => {
     goods_id: item.goods_id,
     name: item.goods_name_snapshot || item.goods_name,
     model: item.model_snapshot || item.model,
-    image: item.image_snapshot || item.image || '/static/aircon/outdoor-unit.png',
+    image: item.image_snapshot || item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
     price: Number(item.origin_price || item.quote_price || item.price || 0),
     quantity: Number(item.quantity || 1)
   }));
@@ -782,7 +782,7 @@ const loadCandidates = async () => {
           model: item.model || item.type || '标准型号',
           category_name: item.category_name,
           spec: specStr,
-          image: item.image || (isCentralProduct(item) ? '/static/aircon/central-default.png' : (isHomeProduct(item) ? '/static/aircon/home-green.png' : '/static/aircon/outdoor-unit.png')),
+          image: item.image || (isCentralProduct(item) ? 'http://gh.starall.cn/static/resource/aircon/central-default.png' : (isHomeProduct(item) ? 'http://gh.starall.cn/static/resource/aircon/home-green.png' : 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png')),
           price: itemPrice
         };
       });
@@ -870,7 +870,7 @@ const addProductToQuote = async (product) => {
       name: product.goods_name || product.name || '空调设备',
       model: product.model || product.type || '标准型号',
       spec: product.spec || (Array.isArray(product.specs) ? product.specs.slice(0, 2).join(' | ') : '高效节能 · 变频冷暖'),
-      image: product.image || '/static/aircon/outdoor-unit.png',
+      image: product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
       price: Number(product.price || 0),
       quantity: 1
     });

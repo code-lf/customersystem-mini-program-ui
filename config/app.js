@@ -13,9 +13,11 @@ const config = {
   apiMode: 'api',
   mockDelay: 300,
 
-  // 接口环境配置。切换为 api 后，把 baseUrl 换成真实服务地址即可。
-  env: 'development',
-  baseUrl: 'https://3e0eee0e.r25.cpolar.top/api',
+  // 正式业务接口前缀。所有 api/*.js 中的相对路径都会自动拼接在该地址后面，
+  // 例如 `crm/quote/lists` 最终请求为：
+  // https://gh.starall.cn/api/crm/quote/lists
+  env: 'production',
+  baseUrl: 'https://gh.starall.cn/api',
   timeout: 60000,
 
   // 阿里云百炼 AI 助手配置。

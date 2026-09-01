@@ -84,7 +84,7 @@
         <text class="central-card__desc">多联机 / 商用系统 / 空气能</text>
         <button class="white-pill">进入选型</button>
       </view>
-      <image src="/static/aircon/central-default.png" mode="aspectFit" />
+      <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
     </view>
 
     <view class="entry-row">
@@ -93,14 +93,14 @@
           <text class="entry-card__title">家用空调</text>
           <text class="entry-card__desc">壁挂式 / 柜式</text>
         </view>
-        <image src="/static/aircon/home-green.png" mode="aspectFit" />
+        <image src="http://gh.starall.cn/static/resource/aircon/home-green.png" mode="aspectFit" />
       </view>
       <view class="entry-card entry-card--ai" @click="openPage('/pages/ai/index')">
         <view class="entry-card__copy">
           <text class="entry-card__title">格宏助手</text>
           <text class="entry-card__desc">有问题问我</text>
         </view>
-        <image src="/static/aircon/ai-robot-card.png" mode="aspectFit" />
+        <image src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
       </view>
     </view>
 

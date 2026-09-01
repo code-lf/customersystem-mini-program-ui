@@ -127,7 +127,7 @@
               class="series-product-card"
               @click="openPage('/pages/product/detail', { id: product.goods_id })"
             >
-              <image class="product-img" :src="product.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+              <image class="product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
               <view class="product-info">
                 <view class="model-row">
                   <text class="model-name">{{ product.model }}</text>
@@ -202,7 +202,7 @@ const homeCategories = computed(() => {
       category_id: 14,
       desc: '节能静音 / 快速冷暖',
       count: wallGoodsCount.value || 1,
-      image: '/static/aircon/home-green.png'
+      image: 'http://gh.starall.cn/static/resource/aircon/home-green.png'
     },
     {
       id: 'cabinet',
@@ -210,7 +210,7 @@ const homeCategories = computed(() => {
       category_id: 19,
       desc: '大风量 / 快速制冷制热',
       count: cabinetGoodsCount.value || 1,
-      image: '/static/aircon/home-cabinet-green.png'
+      image: 'http://gh.starall.cn/static/resource/aircon/home-cabinet-green.png'
     }
   ];
 });

@@ -22,7 +22,7 @@
       </view>
 
       <view v-for="(item, index) in solution.items" :key="item.id || index" class="item-card">
-        <image class="item-img" :src="item.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+        <image class="item-img" :src="item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
         <view class="item-card__body">
           <text class="item-card__model">{{ item.model || item.name }}</text>
           <text class="item-card__spec">{{ specText(item) }}</text>

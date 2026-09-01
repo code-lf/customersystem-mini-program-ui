@@ -6,9 +6,9 @@ import productSource from '@/文档/商品目前数据.json';
  */
 
 const DEFAULT_IMAGES = {
-  central: '/static/aircon/central-default.png',
-  home: '/static/aircon/home-green.png',
-  other: '/static/aircon/central-default.png'
+  central: 'http://gh.starall.cn/static/resource/aircon/central-default.png',
+  home: 'http://gh.starall.cn/static/resource/aircon/home-green.png',
+  other: 'http://gh.starall.cn/static/resource/aircon/central-default.png'
 };
 
 const EMPTY_VALUE = '暂无数据';
@@ -66,9 +66,9 @@ function getDisplaySpecs(raw = {}) {
 function getLocalImage(raw, productType) {
   // 原始 pics 是后端上传地址，当前 Mock 统一使用项目内素材，避免跨域和失效链接。
   const name = `${raw.goodsname || ''} ${raw.type || ''}`;
-  if (productType === 'central') return '/static/aircon/central-default.png';
-  if (/柜|立式|柜机/.test(name)) return '/static/aircon/home-cabinet.png';
-  if (productType === 'home') return '/static/aircon/home-green.png';
+  if (productType === 'central') return 'http://gh.starall.cn/static/resource/aircon/central-default.png';
+  if (/柜|立式|柜机/.test(name)) return 'http://gh.starall.cn/static/resource/aircon/home-cabinet.png';
+  if (productType === 'home') return 'http://gh.starall.cn/static/resource/aircon/home-green.png';
   return DEFAULT_IMAGES[productType] || DEFAULT_IMAGES.other;
 }
 

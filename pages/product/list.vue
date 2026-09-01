@@ -85,7 +85,7 @@
         @click="openPage('/pages/product/detail', { id: product.goods_id })"
       >
         <text v-if="product.comment" class="hot-tag">{{ product.comment }}</text>
-        <image class="home-product-img" :src="product.image || '/static/aircon/home-green.png'" mode="aspectFit" />
+        <image class="home-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/home-green.png'" mode="aspectFit" />
         <view class="home-product-info">
           <text class="home-product__name">{{ product.goods_name }}</text>
           <text class="home-product__model">{{ product.model || '-' }}</text>
@@ -108,7 +108,7 @@
         class="list-product-card"
         @click="openPage('/pages/product/detail', { id: product.goods_id })"
       >
-        <image class="list-product-img" :src="product.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+        <image class="list-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
         <view class="list-product__body">
           <view class="list-product__title-row">
             <text class="list-product__model">{{ product.model || '标准型号' }}</text>

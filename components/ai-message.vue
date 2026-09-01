@@ -1,3 +1,3 @@
-<template><view class="ai-row" :class="{ user: role === 'user' }"><image v-if="role !== 'user'" src="/static/aircon/ai-robot.png" /><view class="bubble">{{ content }}</view></view></template>
+<template><view class="ai-row" :class="{ user: role === 'user' }"><image v-if="role !== 'user'" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" /><view class="bubble">{{ content }}</view></view></template>
 <script setup>defineProps({ role: { type: String, default: 'assistant' }, content: { type: String, default: '' } });</script>
 <style lang="scss" scoped>.ai-row{display:flex;align-items:flex-start;margin:20rpx 0}.ai-row.user{justify-content:flex-end}.ai-row image{width:64rpx;height:64rpx;margin-right:14rpx;border-radius:50%}.bubble{max-width:78%;padding:18rpx 22rpx;color:#17233d;background:#fff;border-radius:18rpx;font-size:25rpx;line-height:38rpx}.user .bubble{color:#fff;background:#2468e8;border-radius:18rpx 18rpx 4rpx 18rpx}</style>

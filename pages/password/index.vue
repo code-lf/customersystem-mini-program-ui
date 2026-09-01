@@ -29,7 +29,7 @@
     <view v-if="showResult" class="result-card">
       <text class="result-card__title">查询结果</text>
       <view class="product-info">
-        <image src="/static/aircon/central-vk.png" mode="aspectFit" />
+        <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
         <view>
           <text>VK8R 多联式空调室外机</text>
           <text>20HP | 56.0kW | R410A</text>

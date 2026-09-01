@@ -3,7 +3,7 @@
     <AppNavbar title="产品详情" bg-color="transparent" />
 
     <view class="hero" v-if="product">
-      <image :src="product.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+      <image :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
     </view>
 
     <view class="title-card" v-if="product">
@@ -66,7 +66,7 @@
               <text class="rich-b-title">{{ product.model || product.goods_name }}</text>
               <text class="rich-b-sub">{{ product.sale_policy || '高效节能 · 智能控制 · 稳定耐用' }}</text>
             </view>
-            <image :src="product.image || '/static/aircon/outdoor-unit.png'" mode="aspectFit" />
+            <image :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
           </view>
           
           <view class="feature-grid-3">

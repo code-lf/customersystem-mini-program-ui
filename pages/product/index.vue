@@ -37,7 +37,7 @@
           <text class="hero-card__desc">末端 / 控制系统</text>
           <button class="white-pill">进入选型</button>
         </view>
-        <image src="/static/aircon/central-vk.png" mode="aspectFit" />
+        <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
       </view>
 
       <view class="hero-card hero-card--home" @click="openPage('/pages/product/category', { type: 'home' })">
@@ -47,7 +47,7 @@
           <text class="hero-card__desc">新风空调</text>
           <button class="white-pill white-pill--green">进入选型</button>
         </view>
-        <image src="/static/aircon/home-cabinet-green.png" mode="aspectFit" />
+        <image src="http://gh.starall.cn/static/resource/aircon/home-cabinet-green.png" mode="aspectFit" />
       </view>
 
       <view class="section-head">

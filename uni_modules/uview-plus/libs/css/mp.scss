@@ -1,0 +1,5 @@
+// 小程序平台样式入口。
+//
+// uview-plus/index.scss 会无条件导入本文件。当前项目暂时没有需要覆盖的
+// 微信/支付宝等小程序专属样式，但入口文件仍必须保留，否则 Sass 在编译
+// App.vue 时会报“Can't find stylesheet to import”并中断整个小程序构建。

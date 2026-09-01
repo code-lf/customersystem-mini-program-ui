@@ -180,7 +180,7 @@ const bannerImage = computed(() => {
     firstItem?.image_snapshot ||
     firstItem?.goods_image ||
     firstItem?.image ||
-    '/static/aircon/central-default.png'
+    'http://gh.starall.cn/static/resource/aircon/central-default.png'
   );
 });
 
@@ -189,7 +189,7 @@ const getProductImage = (product) => {
     product.image_snapshot ||
     product.goods_image ||
     product.image ||
-    '/static/aircon/central-default.png'
+    'http://gh.starall.cn/static/resource/aircon/central-default.png'
   );
 };
 

@@ -12,7 +12,7 @@
     <!-- 品牌标志与引导 -->
     <view class="brand-hero">
       <view class="logo-box">
-        <image class="logo-img" src="/static/aircon/ai-robot.png" mode="aspectFit" />
+        <image class="logo-img" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" mode="aspectFit" />
         <view class="logo-glow" />
       </view>
       <text class="brand-name">格宏电器助手</text>
