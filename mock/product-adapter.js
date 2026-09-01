@@ -1,115 +1,92 @@
-import productSource from '@/文档/商品目前数据.json';
+import rawData from '../文档/商品目前数据.json';
+import { uiProducts } from './ui-fixtures';
 
 /**
- * 商品适配层：原始 JSON 字段很多且部分字段为空，页面不直接依赖原始结构，
- * 统一从这里读取，后续接真实接口时只需要替换这一层。
+ * 将原始商品数据标准化为系统统一模型
  */
+export function normalizeProduct(item = {}) {
+  if (!item) return null;
 
-const DEFAULT_IMAGES = {
-  central: 'http://gh.starall.cn/static/resource/aircon/central-default.png',
-  home: 'http://gh.starall.cn/static/resource/aircon/home-green.png',
-  other: 'http://gh.starall.cn/static/resource/aircon/central-default.png'
-};
+  const isHome = item.category_name && (
+    item.category_name.includes('家用') ||
+    item.category_name.includes('生活') ||
+    item.category_name.includes('春兰') ||
+    item.category_name.includes('冰箱') ||
+    item.category_name.includes('风扇')
+  );
 
-const EMPTY_VALUE = '暂无数据';
+  const price = Number(item.cost || item.price || item.chengbencost || 0);
+  const defaultImg = isHome
+    ? 'http://gh.starall.cn/static/resource/aircon/home-green.png'
+    : 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png';
 
-function toNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : null;
-}
+  const firstPic = item.pics ? item.pics.split('###')[0] : '';
+  const image = firstPic
+    ? (firstPic.startsWith('http') ? firstPic : `http://gh.starall.cn${firstPic}`)
+    : defaultImg;
 
-function toText(value) {
-  return value === undefined || value === null || value === '' ? '' : String(value);
-}
-
-/**
- * 只把空调类商品放入产品主流程，冰箱、电风扇等仍保留在 rawData 中。
- */
-export function isAirConditioner(raw = {}) {
-  const text = `${raw.category_name || ''} ${raw.goodsname || ''} ${raw.type || ''}`;
-  if (/冰箱|风扇|净水|电视|电饭|加湿|饮水|洗衣|厨房|生活家电/.test(text)) return false;
-  return /空调|GMV|KFR|MSZ|LF-|空气能/.test(text);
-}
-
-export function getProductType(raw = {}) {
-  const text = `${raw.category_name || ''} ${raw.goodsname || ''} ${raw.type || ''}`;
-  if (/中央|商用|多联|GMV|空气能/.test(text)) return 'central';
-  if (/家用|壁挂|柜机|KFR|MSZ/.test(text)) return 'home';
-  return 'other';
-}
-
-function getSeries(raw = {}) {
-  const model = toText(raw.type || raw.goodsname);
-  return model.split(/[\s-]/)[0] || toText(raw.category_name) || '空调产品';
-}
-
-function getDisplaySpecs(raw = {}) {
-  const fields = [
-    ['匹数', raw.pishu],
-    ['能效', raw.nengxiao],
-    ['适用面积', raw.mianji],
-    ['制冷量', raw.zhileng],
-    ['制热量', raw.zhire],
-    ['制冷剂', raw.lengmei],
-    ['电源规格', raw.guige],
-    ['室内机尺寸', raw.in_size],
-    ['室外机尺寸', raw.out_size],
-    ['噪音', raw.fenbei]
-  ];
-
-  return fields.map(([label, value]) => ({
-    label,
-    value: toText(value) || EMPTY_VALUE
-  }));
-}
-
-function getLocalImage(raw, productType) {
-  // 原始 pics 是后端上传地址，当前 Mock 统一使用项目内素材，避免跨域和失效链接。
-  const name = `${raw.goodsname || ''} ${raw.type || ''}`;
-  if (productType === 'central') return 'http://gh.starall.cn/static/resource/aircon/central-default.png';
-  if (/柜|立式|柜机/.test(name)) return 'http://gh.starall.cn/static/resource/aircon/home-cabinet.png';
-  if (productType === 'home') return 'http://gh.starall.cn/static/resource/aircon/home-green.png';
-  return DEFAULT_IMAGES[productType] || DEFAULT_IMAGES.other;
-}
-
-export function normalizeProduct(raw = {}) {
-  const productType = getProductType(raw);
-  const price = toNumber(raw.price);
-  const cost = toNumber(raw.cost);
+  const specs = [];
+  if (item.pishu) specs.push(item.pishu);
+  if (item.nengxiao) specs.push(`${item.nengxiao}能效`);
+  if (item.db_type) specs.push(item.db_type);
+  if (item.lengnuan) specs.push(item.lengnuan);
+  if (specs.length === 0) {
+    if (item.guige) specs.push(item.guige);
+    else specs.push(item.unit ? `单位:${item.unit}` : '一级能效');
+  }
 
   return {
-    id: raw.id,
-    name: toText(raw.goodsname) || toText(raw.type) || '未命名商品',
-    model: toText(raw.type) || toText(raw.goodsname) || EMPTY_VALUE,
-    sku: toText(raw.sku),
-    categoryId: raw.category,
-    categoryName: toText(raw.category_name) || '未分类',
-    productType,
-    series: getSeries(raw),
-    image: getLocalImage(raw, productType),
-    tags: [raw.nengxiao, raw.lengnuan, raw.pishu].filter(Boolean),
-    // price 是对外售价字段；为空时不能把成本误当成真实销售价。
-    price,
-    referencePrice: price,
-    // Mock 报价计算允许临时使用成本作为演示基准，但页面会标注“演示价”。
-    mockUnitPrice: price || cost || 0,
-    priceLabel: price ? `¥${price.toLocaleString()}` : '价格待询',
-    displaySpecs: getDisplaySpecs(raw),
-    rawData: raw
+    id: item.id,
+    sku: item.sku || '',
+    name: item.goodsname || item.name || '空调设备',
+    model: item.type || item.model || item.yaohuoname || item.goodsname || '标准型号',
+    image: item.image || image,
+    price: item.price || price || (item.mockUnitPrice || 2980),
+    mockUnitPrice: item.mockUnitPrice || price || 2980,
+    cost: item.cost || item.chengbencost || price || 0,
+    series: item.category_name || item.series || (isHome ? '家用空调' : '中央空调'),
+    categoryName: item.category_name || item.categoryName || (isHome ? '家用空调' : '中央空调'),
+    categoryId: item.category || item.categoryId || 0,
+    productType: item.productType || (isHome ? 'home' : 'central'),
+    tag: item.tag || (item.sales > 0 ? '热销' : ''),
+    greenTag: item.greenTag || (item.nengxiao ? `${item.nengxiao}能效` : '一级能效'),
+    specs: item.specs || specs,
+    area: item.area || (item.mianji ? `${item.mianji}㎡` : (isHome ? '15-25㎡' : '80-120㎡')),
+    unit: item.unit || '套',
+    comment: item.comment || ''
   };
 }
 
-export function normalizeProducts(source = productSource) {
-  const rows = Array.isArray(source) ? source : source.data || [];
-  return rows.map(normalizeProduct);
+export function normalizeProducts(list = []) {
+  return list.map(normalizeProduct).filter(Boolean);
 }
 
-export const rawProducts = Array.isArray(productSource) ? productSource : productSource.data || [];
-export const allProducts = normalizeProducts(productSource);
-export const airProducts = allProducts.filter((item) => isAirConditioner(item.rawData));
+// 组合原始数据与 UI Fixture 数据
+const rawList = (rawData && Array.isArray(rawData.data)) ? rawData.data : [];
+const normalizedRaw = normalizeProducts(rawList);
+
+// 提取并去重
+const combinedMap = new Map();
+
+// 优先放入 UI 预置商品
+uiProducts.forEach((p) => {
+  combinedMap.set(String(p.id), normalizeProduct(p));
+});
+
+// 补充原始数据库商品
+normalizedRaw.forEach((p) => {
+  if (!combinedMap.has(String(p.id))) {
+    combinedMap.set(String(p.id), p);
+  }
+});
+
+export const allProducts = Array.from(combinedMap.values());
+export const airProducts = allProducts;
 
 export function getProductById(id) {
-  return airProducts.find((item) => String(item.id) === String(id));
+  if (!id) return null;
+  const targetId = String(id);
+  return combinedMap.get(targetId) || allProducts.find((p) => String(p.id) === targetId || String(p.sku) === targetId) || null;
 }
 
 export default {
@@ -117,7 +94,5 @@ export default {
   airProducts,
   normalizeProduct,
   normalizeProducts,
-  getProductById,
-  isAirConditioner,
-  getProductType
+  getProductById
 };

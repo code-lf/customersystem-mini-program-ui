@@ -1,6 +1,6 @@
 <template>
   <view class="crm-page my-page">
-    <view class="my-safe-top" />
+    <view class="my-safe-top" :style="{ height: (metrics.statusBarHeight + metrics.navBarHeight + 6) + 'px' }" />
 
     
       <template v-if="isLoading">
@@ -293,7 +293,9 @@ import { getBalance, updateMemberInfo } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
+import { getNavMetrics } from '@/utils/system';
 
+const metrics = computed(() => getNavMetrics());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
@@ -526,8 +528,7 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 }
 
 .my-safe-top {
-  height: 48rpx;
-  height: calc(env(safe-area-inset-top) + 24rpx);
+  width: 100%;
 }
 
 /* 用户卡片 */
