@@ -1,6 +1,13 @@
 <template>
   <view class="quote-page">
-    <view class="quote-header" :style="{ paddingTop: safeTop + 'px' }">
+    <view class="quote-safe-top" :style="{ height: (metrics.statusBarHeight + 4) + 'px' }" />
+    <view
+      class="quote-header"
+      :style="{
+        height: metrics.navBarHeight + 'px',
+        paddingRight: (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 8) + 'px' : '28rpx')
+      }"
+    >
       <text class="quote-header-title">方案报价单</text>
     </view>
 
@@ -429,17 +436,9 @@ import { onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
 import { getProductList, getProductCategories } from '@/api/product';
+import { getNavMetrics } from '@/utils/system';
 
-const safeTop = computed(() => {
-  try {
-    const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : {};
-    const systemInfo = typeof uni.getSystemInfoSync === 'function' ? uni.getSystemInfoSync() : {};
-    return windowInfo.statusBarHeight || systemInfo.statusBarHeight || 20;
-  } catch (error) {
-    return 20;
-  }
-});
-
+const metrics = computed(() => getNavMetrics());
 const activeTab = ref('current');
 const isLoading = ref(false);
 
@@ -997,23 +996,29 @@ const checkPendingProduct = async () => {
   background: linear-gradient(180deg, #d2e4ff 0%, #e8f1fd 280rpx, #f4f7fc 500rpx, #f4f7fc 100%);
 }
 
+.quote-safe-top {
+  width: 100%;
+}
+
 .quote-header {
   display: flex;
   align-items: center;
-  height: 100rpx;
-  padding: 0 28rpx;
+  padding-left: 28rpx;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
 }
 
 .quote-header-title {
   color: #15223a;
-  font-size: 36rpx;
+  font-size: 34rpx;
   font-weight: 900;
   letter-spacing: 0.5rpx;
 }
 
 .tabs-card {
   display: flex;
-  margin: 0 24rpx 18rpx;
+  margin: 12rpx 24rpx 18rpx;
   padding: 8rpx;
   border-radius: 22rpx;
   background: #e5edf8;

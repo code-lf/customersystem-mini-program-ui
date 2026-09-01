@@ -1,9 +1,15 @@
 <template>
   <view class="crm-page home-page">
-    <view class="home-safe" />
+    <view class="home-safe" :style="{ height: (metrics.statusBarHeight + 6) + 'px' }" />
 
     <!-- 顶部高质感品牌与状态栏 -->
-    <view class="home-header">
+    <view
+      class="home-header"
+      :style="{
+        minHeight: metrics.navBarHeight + 'px',
+        paddingRight: (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 8) + 'px' : '0')
+      }"
+    >
       <view class="brand">
         <view class="brand__icon-wrap">
           <image class="brand__logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232468e8' /%3E%3Cstop offset='100%25' stop-color='%2306b6d4' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M85,60 H60 V75 H70 C66,85 58,90 50,90 C35,90 25,78 25,60 C25,42 35,30 50,30 C58,30 65,34 69,40 L82,30 C74,18 64,12 50,12 C24,12 8,30 8,60 C8,90 24,108 50,108 C75,108 85,90 85,75 Z' fill='url(%23grad1)' /%3E%3Ccircle cx='85' cy='45' r='10' fill='%2310b981' /%3E%3C/svg%3E" mode="aspectFit" />
@@ -153,7 +159,9 @@ import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
 import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
+import { getNavMetrics } from '@/utils/system';
 
+const metrics = computed(() => getNavMetrics());
 const isLoading = ref(true);
 const userStore = useUserStore();
 const keyword = ref('');
@@ -274,50 +282,57 @@ onMounted(async () => {
 }
 
 .home-safe {
-  height: calc(env(safe-area-inset-top) + 20rpx);
+  width: 100%;
 }
 
 .home-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80rpx;
-  margin-bottom: 16rpx;
+  box-sizing: border-box;
+  margin-bottom: 20rpx;
+  position: relative;
+  z-index: 10;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 14rpx;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .brand__icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 58rpx;
-  height: 58rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 18rpx;
   background: #fff;
   box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.12);
+  flex-shrink: 0;
 }
 
 .brand__logo {
-  width: 38rpx;
-  height: 38rpx;
+  width: 40rpx;
+  height: 40rpx;
 }
 
 .brand__text-box {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .brand__name {
   color: #132238;
   font-size: 32rpx;
   font-weight: 900;
-  line-height: 36rpx;
+  line-height: 38rpx;
   letter-spacing: 0.5rpx;
+  white-space: nowrap;
 }
 
 .brand__sub {
@@ -325,16 +340,19 @@ onMounted(async () => {
   font-size: 20rpx;
   line-height: 24rpx;
   margin-top: 2rpx;
+  white-space: nowrap;
 }
 
 .home-header__status {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  padding: 8rpx 18rpx;
+  padding: 10rpx 20rpx;
   border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.05);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2rpx 12rpx rgba(23, 35, 61, 0.08);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .home-header__status text {

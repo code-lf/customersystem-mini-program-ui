@@ -1,7 +1,14 @@
 <template>
-  <view class="app-navbar">
-    <view class="nav-safe-top" />
-    <view class="custom-nav-bar" :style="{ backgroundColor: bgColor, height: height, borderBottom: border ? '1rpx solid #edf1f8' : 'none' }">
+  <view class="app-navbar" :style="{ backgroundColor: bgColor }">
+    <view class="nav-safe-top" :style="{ height: metrics.statusBarHeight + 'px' }" />
+    <view
+      class="custom-nav-bar"
+      :style="{
+        height: (typeof height === 'number' ? height + 'px' : (height || (metrics.navBarHeight + 'px'))),
+        paddingRight: (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 10) + 'px' : '24rpx'),
+        borderBottom: border ? '1rpx solid #edf1f8' : 'none'
+      }"
+    >
       <view class="nav-left">
         <view v-if="showBack" class="nav-back-touch" @click="handleBack">
           <up-icon name="arrow-left" :size="leftIconSize" :color="leftIconColor" />
@@ -11,7 +18,17 @@
         </view>
         <slot name="left" />
       </view>
-      <view class="nav-title" :style="{ color: titleColor }">
+      <!-- tabBar 首页没有返回按钮时可按整个屏幕居中；普通详情页仍避开左右操作区。 -->
+      <view
+        class="nav-title"
+        :style="{
+          color: titleColor,
+          left: titleScreenCenter ? '0' : '90rpx',
+        right: titleScreenCenter
+          ? '0'
+          : (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 16) + 'px' : '90rpx')
+      }"
+      >
         <text>{{ title }}</text>
       </view>
       <view class="nav-right">
@@ -22,6 +39,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { getNavMetrics } from '@/utils/system';
+
 const props = defineProps({
   title: { type: String, default: '' },
   showBack: { type: Boolean, default: true },
@@ -30,9 +50,13 @@ const props = defineProps({
   titleColor: { type: String, default: '#17233d' },
   leftIconColor: { type: String, default: '#17233d' },
   leftIconSize: { type: [String, Number], default: 20 },
-  height: { type: [String, Number], default: '88rpx' },
-  border: { type: Boolean, default: false }
+  height: { type: [String, Number], default: '' },
+  border: { type: Boolean, default: false },
+  // 为 true 时标题以整个屏幕为基准居中，适合“产品中心”这类没有返回按钮的 tabBar 页。
+  titleScreenCenter: { type: Boolean, default: false }
 });
+
+const metrics = computed(() => getNavMetrics());
 
 const goHome = () => {
   uni.switchTab({
@@ -66,27 +90,28 @@ const handleBack = () => {
 <style lang="scss" scoped>
 .app-navbar {
   position: relative;
-  z-index: 20;
+  z-index: 50;
+  width: 100%;
 }
 
 .nav-safe-top {
-  height: 20rpx;
-  height: calc(env(safe-area-inset-top) + 12rpx);
+  width: 100%;
 }
 
 .custom-nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20rpx;
+  padding-left: 20rpx;
   position: relative;
+  box-sizing: border-box;
 }
 
 .nav-left {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  min-width: 80rpx;
+  min-width: 60rpx;
   min-height: 60rpx;
   z-index: 2;
 }
@@ -96,17 +121,16 @@ const handleBack = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 60rpx;
-  height: 60rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.08);
 }
 
 .nav-title {
   position: absolute;
   left: 90rpx;
-  right: 90rpx;
   text-align: center;
   font-size: 32rpx;
   font-weight: 800;
@@ -120,7 +144,7 @@ const handleBack = () => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 80rpx;
+  min-width: 60rpx;
   min-height: 60rpx;
   z-index: 2;
 }

@@ -1,6 +1,6 @@
 <template>
   <view class="crm-page product-page">
-    <AppNavbar title="产品中心" :show-back="false" />
+    <AppNavbar title="产品中心" :show-back="false" :title-screen-center="true" />
 
     <view class="product-content">
       

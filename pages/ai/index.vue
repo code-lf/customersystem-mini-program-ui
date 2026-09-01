@@ -1,7 +1,14 @@
 <template>
   <view class="crm-page ai-home-page">
+    <view class="ai-safe-top" :style="{ height: (metrics.statusBarHeight + 6) + 'px' }" />
     <!-- 顶部状态栏与品牌标 -->
-    <view class="ai-brand" :style="{ paddingTop: safeTop + 'px' }">
+    <view
+      class="ai-brand"
+      :style="{
+        height: metrics.navBarHeight + 'px',
+        paddingRight: (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 8) + 'px' : '0')
+      }"
+    >
       <view class="brand-tag">
         <up-icon name="server-fill" size="18" color="#2468e8" />
         <text class="brand-title">格宏智能 AI 助手</text>
@@ -97,21 +104,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { openPage } from '@/utils/pages';
+import { getNavMetrics } from '@/utils/system';
 
-
+const metrics = computed(() => getNavMetrics());
 const isLoading = ref(true);
 onMounted(() => {
   setTimeout(() => { isLoading.value = false }, 400);
-});
-
-const safeTop = computed(() => {
-  try {
-    const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : {};
-    const systemInfo = typeof uni.getSystemInfoSync === 'function' ? uni.getSystemInfoSync() : {};
-    return windowInfo.statusBarHeight || systemInfo.statusBarHeight || 20;
-  } catch (error) {
-    return 20;
-  }
 });
 
 const features = [
@@ -168,11 +166,17 @@ const openChat = (question) => openPage('/pages/ai/chat', { question });
   background: #f4f7fc;
 }
 
+.ai-safe-top {
+  width: 100%;
+}
+
 .ai-brand {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 96rpx;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
 }
 
 .brand-tag {

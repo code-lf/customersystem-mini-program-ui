@@ -1,6 +1,7 @@
 <template>
   <view class="crm-page my-page">
-    <view class="my-safe-top" />
+    <!-- 只增加顶部占位，把完整的个人信息卡片移到胶囊下方；不改变卡片内部原有排版。 -->
+    <view class="my-safe-top" :style="{ height: (metrics.totalNavHeight + 6) + 'px' }" />
 
     
       <template v-if="isLoading">
@@ -293,7 +294,9 @@ import { getBalance, updateMemberInfo } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
+import { getNavMetrics } from '@/utils/system';
 
+const metrics = computed(() => getNavMetrics());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
@@ -489,16 +492,6 @@ const handleLogout = () => {
   });
 };
 
-const safeTop = computed(() => {
-  try {
-    const windowInfo = typeof uni.getWindowInfo === 'function' ? uni.getWindowInfo() : {};
-    const systemInfo = typeof uni.getSystemInfoSync === 'function' ? uni.getSystemInfoSync() : {};
-    return windowInfo.statusBarHeight || systemInfo.statusBarHeight || 20;
-  } catch (error) {
-    return 20;
-  }
-});
-
 const shortcuts = [
   { title: '我的报价单', icon: 'file-text-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/solution/index' },
   { title: '价格监控', icon: 'eye-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/monitor/index' },
@@ -526,8 +519,7 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 }
 
 .my-safe-top {
-  height: 48rpx;
-  height: calc(env(safe-area-inset-top) + 24rpx);
+  width: 100%;
 }
 
 /* 用户卡片 */
