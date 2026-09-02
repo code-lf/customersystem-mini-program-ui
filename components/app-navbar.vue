@@ -18,16 +18,14 @@
         </view>
         <slot name="left" />
       </view>
-      <!-- tabBar 首页没有返回按钮时可按整个屏幕居中；普通详情页仍避开左右操作区。 -->
+      <!-- 全局统一居中：左右两侧留出相等的安全距离，保证文字绝对居中且不被胶囊/返回键遮挡 -->
       <view
         class="nav-title"
         :style="{
           color: titleColor,
-          left: titleScreenCenter ? '0' : '90rpx',
-        right: titleScreenCenter
-          ? '0'
-          : (metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 16) + 'px' : '90rpx')
-      }"
+          left: metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 10) + 'px' : '100rpx',
+          right: metrics.capsuleOccupiedWidth ? (metrics.capsuleOccupiedWidth + 10) + 'px' : '100rpx'
+        }"
       >
         <text>{{ title }}</text>
       </view>
@@ -130,7 +128,6 @@ const handleBack = () => {
 
 .nav-title {
   position: absolute;
-  left: 90rpx;
   text-align: center;
   font-size: 32rpx;
   font-weight: 800;

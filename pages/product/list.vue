@@ -80,9 +80,9 @@
     <view v-if="isHome" class="home-grid">
       <view
         v-for="product in displayProducts"
-        :key="product.goods_id"
+        :key="(product.goods_id || product.id)"
         class="home-product-card"
-        @click="openPage('/pages/product/detail', { id: product.goods_id })"
+        @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
       >
         <text v-if="product.comment" class="hot-tag">{{ product.comment }}</text>
         <image class="home-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/home-green.png'" mode="aspectFit" />
@@ -104,9 +104,9 @@
     <view v-else class="central-list">
       <view
         v-for="product in displayProducts"
-        :key="product.goods_id"
+        :key="(product.goods_id || product.id)"
         class="list-product-card"
-        @click="openPage('/pages/product/detail', { id: product.goods_id })"
+        @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
       >
         <image class="list-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
         <view class="list-product__body">
@@ -367,7 +367,7 @@ const money = (value) => Number(value || 0).toLocaleString();
 
 const addToSolution = (product) => {
   uni.setStorageSync('pendingSolutionProduct', {
-    id: product.goods_id,
+    id: (product.goods_id || product.id),
     name: product.goods_name,
     model: product.model,
     image: product.image,

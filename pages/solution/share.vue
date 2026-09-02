@@ -102,7 +102,7 @@
         <view class="product-list">
           <view
             v-for="(product, index) in (quoteData.items || [])"
-            :key="product.id || product.goods_id || index"
+            :key="(product.goods_id || product.id) || index"
             class="product-row"
           >
             <image

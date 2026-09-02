@@ -123,9 +123,9 @@
           <view v-if="filteredProducts.length" class="product-list-container">
             <view
               v-for="product in filteredProducts"
-              :key="product.goods_id"
+              :key="(product.goods_id || product.id)"
               class="series-product-card"
-              @click="openPage('/pages/product/detail', { id: product.goods_id })"
+              @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
             >
               <image class="product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
               <view class="product-info">
@@ -326,7 +326,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 const addToSolution = (product) => {
   uni.setStorageSync('pendingSolutionProduct', {
-    id: product.goods_id,
+    id: (product.goods_id || product.id),
     name: product.goods_name,
     model: product.model,
     image: product.image,

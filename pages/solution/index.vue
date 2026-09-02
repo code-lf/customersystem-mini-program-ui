@@ -861,7 +861,7 @@ const openAddPanel = (mode = 'search') => {
 };
 
 const addProductToQuote = async (product) => {
-  const gId = product.goods_id || product.id;
+  const gId = (product.goods_id || product.id);
   const currentList = [...quoteItems.value];
   const existingIndex = currentList.findIndex(i => (i.goods_id || i.id) === gId);
   
