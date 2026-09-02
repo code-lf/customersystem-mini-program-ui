@@ -134,12 +134,17 @@
         <up-icon name="eye" size="18" color="#586477" />
         <text>降价提醒</text>
       </button>
+      <button class="btn-sub-action" open-type="share">
+        <up-icon name="share-square" size="18" color="#586477" />
+        <text>分享</text>
+      </button>
       <button class="btn-main-add" @click="addToSolution">加入方案报价单</button>
     </view>
   </view>
 </template>
 <script setup>
 import { computed, ref, onMounted } from 'vue';
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
 import { getProductDetail } from '@/api/product';
@@ -373,9 +378,27 @@ const addToSolution = () => {
     });
   }, 400);
 };
+onShareAppMessage(() => {
+  return {
+    title: product.value ? `【产品推荐】${product.value.model} - ${product.value.goods_name}` : "产品详情",
+    path: `/pages/product/detail?id=${options.id}`,
+    imageUrl: product.value?.image || ""
+  };
+});
+onShareTimeline(() => {
+  return {
+    title: product.value ? `【产品推荐】${product.value.model} - ${product.value.goods_name}` : "产品详情",
+    query: `id=${options.id}`,
+    imageUrl: product.value?.image || ""
+  };
+});
 </script>
 
 <style lang="scss" scoped>
+.btn-sub-action::after {
+  display: none;
+  line-height: 1;
+}
 .detail-page {
   min-height: 100vh;
   padding: 0 24rpx 220rpx;
@@ -785,6 +808,9 @@ const addToSolution = () => {
   font-size: 24rpx;
   font-weight: 700;
   border: none;
+}
+.btn-sub-action::after {
+  display: none;
   flex-shrink: 0;
   margin-left: 14rpx;
 }
@@ -832,6 +858,9 @@ const addToSolution = () => {
   font-weight: 700;
   border: none;
 }
+.btn-sub-action::after {
+  display: none;
+}
 
 .btn-main-add {
   flex: 1;
@@ -844,6 +873,9 @@ const addToSolution = () => {
   line-height: 80rpx;
   box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.35);
   border: none;
+}
+.btn-sub-action::after {
+  display: none;
 }
 </style>
 

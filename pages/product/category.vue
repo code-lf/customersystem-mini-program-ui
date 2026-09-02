@@ -2,54 +2,15 @@
   <view class="design-page category-page">
     <AppNavbar :title="isHome ? '家用空调选型' : '中央空调选型'" />
 
-    <!-- 家用空调选型入口 -->
-    <view v-if="isHome" class="home-category">
-      <view class="category-search-box">
-        <view class="design-search">
-          <up-icon name="search" size="18" color="#9aa5b5" />
-          <input
-            v-model="homeSearchKeyword"
-            placeholder="搜索家用空调产品型号、系列..."
-            placeholder-class="placeholder"
-            @confirm="handleHomeSearch"
-          />
-          <up-icon
-            v-if="homeSearchKeyword"
-            name="close-circle-fill"
-            size="16"
-            color="#9aa5b5"
-            @click="homeSearchKeyword = ''"
-          />
-          <button class="search-confirm-btn" @click="handleHomeSearch">搜索</button>
-        </view>
-      </view>
-
-      <view
-        v-for="item in homeCategories"
-        :key="item.id"
-        class="home-category__card"
-        @click="openPage('/pages/product/list', { type: 'home', category: item.id, category_id: item.category_id })"
-      >
-        <view class="home-category__info">
-          <text class="home-category__title">{{ item.category_name }}</text>
-          <text class="home-category__desc">{{ item.desc }}</text>
-          <view class="home-category__badge">
-            <text>共 {{ item.count }} 款型号</text>
-            <up-icon name="arrow-right" size="14" color="#2468e8" />
-          </view>
-        </view>
-        <image :src="item.image" mode="aspectFit" />
-      </view>
-    </view>
-
     <!-- 中央空调专业选型 -->
-    <view v-else class="central-category-wrap">
+    <view class="central-category-wrap">
       <!-- 动态面包屑 -->
       <view class="crumb">
-        <text>中央空调</text>
+        <text>{{ isHome ? '家用空调' : '中央空调' }}</text>
         <text> › </text>
         <text>{{ activeTypeName }}</text>
         <text v-if="activeSideCategory && activeSideCategory !== '全部' && activeSideCategoryName"> › {{ activeSideCategoryName }}</text>
+        <text v-if="!isHome && activeLevel3 && activeLevel3 !== '全部' && activeLevel3Name"> › {{ activeLevel3Name }}</text>
       </view>
 
       <!-- 搜索与快捷筛选 -->
@@ -117,15 +78,34 @@
             <text>{{ item.category_name }}</text>
           </view>
         </scroll-view>
+        <!-- 右侧主体内容 -->
+        <view class="right-content">
+          <!-- 三级分类 -->
+          <scroll-view v-if="!isHome && level3Categories.length > 0" class="level3-tabs" scroll-x>
+            <view class="level3-tabs-inner">
+              <view
+                class="level3-item"
+                :class="{ active: activeLevel3 === '全部' }"
+                @click="activeLevel3 = '全部'"
+              >全部</view>
+              <view
+                v-for="sub in level3Categories"
+                :key="sub.id"
+                class="level3-item"
+                :class="{ active: activeLevel3 === sub.id }"
+                @click="activeLevel3 = sub.id"
+              >{{ sub.category_name }}</view>
+            </view>
+          </scroll-view>
 
-        <!-- 右侧商品列表 -->
+          <!-- 右侧商品列表 -->
         <scroll-view class="product-scroll" scroll-y>
           <view v-if="filteredProducts.length" class="product-list-container">
             <view
               v-for="product in filteredProducts"
-              :key="(product.goods_id || product.id)"
+              :key="product.goods_id"
               class="series-product-card"
-              @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
+              @click="openPage('/pages/product/detail', { id: product.goods_id })"
             >
               <image class="product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
               <view class="product-info">
@@ -154,6 +134,7 @@
             <button class="btn-reset" @click="resetFilters">重置筛选</button>
           </view>
         </scroll-view>
+        </view>
       </view>
     </view>
   </view>
@@ -172,6 +153,7 @@ const categories = ref([]);
 const activeType = ref(0);
 const activeSideCategory = ref('全部');
 const isTagExpanded = ref(false);
+const activeLevel3 = ref('全部');
 
 const searchKeyword = ref('');
 const homeSearchKeyword = ref('');
@@ -194,39 +176,29 @@ const activeSideCategoryName = computed(() => {
 });
 
 // 家用空调动态卡片数量
-const homeCategories = computed(() => {
-  return [
-    {
-      id: 'wall',
-      category_name: '壁挂式空调',
-      category_id: 14,
-      desc: '节能静音 / 快速冷暖',
-      count: wallGoodsCount.value || 1,
-      image: 'http://gh.starall.cn/static/resource/aircon/home-green.png'
-    },
-    {
-      id: 'cabinet',
-      category_name: '柜式空调',
-      category_id: 19,
-      desc: '大风量 / 快速制冷制热',
-      count: cabinetGoodsCount.value || 1,
-      image: 'http://gh.starall.cn/static/resource/aircon/home-cabinet-green.png'
-    }
-  ];
+const level3Categories = computed(() => {
+  if (activeSideCategory.value === '全部') return [];
+  const currentParent = categories.value.find((item) => item.id === activeType.value);
+  const child = (currentParent?.children || []).find((c) => c.id === activeSideCategory.value);
+  return child?.children || [];
 });
 
-const handleHomeSearch = () => {
-  openPage('/pages/product/list', {
-    type: 'home',
-    keyword: homeSearchKeyword.value
-  });
-};
-
+const activeLevel3Name = computed(() => {
+  if (activeLevel3.value === '全部') return '全部';
+  const current = level3Categories.value.find((c) => c.id === activeLevel3.value);
+  return current ? current.category_name : '全部';
+});
 const loadCategories = async () => {
   try {
     const res = await getProductCategories();
     const rawList = Array.isArray(res) ? res : (res?.data || []);
-    categories.value = rawList;
+    const isHomeStr = (name) => name.includes('家用') || name.includes('冰箱') || name.includes('生活') || name.includes('空气能') || name.includes('代安装');
+    if (isHome.value) {
+      categories.value = rawList.filter(c => isHomeStr(c.category_name));
+    } else {
+      categories.value = rawList.filter(c => !isHomeStr(c.category_name));
+    }
+    if (categories.value.length === 0) categories.value = rawList;
     if (categories.value.length > 0) {
       if (pageOptions.category_id) {
         const targetId = Number(pageOptions.category_id);
@@ -249,7 +221,9 @@ const loadProducts = async () => {
   isLoading.value = true;
   try {
     const params = { limit: 100 };
-    if (activeSideCategory.value && activeSideCategory.value !== '全部') {
+    if (activeLevel3.value && activeLevel3.value !== '全部') {
+      params.category_id = activeLevel3.value;
+    } else if (activeSideCategory.value && activeSideCategory.value !== '全部') {
       params.category_id = activeSideCategory.value;
     } else if (activeType.value) {
       params.category_id = activeType.value;
@@ -289,7 +263,7 @@ onMounted(async () => {
   await loadOverallGoodsCounts();
 });
 
-watch([activeSideCategory, activeType], () => {
+watch([activeSideCategory, activeType, activeLevel3], () => {
   loadProducts();
 });
 
@@ -300,17 +274,20 @@ watch(searchKeyword, () => {
 const selectType = (typeId) => {
   activeType.value = typeId;
   activeSideCategory.value = '全部';
+  activeLevel3.value = '全部';
 };
-
 const selectSideCategory = (id) => {
   activeSideCategory.value = id;
+  activeLevel3.value = '全部';
 };
-
 const resetFilters = () => {
   searchKeyword.value = '';
   activeSideCategory.value = '全部';
+  activeLevel3.value = '全部';
   loadProducts();
 };
+
+
 
 const filteredProducts = computed(() => {
   if (!searchKeyword.value) return products.value;
@@ -326,7 +303,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 const addToSolution = (product) => {
   uni.setStorageSync('pendingSolutionProduct', {
-    id: (product.goods_id || product.id),
+    id: product.goods_id,
     name: product.goods_name,
     model: product.model,
     image: product.image,
@@ -543,6 +520,40 @@ const addToSolution = (product) => {
   overflow: hidden;
   background: #fff;
   border-top: 1rpx solid #eef2f7;
+}
+
+.right-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.level3-tabs {
+  width: 100%;
+  height: 80rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #eef2f7;
+}
+.level3-tabs-inner {
+  display: flex;
+  align-items: center;
+  padding: 0 20rpx;
+  height: 100%;
+}
+.level3-item {
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #64748b;
+  padding: 10rpx 24rpx;
+  margin-right: 16rpx;
+  border-radius: 24rpx;
+  background: #f7f9fc;
+}
+.level3-item.active {
+  color: #2468e8;
+  background: #edf3ff;
+  font-weight: 600;
 }
 
 .category-sidebar {
