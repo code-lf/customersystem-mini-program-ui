@@ -143,32 +143,47 @@
   </view>
 </template>
 <script setup>
-import { computed, ref, onMounted } from 'vue';
-import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
+import { computed, ref } from 'vue';
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
 import { getProductDetail } from '@/api/product';
 import appConfig from '@/config/app';
 
-const options = getPageOptions();
 const product = ref(null);
+// 保存 onLoad 中解析出的商品 ID，供详情请求和分享路径共同使用。
+const productId = ref('');
 const isFav = ref(false);
 const activeTab = ref('params'); // 默认展示参数模块
 const isLoading = ref(true);
 
-const loadDetail = async () => {
+const loadDetail = async (goodsId) => {
+  if (!goodsId) {
+    isLoading.value = false;
+    // 输出页面参数，方便后续从开发者工具快速判断是哪一个入口漏传商品 ID。
+    console.error('[商品详情] 缺少商品ID，已阻止无效详情请求');
+    uni.showToast({ title: '缺少商品ID，请返回重试', icon: 'none' });
+    return;
+  }
+
   try {
-    const res = await getProductDetail(options.id);
+    const res = await getProductDetail(goodsId);
     product.value = res;
-  } catch(e) {
-    console.error('loadDetail error:', e);
+  } catch (e) {
+    console.error('[商品详情] 加载失败：', e);
   } finally {
     isLoading.value = false;
   }
 };
 
-onMounted(() => {
-  loadDetail();
+onLoad((query = {}) => {
+  // 微信小程序应从 onLoad 回调读取路由参数；setup 阶段读取 getCurrentPages 可能拿到上一页。
+  // 同时兼容 id 与 OpenAPI 使用的 goods_id，避免不同入口字段名不一致。
+  const goodsId = query.goods_id || query.id;
+  productId.value = goodsId || '';
+  if (!goodsId) {
+    console.error('[商品详情] 页面参数异常：', query);
+  }
+  loadDetail(goodsId);
 });
 
 // 固定三大核心模块：参数、图文、资料
@@ -381,14 +396,14 @@ const addToSolution = () => {
 onShareAppMessage(() => {
   return {
     title: product.value ? `【产品推荐】${product.value.model} - ${product.value.goods_name}` : "产品详情",
-    path: `/pages/product/detail?id=${options.id}`,
+    path: `/pages/product/detail?id=${productId.value}`,
     imageUrl: product.value?.image || ""
   };
 });
 onShareTimeline(() => {
   return {
     title: product.value ? `【产品推荐】${product.value.model} - ${product.value.goods_name}` : "产品详情",
-    query: `id=${options.id}`,
+    query: `id=${productId.value}`,
     imageUrl: product.value?.image || ""
   };
 });
@@ -878,4 +893,3 @@ onShareTimeline(() => {
   display: none;
 }
 </style>
-

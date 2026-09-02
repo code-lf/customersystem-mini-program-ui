@@ -58,5 +58,10 @@ export function getProductList(params = {}) {
  * 这里把变量名改为 goodsId，避免以后误传分类 ID 或报价单明细 ID。
  */
 export function getProductDetail(goodsId) {
-  return apiGet(`crm/quote/product/goods/${goodsId}`);
+  // 商品详情接口只接受正整数 ID；在 API 层兜底，避免继续请求 /goods/undefined。
+  const normalizedGoodsId = Number(goodsId);
+  if (!Number.isInteger(normalizedGoodsId) || normalizedGoodsId <= 0) {
+    return Promise.reject(new Error(`商品ID无效：${goodsId ?? '未传入'}`));
+  }
+  return apiGet(`crm/quote/product/goods/${normalizedGoodsId}`);
 }
