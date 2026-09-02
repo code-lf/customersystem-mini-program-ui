@@ -88,11 +88,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
 import { getProductCategories } from '@/api/product';
+import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const isLoading = ref(true);
+// 产品中心分享后统一进入公共首页，不携带用户筛选条件或登录数据。
+const SHARE_TITLE = '格宏产品中心｜空调选型更轻松';
+onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
+onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
+onShow(() => showMiniProgramShareMenu());
 const categoryTree = ref([]);
 
 onMounted(async () => {

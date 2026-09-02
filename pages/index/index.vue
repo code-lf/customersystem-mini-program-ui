@@ -154,14 +154,19 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
 import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
+import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const metrics = computed(() => getNavMetrics());
+// 首页路由：/pages/index/index；生命周期直接注册在页面顶层，编译器才能启用分享菜单。
+const SHARE_TITLE = '格宏助手｜智能选型与报价平台';
+onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
+onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 const isLoading = ref(true);
 const userStore = useUserStore();
 const keyword = ref('');
@@ -224,6 +229,8 @@ const syncData = async () => {
 };
 
 onShow(() => {
+  // 兼容微信开发者工具缓存过旧的页面分享配置。
+  showMiniProgramShareMenu();
   syncData();
 });
 
@@ -393,16 +400,26 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12rpx;
+  min-width: 0;
 }
 
 .greeting-name {
+  /* 用户名可能来自手机号、企业账号等长字符串：只占剩余空间，超出后显示省略号。 */
+  display: block;
+  flex: 1;
+  min-width: 0;
   color: #15223a;
   font-size: 36rpx;
   font-weight: 900;
   letter-spacing: 0.5rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .greeting-badge {
+  /* 会员标签不参与压缩，避免长用户名把标签挤成多行。 */
+  flex-shrink: 0;
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
   background: #edf4ff;

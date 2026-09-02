@@ -381,12 +381,21 @@ const handleLogout = () => {
   gap: 8rpx;
   margin-top: 18rpx;
   cursor: pointer;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .avatar-name {
+  /* 资料页昵称与首页保持一致：固定一行，超长内容显示省略号。 */
+  display: block;
+  max-width: 430rpx;
+  min-width: 0;
   color: #15223a;
   font-size: 34rpx;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .avatar-role {
@@ -416,6 +425,8 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 8rpx;
+  min-width: 0;
+  max-width: 60%;
 }
 
 .value.highlight {
@@ -713,12 +724,21 @@ const handleLogout = () => {
 }
 
 .info-row .value {
+  display: block;
   color: #15223a;
   font-size: 26rpx;
   font-weight: 600;
   max-width: 60%;
   text-align: right;
-  word-break: break-all;
+  /* 账号、昵称和公司名称均不换行，列表高度不会因长名称发生变化。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value-with-arrow .value {
+  max-width: none;
+  min-width: 0;
 }
 
 .logout-action-btn {

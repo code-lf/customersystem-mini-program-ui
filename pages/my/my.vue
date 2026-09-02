@@ -288,15 +288,19 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getBalance, updateMemberInfo } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 import { getNavMetrics } from '@/utils/system';
+import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const metrics = computed(() => getNavMetrics());
+// “我的”页面仅提供分享入口，不把个人账户信息带入分享参数。
+onShareAppMessage(() => createShareAppMessageOptions());
+onShareTimeline(() => createShareTimelineOptions());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
@@ -462,6 +466,7 @@ const refreshMemberData = async () => {
 };
 
 onShow(() => {
+  showMiniProgramShareMenu();
   refreshMemberData();
 });
 
@@ -621,15 +626,25 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   display: flex;
   align-items: center;
   gap: 14rpx;
+  min-width: 0;
 }
 
 .user-name {
+  /* 昵称统一单行展示，超出资料卡可用宽度时自动显示“...”。 */
+  display: block;
+  flex: 1;
+  min-width: 0;
   color: #15223a;
   font-size: 36rpx;
   font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .vip-role-badge {
+  /* 身份标签保持完整尺寸，不被超长昵称压缩。 */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   padding: 3rpx 14rpx;

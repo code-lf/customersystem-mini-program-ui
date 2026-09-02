@@ -103,10 +103,17 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
+import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const metrics = computed(() => getNavMetrics());
+// AI 对话可能包含用户业务信息，因此分享卡片只打开公共首页，不复制聊天内容。
+const SHARE_TITLE = '格宏 AI 助手｜智能选型与报价';
+onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
+onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
+onShow(() => showMiniProgramShareMenu());
 const isLoading = ref(true);
 onMounted(() => {
   setTimeout(() => { isLoading.value = false }, 400);
