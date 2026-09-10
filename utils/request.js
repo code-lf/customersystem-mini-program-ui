@@ -150,18 +150,38 @@ function handleResponse(response, options = {}) {
       : body;
   }
 
-  if (statusCode === 401 || String(businessCode) === '401') {
-    return handleUnauthorized(options, body, statusCode, businessCode);
-  }
-
   const message = body && typeof body === 'object'
     ? body[messageField] || body.message
     : '';
-  if (options.showError !== false && config.showRequestError) {
-    showError(options.errorMessage || message || '请求失败');
+
+  const isAuthError = statusCode === 401 ||
+    String(businessCode) === '401' ||
+    (typeof message === 'string' && (
+      message.includes('请先登录') ||
+      message.includes('登录已过期') ||
+      message.includes('登录已失效') ||
+      message.includes('未登录')
+    ));
+
+  if (isAuthError) {
+    return handleUnauthorized(options, body, statusCode, businessCode);
   }
 
-  throw new RequestError(options.errorMessage || message || '请求失败', {
+  let finalErrorMsg = message || options.errorMessage || '请求失败';
+  // 如果后端暴露了 PHP 底层运行异常，转换为用户友好的业务提示
+  if (typeof finalErrorMsg === 'string' && (finalErrorMsg.includes('Undefined array key') || finalErrorMsg.includes('Undefined index') || finalErrorMsg.includes('Undefined variable'))) {
+    if (finalErrorMsg.includes('price_level_id')) {
+      finalErrorMsg = '当前账号未配置价格等级，请联系管理员分配';
+    } else {
+      finalErrorMsg = '服务端数据配置异常，请联系管理员核对';
+    }
+  }
+
+  if (options.showError !== false && config.showRequestError) {
+    showError(finalErrorMsg);
+  }
+
+  throw new RequestError(finalErrorMsg, {
     statusCode,
     businessCode,
     data: body

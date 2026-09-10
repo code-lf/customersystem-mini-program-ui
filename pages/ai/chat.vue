@@ -21,7 +21,7 @@
           <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
           <view class="ai-content">
             <view class="ai-bubble">
-              <text class="text-body">您好！我是格宏智能电器 AI 助手。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。请问今天有什么可以帮您？</text>
+              <text class="text-body">您好！我是格宏智能电器 AI 助手（对接阿里云百炼应用）。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。如需咨询，请确保已登录您的有效账号。</text>
             </view>
           </view>
         </view>
@@ -37,14 +37,43 @@
             <view class="user-bubble">
               <text class="text-body">{{ msg.text }}</text>
             </view>
-            <image class="avatar user-avatar" src="/static/avatars/avatar-demo.png" mode="aspectFill" />
+            <image class="avatar user-avatar" :src="userAvatar" mode="aspectFill" />
           </template>
 
           <template v-else>
             <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
             <view class="ai-content">
-              <view class="ai-bubble">
+              <view class="ai-bubble" :class="{ 'error-bubble': msg.isError }">
                 <text class="text-body">{{ msg.text }}</text>
+              </view>
+
+              <!-- 未登录引导卡片 -->
+              <view
+                v-if="msg.isLoginRequired"
+                class="login-action-card"
+                @click="goToLogin"
+              >
+                <view class="login-action-left">
+                  <up-icon name="account" size="18" color="#2468e8" />
+                  <view class="login-action-text-wrap">
+                    <text class="login-action-title">当前未登录或会话已失效</text>
+                    <text class="login-action-sub">点击使用账号密码重新登录，以同步百炼选型权限</text>
+                  </view>
+                </view>
+                <view class="login-action-btn">去登录 ›</view>
+              </view>
+
+              <!-- 关联报价单直达 -->
+              <view
+                v-if="msg.quoteId"
+                class="quote-link-card"
+                @click="openPage('/pages/solution/detail', { id: msg.quoteId })"
+              >
+                <view class="quote-link-left">
+                  <up-icon name="order" size="18" color="#2468e8" />
+                  <text class="quote-link-text">已为您生成配套报价方案 #{{ msg.quoteId }}</text>
+                </view>
+                <text class="quote-link-action">查看详情 ›</text>
               </view>
 
               <!-- 如果 AI 返回了推荐机型卡片 -->
@@ -54,16 +83,16 @@
               >
                 <view
                   v-for="(product, idx) in msg.products"
-                  :key="product.id"
+                  :key="product.id || product.goods_id"
                   class="recommend-card"
                 >
-                  <view class="rec-badge">推荐方案 0{{ idx + 1 }} · {{ product.series || '多联机' }}</view>
+                  <view class="rec-badge">推荐方案 0{{ idx + 1 }} · {{ product.series || '空调机型' }}</view>
                   <view class="rec-body">
                     <image class="rec-img" :src="product.image" mode="aspectFit" />
                     <view class="rec-info">
                       <text class="rec-model">{{ product.model }} {{ product.name }}</text>
                       <text class="rec-spec">{{ (product.specs || []).slice(0, 2).join(' | ') }}</text>
-                      <text class="rec-area">适用面积：{{ product.area }}</text>
+                      <text v-if="product.area" class="rec-area">适用：{{ product.area }}</text>
                       <view class="rec-price">
                         <text class="symbol">¥</text>
                         <text class="num">{{ formatPrice(product.price) }}</text>
@@ -71,7 +100,7 @@
                     </view>
                   </view>
                   <view class="rec-actions">
-                    <button class="btn-view" @click="openPage('/pages/product/detail', { id: product.id })">查看详情</button>
+                    <button class="btn-view" @click="openPage('/pages/product/detail', { id: product.id || product.goods_id })">查看详情</button>
                     <button class="btn-add-quote" @click="addQuote(product)">加入报价单</button>
                   </view>
                 </view>
@@ -107,12 +136,21 @@
       </view>
     </view>
 
+    <!-- 未登录提示条 -->
+    <view v-if="!userStore.isLoggedIn" class="unlogin-tip-bar" @click="goToLogin">
+      <view class="unlogin-tip-left">
+        <up-icon name="lock" size="13" color="#b45309" />
+        <text class="unlogin-tip-text">当前未登录账号，请先登录以调用百炼智能模型</text>
+      </view>
+      <text class="unlogin-tip-btn">立即登录 ›</text>
+    </view>
+
     <!-- 底部输入框与发送按钮 -->
     <view class="input-bar">
       <view class="input-field-wrap">
         <input
           v-model="inputContent"
-          placeholder="向 AI 助手提问 (如: 120㎡办公室、VK8R参数)..."
+          placeholder="向百炼 AI 助手提问 (如: 120㎡办公室、VK8R参数)..."
           placeholder-class="placeholder"
           confirm-type="send"
           @confirm="sendMessage(inputContent)"
@@ -137,27 +175,35 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
 import { askAi } from '@/api/ai-assistant';
+import { useUserStore } from '@/store/user';
 
 const pageOptions = getPageOptions();
+const userStore = useUserStore();
+const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/wode.png');
+
 const inputContent = ref('');
 const isThinking = ref(false);
 const scrollTop = ref(0);
-// sessionId 由后端/百炼返回，用于让连续问题属于同一场会话。
+// sessionId 由后端返回，用于维持连续会话上下文
 const sessionId = ref('');
 
 const quickChips = [
-  '120㎡ 办公室方案',
-  'VK8R 与 VK10R 对比',
-  'VK 系列能效参数',
-  '多联机选型原则'
+  '120㎡ 办公室中央空调方案',
+  '多联机与一拖一风管机对比',
+  '客厅 3匹 柜机与风管机推荐',
+  '中央空调安装配比与造价'
 ];
 
-// 欢迎语已经固定显示在模板中，因此不再预置会被误认为真实结果的 Mock 对话。
+// 对话消息列表
 const messages = ref([]);
+
+const goToLogin = () => {
+  openPage('/pages/auth/login', { tab: 'account' });
+};
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -168,15 +214,16 @@ const scrollToBottom = () => {
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 const addQuote = (product) => {
+  const goodsId = product.goods_id || product.id;
   uni.setStorageSync('pendingSolutionProduct', {
-    id: product.id,
+    id: goodsId,
+    goods_id: goodsId,
     name: product.name,
     model: product.model,
     image: product.image,
-    price: product.price,
-    mockUnitPrice: product.price
+    price: product.price
   });
-  uni.showToast({ title: '已加入报价单', icon: 'success' });
+  uni.showToast({ title: '已加入待选，可在报价单中添加', icon: 'success' });
 };
 
 const clearChat = () => {
@@ -186,7 +233,6 @@ const clearChat = () => {
     success: (res) => {
       if (res.confirm) {
         messages.value = [];
-        // 清空聊天时同时结束旧会话，下一条问题会建立新的上下文。
         sessionId.value = '';
         uni.showToast({ title: '已清空', icon: 'none' });
       }
@@ -200,7 +246,24 @@ const sendMessage = async (text) => {
   const userText = text.trim();
   inputContent.value = '';
 
-  // AI 请求需要的是发送前的历史，避免把当前问题在 history 和 question 中重复提交。
+  // 1. 如果当前未登录，直接给出未登录提示，不执行请求
+  if (!userStore.isLoggedIn) {
+    messages.value.push({
+      id: Date.now(),
+      role: 'user',
+      text: userText
+    });
+    messages.value.push({
+      id: Date.now() + 1,
+      role: 'ai',
+      isError: true,
+      isLoginRequired: true,
+      text: '您当前处于未登录状态。阿里云百炼智能助手需要验证您的有效会员账号方可提供机型查询与选型服务。请点击下方卡片登录账号。'
+    });
+    scrollToBottom();
+    return;
+  }
+
   const historyBeforeQuestion = [...messages.value];
 
   // 插入用户消息
@@ -222,15 +285,36 @@ const sendMessage = async (text) => {
       id: Date.now() + 1,
       role: 'ai',
       text: result.text,
-      products: result.products
+      products: result.products,
+      quoteId: result.quoteId
     });
   } catch (error) {
-    console.error('AI assistant request failed:', error);
+    console.warn('AI assistant request error:', error);
+    const tip = error?.message || '百炼智能助手调用异常，请稍后重试。';
+    const isLoginErr = tip.includes('登录') || tip.includes('401');
+
     messages.value.push({
       id: Date.now() + 1,
       role: 'ai',
-      text: 'AI 助手暂时连接失败，请检查网络或稍后重试。'
+      isError: true,
+      isLoginRequired: isLoginErr,
+      text: isLoginErr
+        ? '后端接口校验提示：请先登录。您当前的登录会话已失效或未在后台鉴权，请重新登录。'
+        : ('百炼 AI 助手请求失败：' + tip)
     });
+
+    if (isLoginErr) {
+      uni.showModal({
+        title: '需要登录',
+        content: '使用阿里云百炼 AI 智能助手需要登录账号，是否前往登录？',
+        confirmText: '去登录',
+        success: (res) => {
+          if (res.confirm) {
+            goToLogin();
+          }
+        }
+      });
+    }
   } finally {
     isThinking.value = false;
     scrollToBottom();
@@ -254,6 +338,35 @@ onMounted(() => {
 
 .clear-history-btn {
   padding: 8rpx;
+}
+
+.quote-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #edf4ff;
+  border: 1rpx solid #c7dcfe;
+  border-radius: 16rpx;
+
+  .quote-link-left {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+
+  .quote-link-text {
+    font-size: 26rpx;
+    font-weight: 700;
+    color: #2468e8;
+  }
+
+  .quote-link-action {
+    font-size: 24rpx;
+    color: #2468e8;
+    font-weight: 600;
+  }
 }
 
 .chat-scroll {
@@ -524,5 +637,84 @@ onMounted(() => {
 .send-btn.active {
   background: #2468e8;
   box-shadow: 0 6rpx 18rpx rgba(36, 104, 232, 0.35);
+}
+
+.unlogin-tip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 28rpx;
+  background: #fffbeb;
+  border-top: 1rpx solid #fde68a;
+  border-bottom: 1rpx solid #fef3c7;
+}
+
+.unlogin-tip-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.unlogin-tip-text {
+  font-size: 24rpx;
+  color: #92400e;
+}
+
+.unlogin-tip-btn {
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #d97706;
+}
+
+.ai-bubble.error-bubble {
+  background: #fef2f2;
+  border: 1rpx solid #fee2e2;
+  color: #991b1b;
+}
+
+.login-action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14rpx;
+  padding: 20rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  border: 1rpx solid #dbeafe;
+  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.08);
+}
+
+.login-action-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex: 1;
+}
+
+.login-action-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-action-title {
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #1e3a8a;
+}
+
+.login-action-sub {
+  font-size: 22rpx;
+  color: #64748b;
+  margin-top: 4rpx;
+}
+
+.login-action-btn {
+  padding: 8rpx 18rpx;
+  background: #2468e8;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 500;
+  border-radius: 24rpx;
+  white-space: nowrap;
 }
 </style>

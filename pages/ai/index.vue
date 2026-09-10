@@ -32,8 +32,8 @@
   
     <!-- 问候语 -->
     <view class="hello-card">
-      <text class="hello-title">下午好，张工</text>
-      <text class="hello-desc">我是您的空调方案专家，为您提供选型推荐、技术参数比对、价格测算及资料调阅支持。</text>
+      <text class="hello-title">{{ greetingText }}，{{ userDisplayName }}</text>
+      <text class="hello-desc">我是您的空调方案专家，为您提供中央空调与家用空调选型推荐、参数比对、价格测算及选型支持。</text>
     </view>
 
     <!-- AI 机器人视觉形象 -->
@@ -46,7 +46,7 @@
       </view>
     </view>
 
-    <!-- 核心功能入口 4 格大卡片 -->
+    <!-- 核心功能入口 4 格大卡片 (紧扣中央空调与家用空调两大核心分类) -->
     <view class="feature-grid">
       <view
         v-for="item in features"
@@ -89,7 +89,7 @@
     <view class="chat-entry-fixed">
       <view class="chat-entry" @click="openPage('/pages/ai/chat')">
         <up-icon name="edit-pen" size="18" color="#8b95a7" />
-        <text class="chat-placeholder">有什么空调选型或价格问题，直接问我...</text>
+        <text class="chat-placeholder">有什么中央空调或家用空调问题，直接问我...</text>
         <view class="entry-send-btn">
           <up-icon name="arrow-right" size="16" color="#fff" />
         </view>
@@ -106,9 +106,26 @@ import { computed, onMounted, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
+import { useUserStore } from '@/store/user';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const metrics = computed(() => getNavMetrics());
+const userStore = useUserStore();
+
+// 动态问候语和真实用户信息展示，杜绝硬编码假数据
+const greetingText = computed(() => {
+  const hour = new Date().getHours();
+  if (hour < 6) return '夜深了';
+  if (hour < 12) return '上午好';
+  if (hour < 18) return '下午好';
+  return '晚上好';
+});
+
+const userDisplayName = computed(() => {
+  const info = userStore.userInfo || {};
+  return info.nickname || info.realname || info.username || (info.mobile ? `${info.mobile.slice(-4)}用户` : '空调专家');
+});
+
 // AI 对话可能包含用户业务信息，因此分享卡片只打开公共首页，不复制聊天内容。
 const SHARE_TITLE = '格宏 AI 助手｜智能选型与报价';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
@@ -119,46 +136,47 @@ onMounted(() => {
   setTimeout(() => { isLoading.value = false }, 400);
 });
 
+// 核心功能卡片：严格围绕后台定死的中央空调 (58) 与家用空调 (86)
 const features = [
   {
-    title: '查型号参数',
-    desc: '冷量/能效/匹数规格',
-    icon: 'search',
+    title: '中央空调选型',
+    desc: '商用多联/风管/大冷量',
+    icon: 'grid-fill',
     color: '#2468e8',
     bgColor: '#edf4ff',
-    question: 'VK10R 的具体技术参数和适用面积是多少？'
+    question: '推荐一套适合 120㎡ 办公室使用的格力中央空调多联机方案'
   },
   {
-    title: '智能选型方案',
-    desc: '按面积/房型精准配比',
-    icon: 'grid-fill',
+    title: '家用空调搭配',
+    desc: '挂机/柜机/全屋冷量配比',
+    icon: 'home-fill',
     color: '#10b981',
     bgColor: '#e6fcf5',
-    question: '推荐一套适合 120㎡ 办公室使用的中央空调方案'
+    question: '3室2厅约100㎡家用空调应该如何配置挂机和柜机？'
   },
   {
-    title: '机型多维对比',
-    desc: '核心参数及优势分析',
+    title: '参数规格比对',
+    desc: '能效/冷量/外机占位分析',
     icon: 'list-dot',
     color: '#f59e0b',
     bgColor: '#fef7e7',
-    question: 'VK8R、VK10R 和 VK12R 有什么区别与优缺点？'
+    question: '商用多联机和一拖一变频风管机在能效和造价上有什么区别？'
   },
   {
-    title: '资料手册调阅',
-    desc: '说明书/认证/图纸',
+    title: '选型规范调阅',
+    desc: '配比/铜管/安装施工指导',
     icon: 'file-text-fill',
     color: '#8b5cf6',
     bgColor: '#f3effe',
-    question: '帮我调阅 VK 系列多联机产品样本与安装说明书'
+    question: '请提供格力中央空调室内外机配比率及铜管安装规范'
   }
 ];
 
 const questions = [
-  '推荐一套适合 120㎡ 办公室使用的中央空调方案',
-  'VK8R 和 VK10R 在能效与制冷量上有什么具体差别？',
-  '商用办公楼多联机和模块机应该如何选择？',
-  '新一级能效壁挂机与柜机如何搭配全屋采暖？'
+  '推荐一套适合 120㎡ 办公室使用的格力中央空调方案',
+  '家用中央空调变频风管机和多联机如何选择？',
+  '25-35㎡ 客厅选择 2匹 还是 3匹 立式柜机更合适？',
+  '商用办公楼多联机系统室外机匹数如何根据面积折算？'
 ];
 
 const openChat = (question) => openPage('/pages/ai/chat', { question });

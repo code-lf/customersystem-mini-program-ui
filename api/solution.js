@@ -7,8 +7,8 @@ import appConfig from '../config/app';
  * 中文说明：统一请求层会自动剥离后端的 `{ code, msg, data }` 外包装，
  * 因此调用方拿到的就是 OpenAPI 中的 Cart 对象，不能再读取 `res.data`。
  */
-export function getCart() {
-  return apiGet('crm/quote/cart');
+export function getCart(options = {}) {
+  return apiGet('crm/quote/cart', {}, options);
 }
 
 /** 清空报价单暂存清单。 */

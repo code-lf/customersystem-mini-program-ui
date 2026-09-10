@@ -27,14 +27,10 @@
 
     
       <template v-if="isLoading">
-        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 32rpx; margin-bottom: 24rpx;"></view>
-        <view class="skeleton-block" style="width: 100%; height: 320rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
-        <view style="display: flex; gap: 20rpx; margin-bottom: 24rpx;">
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 24rpx;"></view>
-        </view>
-        <view class="skeleton-block" style="width: 100%; height: 200rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
-        <view class="skeleton-block" style="width: 100%; height: 180rpx; border-radius: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 240rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 180rpx; border-radius: 20rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 140rpx; border-radius: 20rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 220rpx; border-radius: 20rpx;"></view>
       </template>
       <template v-else>
   
@@ -79,44 +75,14 @@
       </view>
     </view>
 
-    <view class="section-head">
-      <text>产品入口</text>
-      <text class="section-more" @click="openPage('/pages/product/index')">全部产品 ›</text>
-    </view>
-
-    <view class="central-card" @click="openPage('/pages/product/category', { type: 'central' })">
-      <view class="central-card__copy">
-        <text class="central-card__title">中央空调</text>
-        <text class="central-card__desc">多联机 / 商用系统 / 空气能</text>
-        <button class="white-pill">进入选型</button>
-      </view>
-      <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
-    </view>
-
-    <view class="entry-row">
-      <view class="entry-card entry-card--home" @click="openPage('/pages/product/category', { type: 'home' })">
-        <view class="entry-card__copy">
-          <text class="entry-card__title">家用空调</text>
-          <text class="entry-card__desc">壁挂式 / 柜式</text>
-        </view>
-        <image src="http://gh.starall.cn/static/resource/aircon/home-green.png" mode="aspectFit" />
-      </view>
-      <view class="entry-card entry-card--ai" @click="openPage('/pages/ai/index')">
-        <view class="entry-card__copy">
-          <text class="entry-card__title">格宏助手</text>
-          <text class="entry-card__desc">有问题问我</text>
-        </view>
-        <image src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
-      </view>
-    </view>
-
-    <view class="section-head section-head--compact section-head--blue">
-      <text>快捷工具</text>
+    <!-- 快捷工作台 -->
+    <view class="section-head section-head--compact">
+      <text>快捷工作台</text>
     </view>
     <view class="tool-grid">
       <view v-for="item in quickTools" :key="item.title" class="tool-item" @click="openPage(item.path)">
-        <view class="tool-item__icon">
-          <up-icon :name="item.icon" size="24" color="#2468e8" />
+        <view class="tool-item__icon" :style="{ backgroundColor: item.bg }">
+          <up-icon :name="item.icon" size="24" :color="item.color" />
         </view>
         <text>{{ item.title }}</text>
       </view>
@@ -132,6 +98,13 @@
         <text class="solution-mini__desc">{{ solutions[0].items.length }}项产品 · ¥{{ formatMoney(solutions[0].totalPrice) }}</text>
       </view>
       <text class="solution-mini__link">继续编辑 ›</text>
+    </view>
+    <view v-else class="solution-empty" @click="openPage('/pages/solution/create')">
+      <view class="solution-empty__info">
+        <text class="solution-empty__title">暂无进行中的报价方案</text>
+        <text class="solution-empty__desc">点击快速添加设备，智能匹配机型与价格</text>
+      </view>
+      <button class="solution-empty__btn">新建方案</button>
     </view>
 
     <view class="section-head latest-head">
@@ -207,11 +180,11 @@ const handleGreetingClick = () => {
 };
 
 const quickTools = [
-  { title: '型号查询', icon: 'search', path: '/pages/password/index' },
-  { title: '我的报价单', icon: 'file-text-fill', path: '/pages/solution/index' },
-  { title: '新建方案', icon: 'order', path: '/pages/solution/index' },
-  { title: '产品对比', icon: 'grid-fill', path: '/pages/product/list' },
-  { title: '资料中心', icon: 'coupon', path: '/pages/product/index' }
+  { title: '产品中心', icon: 'grid-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/product/index' },
+  { title: '新建报价', icon: 'plus-circle-fill', color: '#10b981', bg: '#e7f7ef', path: '/pages/solution/create' },
+  { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
+  { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
+  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' }
 ];
 
 const formatMoney = (value) => Number(value || 0).toLocaleString();
@@ -539,118 +512,6 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.central-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 180rpx;
-  padding: 28rpx 28rpx 24rpx 32rpx;
-  border-radius: 20rpx;
-  background: linear-gradient(135deg, #2d72f5 0%, #1555d4 100%);
-  overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(21, 85, 212, 0.28);
-}
-
-.central-card__copy {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-
-.central-card__title {
-  display: block;
-  color: #fff;
-  font-size: 38rpx;
-  font-weight: 900;
-  line-height: 48rpx;
-}
-
-.central-card__desc {
-  display: block;
-  margin-top: 8rpx;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 24rpx;
-  line-height: 32rpx;
-}
-
-.central-card image {
-  width: 260rpx;
-  height: 154rpx;
-  margin-right: -14rpx;
-}
-
-.white-pill {
-  display: inline-block;
-  width: 144rpx;
-  height: 52rpx;
-  margin: 18rpx 0 0;
-  padding: 0;
-  border-radius: 26rpx;
-  background: #fff;
-  color: #2468e8;
-  font-size: 23rpx;
-  font-weight: 700;
-  line-height: 52rpx;
-  text-align: center;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
-}
-
-.entry-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18rpx;
-  margin-top: 20rpx;
-}
-
-.entry-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 140rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 18rpx;
-  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.03);
-}
-
-.entry-card--home {
-  background: #e7f7ef;
-}
-
-.entry-card--ai {
-  background: #edf4ff;
-}
-
-.entry-card__copy {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.entry-card__title {
-  display: block;
-  color: #17233d;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 36rpx;
-}
-
-.entry-card__desc {
-  display: block;
-  margin-top: 6rpx;
-  color: #647389;
-  font-size: 22rpx;
-  line-height: 30rpx;
-}
-
-.entry-card image {
-  width: 108rpx;
-  height: 98rpx;
-  flex-shrink: 0;
-}
-
 .tool-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -679,7 +540,7 @@ onMounted(async () => {
   height: 76rpx;
   margin-bottom: 12rpx;
   border-radius: 22rpx;
-  background: #f1f5ff;
+  box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.04);
 }
 
 .notice-strip {
@@ -767,6 +628,50 @@ onMounted(async () => {
   font-weight: 700;
   flex-shrink: 0;
   margin-left: 16rpx;
+}
+
+.solution-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
+  border: 1rpx dashed #d5e2f5;
+}
+
+.solution-empty__info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.solution-empty__title {
+  color: #1e293b;
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+}
+
+.solution-empty__desc {
+  color: #94a3b8;
+  font-size: 22rpx;
+  margin-top: 6rpx;
+}
+
+.solution-empty__btn {
+  margin: 0 0 0 20rpx;
+  padding: 0 24rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border-radius: 28rpx;
+  background: #2468e8;
+  color: #fff;
+  font-size: 23rpx;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .notice-mini {

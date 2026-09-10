@@ -367,38 +367,32 @@ const handleMobileLogin = async () => {
   try {
     try {
       const res = await mobileLogin(mobileForm);
-      if (res && (res.token || res.access_token)) {
-        userStore.setToken(res.token || res.access_token);
+      const token = res?.token || res?.access_token || res?.data?.token;
+      if (token) {
+        userStore.setToken(token);
         userStore.setUserInfo(res.user || res.member || {
           nickname: '用户_' + mobileForm.mobile.slice(-4),
           mobile: mobileForm.mobile,
           company_name: '格宏电器合作客户',
-          role_name: '普通会员'
+          role_name: '认证会员'
         });
         uni.showToast({ title: '登录成功', icon: 'success' });
         setTimeout(() => replacePage('/pages/index/index'), 600);
         return;
       }
     } catch (apiErr) {
-      console.warn('mobileLogin API fallback:', apiErr);
+      console.warn('mobileLogin API error:', apiErr);
+      const errMsg = apiErr?.message || '手机快捷登录未开启';
+      uni.showToast({
+        title: errMsg + '，请使用账号密码登录',
+        icon: 'none',
+        duration: 2500
+      });
+      // 自动将手机号填入账号密码表单并切到账号登录
+      accountForm.username = mobileForm.mobile;
+      activeTab.value = 'account';
+      return;
     }
-
-    // 默认自动注册普通会员并登录
-    const member = {
-      member_id: Math.floor(10000 + Math.random() * 90000),
-      nickname: '用户_' + mobileForm.mobile.slice(-4),
-      mobile: mobileForm.mobile,
-      avatar: '/static/avatars/avatar-demo.png',
-      company_name: '新入驻企业（待后台完善）',
-      position: '业务联系人',
-      role_name: '普通会员',
-      is_verified: 0
-    };
-    userStore.setToken('mobile_token_' + Date.now());
-    userStore.setUserInfo(member);
-
-    uni.showToast({ title: '登录成功（已注册普通会员）', icon: 'none' });
-    setTimeout(() => replacePage('/pages/index/index'), 700);
   } finally {
     loading.value = false;
   }

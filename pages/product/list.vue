@@ -142,14 +142,35 @@
 import { computed, ref, reactive, onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
-import { getProductList } from '@/api/product';
+import { getProductList, CATEGORY_IDS } from '@/api/product';
 
 const pageOptions = getPageOptions();
-const isHome = computed(() => pageOptions.type === 'home' || ['wall', 'cabinet'].includes(pageOptions.category));
+const isHome = computed(() => {
+  if (pageOptions.type === 'home' || ['wall', 'cabinet'].includes(pageOptions.category)) return true;
+  if (pageOptions.category_id) {
+    const id = Number(pageOptions.category_id);
+    if (id === CATEGORY_IDS.HOME || (id >= 68 && id <= 105)) return true;
+  }
+  return false;
+});
+
 const currentCategoryName = computed(() => {
+  if (pageOptions.name) return pageOptions.name;
+  if (pageOptions.category_id) {
+    const id = Number(pageOptions.category_id);
+    if (id === CATEGORY_IDS.CENTRAL) return '中央空调';
+    if (id === CATEGORY_IDS.HOME) return '家用空调';
+    if (id === CATEGORY_IDS.CENTRAL_HOME_MULTI) return '家用中央空调';
+    if (id === CATEGORY_IDS.CENTRAL_DUCT) return '一拖一风管机';
+    if (id === CATEGORY_IDS.CENTRAL_COMMERCIAL) return '商用中央空调';
+    if (id === CATEGORY_IDS.HOME_WALL_1_5P) return '1.5匹挂机';
+    if (id === CATEGORY_IDS.HOME_WALL_2P) return '2匹挂机';
+    if (id === CATEGORY_IDS.HOME_CABINET_3P) return '3匹柜机';
+    if (id === CATEGORY_IDS.HOME_CEILING) return '天井机';
+  }
   if (pageOptions.category === 'cabinet') return '柜式空调';
   if (pageOptions.category === 'wall') return '壁挂式空调';
-  return '全系列设备';
+  return isHome.value ? '家用空调系列' : '中央空调系列';
 });
 
 const keywordInput = ref(pageOptions.keyword || '');

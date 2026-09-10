@@ -8,12 +8,9 @@
         <view class="search-row" style="margin-bottom: 30rpx; border: none; padding: 0;">
           <view class="skeleton-block" style="width: 100%; height: 80rpx; border-radius: 40rpx;"></view>
         </view>
-        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
-        <view class="skeleton-block" style="width: 100%; height: 260rpx; border-radius: 24rpx; margin-bottom: 40rpx;"></view>
-        <view style="display: flex; gap: 20rpx; margin-bottom: 40rpx;">
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 20rpx;"></view>
-          <view class="skeleton-block" style="flex: 1; height: 160rpx; border-radius: 20rpx;"></view>
-        </view>
+        <view class="skeleton-block" style="width: 100%; height: 250rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 250rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
+        <view class="skeleton-block" style="width: 100%; height: 250rpx; border-radius: 24rpx; margin-bottom: 24rpx;"></view>
       </template>
       <template v-else>
   
@@ -30,53 +27,129 @@
         <text class="search-row__action" @click="search">搜索</text>
       </view>
 
-      <view class="hero-card hero-card--central" @click="openPage('/pages/product/category', { type: 'central' })">
-        <view>
-          <text class="hero-card__title">中央空调</text>
-          <text class="hero-card__desc">多联机 / 模块机</text>
-          <text class="hero-card__desc">末端 / 控制系统</text>
-          <button class="white-pill">进入选型</button>
-        </view>
-        <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
-      </view>
-
-      <view class="hero-card hero-card--home" @click="openPage('/pages/product/category', { type: 'home' })">
-        <view>
-          <text class="hero-card__title">家用空调</text>
-          <text class="hero-card__desc">壁挂式 / 柜式</text>
-          <text class="hero-card__desc">新风空调</text>
-          <button class="white-pill white-pill--green">进入选型</button>
-        </view>
-        <image src="http://gh.starall.cn/static/resource/aircon/home-cabinet-green.png" mode="aspectFit" />
-      </view>
-
-      <view class="section-head">
-        <text>热门分类</text>
-      </view>
-      <view class="category-grid">
+      <!-- 三大核心大类卡片（全新轻奢渐变微质感排版，无右侧图片） -->
+      <view class="category-cards-wrapper">
+        <!-- 1. 格力中央空调 -->
         <view
-          v-for="item in categoryEntrances"
-          :key="item.title"
-          class="category-item"
-          @click="openCategoryItem(item)"
+          class="hero-card hero-card--central"
+          @click="openCategoryPage(58, '格力中央空调')"
         >
-          <view class="category-item__icon" :class="'cat-icon--' + (item.theme || 'blue')">
-            <up-icon :name="item.icon" size="26" :color="item.color || '#2468e8'" />
+          <view class="card-glass-glow" />
+          <view class="card-head">
+            <view class="card-title-group">
+              <text class="hero-card__title">格力中央空调</text>
+              <text class="hero-card__badge">多联 / 风管系统</text>
+            </view>
+            <text class="card-sub-code">GREE HVAC</text>
           </view>
-          <text>{{ item.title }}</text>
+          
+          <view class="card-tags-row">
+            <text class="card-tag">家用中央空调</text>
+            <text class="card-tag">一拖一风管机</text>
+            <text class="card-tag">商用中央空调</text>
+            <text class="card-tag">线控器辅件</text>
+          </view>
+
+          <view class="card-footer">
+            <text class="footer-tip">专业暖通冷量配比 · 官方正品</text>
+            <view class="white-pill white-pill--central">
+              <text>进入选型</text>
+              <up-icon name="arrow-right" size="12" color="#1d4ed8" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 2. 格力生活电器 -->
+        <view
+          class="hero-card hero-card--appliance"
+          @click="openCategoryPage(87, '格力生活电器')"
+        >
+          <view class="card-glass-glow" />
+          <view class="card-head">
+            <view class="card-title-group">
+              <text class="hero-card__title">格力生活电器</text>
+              <text class="hero-card__badge">全屋智能生态</text>
+            </view>
+            <text class="card-sub-code">SMART LIVING</text>
+          </view>
+
+          <view class="card-tags-row">
+            <text class="card-tag">格力空气能</text>
+            <text class="card-tag">格力冰箱</text>
+            <text class="card-tag">格力洗衣机</text>
+            <text class="card-tag">格力净水</text>
+          </view>
+
+          <view class="card-footer">
+            <text class="footer-tip">舒适节能生活 · 原厂品质严选</text>
+            <view class="white-pill white-pill--appliance">
+              <text>进入选型</text>
+              <up-icon name="arrow-right" size="12" color="#c2410c" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 3. 分体式空调 -->
+        <view
+          class="hero-card hero-card--split"
+          @click="openCategoryPage(86, '分体式空调')"
+        >
+          <view class="card-glass-glow" />
+          <view class="card-head">
+            <view class="card-title-group">
+              <text class="hero-card__title">分体式空调</text>
+              <text class="hero-card__badge">变频高效冷暖</text>
+            </view>
+            <text class="card-sub-code">SPLIT AIRCON</text>
+          </view>
+
+          <view class="card-tags-row">
+            <text class="card-tag">1~3匹挂机</text>
+            <text class="card-tag">2~10匹柜机</text>
+            <text class="card-tag">天井工程机</text>
+            <text class="card-tag">防爆特种空调</text>
+          </view>
+
+          <view class="card-footer">
+            <text class="footer-tip">家用商用客餐厅 · 快速舒适温控</text>
+            <view class="white-pill white-pill--split">
+              <text>进入选型</text>
+              <up-icon name="arrow-right" size="12" color="#047857" />
+            </view>
+          </view>
         </view>
       </view>
 
-      <view class="section-head filter-title">
-        <text>快速筛选</text>
-      </view>
-      <view class="quick-filter">
-        <view v-for="item in quickFilters" :key="item.title" class="quick-filter__item" @click="openQuickFilter(item)">
-          <view class="filter-icon-box">
-            <up-icon :name="item.icon" size="24" :color="item.color || '#2468e8'" />
+      <!-- 热门分类和快速筛选按用户要求暂时隐藏 (v-if="false") -->
+      <view v-if="false">
+        <view class="section-head">
+          <text>热门分类</text>
+        </view>
+        <view class="category-grid">
+          <view
+            v-for="item in categoryEntrances"
+            :key="item.title"
+            class="category-item"
+            @click="openCategoryItem(item)"
+          >
+            <view class="category-item__icon" :class="'cat-icon--' + (item.theme || 'blue')">
+              <up-icon :name="item.icon" size="26" :color="item.color || '#2468e8'" />
+            </view>
+            <text>{{ item.title }}</text>
           </view>
-          <text class="filter-title-text">{{ item.title }}</text>
-          <text class="filter-sub-text">{{ item.sub }}</text>
+        </view>
+
+        <view class="section-head filter-title">
+          <text>快速筛选</text>
+        </view>
+        <view class="quick-filter">
+          <view v-for="item in quickFilters" :key="item.title" class="quick-filter__item" @click="openQuickFilter(item)">
+            <view class="filter-icon-box">
+              <up-icon :name="item.icon" size="24" :color="item.color || '#2468e8'" />
+            </view>
+            <text class="filter-title-text">{{ item.title }}</text>
+            <text class="filter-sub-text">{{ item.sub }}</text>
+          </view>
         </view>
       </view>
 
@@ -91,7 +164,7 @@ import { ref, onMounted } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
-import { getProductCategories } from '@/api/product';
+import { getProductCategories, CATEGORY_IDS } from '@/api/product';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 
 const isLoading = ref(true);
@@ -112,23 +185,33 @@ onMounted(async () => {
 
 const keyword = ref('');
 
-// 真实业务分类映射
+const openCategoryPage = (rootId, title) => {
+  openPage('/pages/product/category', {
+    root_id: rootId,
+    category_id: rootId,
+    title: title || ''
+  });
+};
+
+// 严格按照后台定死的三大类及其子分类编写对应的 category_id
 const categoryEntrances = [
-  { title: '格力多联', icon: 'grid', color: '#2468e8', theme: 'blue', type: 'central', category_id: 40, name: '格力大多联' },
-  { title: '家用空调', icon: 'gift', color: '#10b981', theme: 'green', type: 'home', category_id: 14, name: '格力家用空调' },
-  { title: '格力风管', icon: 'file-text', color: '#0ea5e9', theme: 'sky', type: 'central', category_id: 51, name: '格力风管机' },
-  { title: '商用空调', icon: 'home', color: '#6366f1', theme: 'indigo', type: 'central', category_id: 18, name: '格力中央空调' },
-  { title: '春兰柜机', icon: 'tags', color: '#f59e0b', theme: 'amber', type: 'home', category: 'cabinet', category_id: 19, name: '春兰' },
-  { title: '生活电器', icon: 'scan', color: '#ec4899', theme: 'pink', type: 'home', category_id: 25, name: '格力生活家电' },
-  { title: '辅材配件', icon: 'setting', color: '#8b5cf6', theme: 'purple', type: 'central', category_id: 29, name: '辅材类' },
-  { title: '全部电器', icon: 'more-dot-fill', color: '#64748b', theme: 'gray', path: '/pages/product/list' }
+  // 中央空调核心分类
+  { title: '家用多联', icon: 'grid', color: '#2468e8', theme: 'blue', type: 'central', category_id: CATEGORY_IDS.CENTRAL_HOME_MULTI, name: '家用中央空调' },
+  { title: '变频风管', icon: 'file-text', color: '#0ea5e9', theme: 'sky', type: 'central', category_id: CATEGORY_IDS.CENTRAL_DUCT, name: '一拖一风管机' },
+  { title: '商用多联', icon: 'home', color: '#6366f1', theme: 'indigo', type: 'central', category_id: CATEGORY_IDS.CENTRAL_COMMERCIAL, name: '商用中央空调' },
+  { title: '线控辅件', icon: 'setting', color: '#8b5cf6', theme: 'purple', type: 'central', category_id: CATEGORY_IDS.CENTRAL_ACCESSORY, name: '线控器辅件' },
+  // 家用空调核心分类
+  { title: '1.5匹挂机', icon: 'gift', color: '#10b981', theme: 'green', type: 'home', category_id: CATEGORY_IDS.HOME_WALL_1_5P, name: '1.5匹挂机' },
+  { title: '2匹挂机', icon: 'tags', color: '#f59e0b', theme: 'amber', type: 'home', category_id: CATEGORY_IDS.HOME_WALL_2P, name: '2匹挂机' },
+  { title: '3匹柜机', icon: 'scan', color: '#ec4899', theme: 'pink', type: 'home', category_id: CATEGORY_IDS.HOME_CABINET_3P, name: '3匹柜机' },
+  { title: '天井/工程', icon: 'more-dot-fill', color: '#0284c7', theme: 'cyan', type: 'home', category_id: CATEGORY_IDS.HOME_CEILING, name: '天井机' }
 ];
 
 const quickFilters = [
-  { title: '商用办公', sub: '多联机/中央空调', icon: 'map', color: '#2468e8', query: { type: 'central', keyword: 'GMV' } },
-  { title: '大匹数柜机', sub: '春兰/10P商用', icon: 'rmb-circle', color: '#f59e0b', query: { type: 'home', category: 'cabinet', filter_horse: '10P' } },
-  { title: '家用静音', sub: '一级能效/变频', icon: 'checkmark-circle', color: '#10b981', query: { type: 'home', category: 'wall' } },
-  { title: '辅材工程', sub: '安装配件/耗材', icon: 'star', color: '#8b5cf6', query: { category_id: 29 } }
+  { title: '中央多联机', sub: '商用/写字楼/大空间', icon: 'map', color: '#2468e8', query: { type: 'central', category_id: CATEGORY_IDS.CENTRAL_COMMERCIAL } },
+  { title: '隐藏式风管', sub: '一拖一/变频/超薄', icon: 'star', color: '#0ea5e9', query: { type: 'central', category_id: CATEGORY_IDS.CENTRAL_DUCT } },
+  { title: '客餐厅大柜机', sub: '3匹高效节能立式', icon: 'rmb-circle', color: '#f59e0b', query: { type: 'home', category_id: CATEGORY_IDS.HOME_CABINET_3P } },
+  { title: '卧室静音挂机', sub: '1.5匹一级能效', icon: 'checkmark-circle', color: '#10b981', query: { type: 'home', category_id: CATEGORY_IDS.HOME_WALL_1_5P } }
 ];
 
 const openCategoryItem = (item) => {
@@ -136,11 +219,7 @@ const openCategoryItem = (item) => {
     openPage(item.path);
     return;
   }
-  if (item.type === 'home') {
-    openPage('/pages/product/category', { type: 'home', category_id: item.category_id });
-  } else {
-    openPage('/pages/product/category', { type: 'central', category_id: item.category_id });
-  }
+  openPage('/pages/product/category', { root_id: item.type === 'home' ? 86 : 58, category_id: item.category_id });
 };
 
 const openQuickFilter = (item) => {
@@ -193,68 +272,165 @@ const search = () => {
   font-weight: 700;
 }
 
+.category-cards-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  margin-top: 24rpx;
+}
+
 .hero-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 250rpx;
+  padding: 34rpx 32rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: transform 0.2s ease;
+
+  &:active {
+    transform: scale(0.985);
+  }
+}
+
+.card-glass-glow {
+  position: absolute;
+  right: -50rpx;
+  top: -50rpx;
+  width: 280rpx;
+  height: 280rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+}
+
+.card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 220rpx;
-  margin-top: 24rpx;
-  padding: 32rpx;
-  border-radius: 20rpx;
-  overflow: hidden;
+  margin-bottom: 22rpx;
+  gap: 12rpx;
+  width: 100%;
 }
 
-.hero-card--central {
-  background: linear-gradient(135deg, #2d72f5 0%, #1555d4 100%);
-  box-shadow: 0 8rpx 28rpx rgba(21, 85, 212, 0.28);
-}
-
-.hero-card--home {
-  background: linear-gradient(135deg, #32bd80 0%, #1a9e65 100%);
-  box-shadow: 0 8rpx 28rpx rgba(26, 158, 101, 0.28);
-}
-
-.hero-card__title,
-.hero-card__desc {
-  display: block;
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .hero-card__title {
   color: #fff;
-  font-size: 42rpx;
+  font-size: 36rpx;
   font-weight: 900;
-  line-height: 52rpx;
+  line-height: 46rpx;
+  letter-spacing: 1rpx;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.hero-card__desc {
-  margin-top: 8rpx;
-  color: rgba(255, 255, 255, .92);
-  font-size: 24rpx;
-  line-height: 34rpx;
+.hero-card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 14rpx;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  border-radius: 12rpx;
+  color: #ffffff;
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 28rpx;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.hero-card image {
-  width: 286rpx;
-  height: 170rpx;
-  margin-right: 2rpx;
+.card-sub-code {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 18rpx;
+  font-weight: 700;
+  letter-spacing: 1.5rpx;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  flex-shrink: 1;
+}
+
+.card-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-bottom: 26rpx;
+}
+
+.card-tag {
+  padding: 8rpx 20rpx;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  border-radius: 24rpx;
+  color: #ffffff;
+  font-size: 23rpx;
+  font-weight: 500;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+  padding-top: 22rpx;
+}
+
+.footer-tip {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 22rpx;
+  font-weight: 500;
 }
 
 .white-pill {
-  width: 144rpx;
-  height: 52rpx;
-  margin: 22rpx 0 0;
-  padding: 0;
-  border-radius: 26rpx;
-  background: #fff;
-  color: #2468e8;
-  font-size: 23rpx;
-  line-height: 52rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 54rpx;
+  padding: 0 24rpx;
+  border-radius: 27rpx;
+  background: #ffffff;
+  font-size: 24rpx;
   font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.1);
 }
 
-.white-pill--green {
-  color: #1a9e65;
+.hero-card--central {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #0ea5e9 100%);
+  box-shadow: 0 12rpx 32rpx rgba(30, 64, 175, 0.28);
+
+  .white-pill--central {
+    color: #1d4ed8;
+  }
+}
+
+.hero-card--appliance {
+  background: linear-gradient(135deg, #b45309 0%, #ea580c 50%, #f43f5e 100%);
+  box-shadow: 0 12rpx 32rpx rgba(234, 88, 12, 0.28);
+
+  .white-pill--appliance {
+    color: #c2410c;
+  }
+}
+
+.hero-card--split {
+  background: linear-gradient(135deg, #047857 0%, #059669 50%, #0891b2 100%);
+  box-shadow: 0 12rpx 32rpx rgba(4, 120, 87, 0.28);
+
+  .white-pill--split {
+    color: #047857;
+  }
 }
 
 .section-head {

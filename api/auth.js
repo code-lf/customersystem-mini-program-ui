@@ -10,24 +10,13 @@ export async function login(data = {}) {
   const username = String(data.username || data.account || data.mobile || '').trim();
   const password = String(data.password || '').trim();
 
-  // 首先使用标准 GET /login 登录
-  try {
-    const res = await apiGet('login', {
-      username,
-      password,
-      captcha_key: data.captcha_key,
-      captcha_code: data.captcha_code
-    });
-    return res;
-  } catch (err) {
-    // 兼容 POST /login
-    return apiPost('login', {
-      username,
-      password,
-      captcha_key: data.captcha_key,
-      captcha_code: data.captcha_code
-    });
-  }
+  // 后端规范：使用 GET /login 携带账号密码登录
+  return apiGet('login', {
+    username,
+    password,
+    captcha_key: data.captcha_key,
+    captcha_code: data.captcha_code
+  });
 }
 
 /**

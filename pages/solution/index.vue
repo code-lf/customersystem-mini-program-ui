@@ -677,7 +677,7 @@ const loadCart = async () => {
   }
 
   try {
-    const res = await getCart();
+    const res = await getCart({ showError: false });
     // 中文说明：utils/request.js 已经把 `{ code, msg, data }` 解包，
     // 所以这里的 res 就是 Cart，不能继续写成 res.code / res.data。
     // 服务端是报价单暂存清单的权威数据源，即使 items 为空也必须覆盖本地缓存，
@@ -685,6 +685,13 @@ const loadCart = async () => {
     applyServerCart(res);
   } catch(e) {
     console.warn('loadCart backend info:', e);
+    if (e?.message && e.message.includes('price_level_id')) {
+      uni.showToast({
+        title: '提示：当前账号在后台未配置价格等级，已使用本地暂存清单',
+        icon: 'none',
+        duration: 3500
+      });
+    }
   }
 };
 
@@ -764,7 +771,7 @@ const handleDeleteHistoryQuote = (sol) => {
 
 const loadCandidates = async () => {
   try {
-    const res = await getProductList({ keyword: addSearchKeyword.value || '', limit: 300 });
+    const res = await getProductList({ keyword: addSearchKeyword.value || '', limit: 100 });
     const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
     if (list.length > 0) {
       candidateProducts.value = list.map(item => {
