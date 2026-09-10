@@ -51,7 +51,7 @@
         <view class="product-list-card">
           <view class="product-list-head">
             <text class="list-head-title">商品清单 ({{ quoteItems.length }} 款设备)</text>
-            <view class="add-btn-small" @click="openAddPanel('search')">
+            <view class="add-btn-small" @click="openPage('/pages/product/category')">
               <up-icon name="plus" size="14" color="#2468e8" />
               <text>添加设备</text>
             </view>
@@ -83,7 +83,7 @@
         </view>
 
         <!-- 继续添加商品按钮 -->
-        <button class="add-more-btn" @click="openAddPanel('search')">
+        <button class="add-more-btn" @click="openPage('/pages/product/category')">
           <up-icon name="plus-circle" size="16" color="#2468e8" />
           <text>继续添加空调设备 / 配件</text>
         </button>
@@ -99,7 +99,7 @@
         <text class="empty-title">当前报价单暂无设备</text>
         <text class="empty-sub">您可以从产品中心、AI智能选型或点击下方按钮添加设备</text>
         <view class="empty-actions">
-          <button class="empty-btn primary" @click="openAddPanel('search')">搜索添加设备</button>
+          <button class="empty-btn primary" @click="openPage('/pages/product/category')">搜索添加设备</button>
           <button class="empty-btn outline" @click="openPage('/pages/product/category')">前往中央空调选型</button>
         </view>
       </view>
@@ -256,11 +256,25 @@
             </view>
           </view>
 
-          <!-- 税费与备注 -->
+          <!-- 附加费用与备注 -->
           <view class="form-section">
             <view class="setting-item">
-              <text class="label">增值税专用发票</text>
-              <text class="val-sub">13% (已含税)</text>
+              <text class="label">安装费</text>
+              <input
+                v-model="installFee"
+                type="digit"
+                class="price-custom-input"
+                placeholder="0.00"
+              />
+            </view>
+            <view class="setting-item">
+              <text class="label">增项费用</text>
+              <input
+                v-model="additionalFee"
+                type="digit"
+                class="price-custom-input"
+                placeholder="0.00"
+              />
             </view>
             <view class="remark-box">
               <text class="label">报价备注 (选填)</text>
@@ -271,8 +285,8 @@
               />
             </view>
           </view>
-
-          <!-- 最终核算价格 -->
+          
+<!-- 最终核算价格 -->
           <view class="final-price-box">
             <text class="f-label">方案最终报价 (含税)</text>
             <text class="f-price">¥{{ formatPrice(finalTotal) }}</text>
@@ -455,6 +469,8 @@ const selectedSubCategory = ref('all');
 const pricingMode = ref('discount');
 const discountRate = ref(95);
 const customTotalInput = ref('');
+const installFee = ref('');
+const additionalFee = ref('');
 const taxRate = ref(13);
 const quoteRemark = ref('');
 
@@ -931,7 +947,9 @@ const exportQuote = async () => {
     // `{ quote_id, quote_no, pay_amount }`。只有后端真正创建成功后，
     // 才能清空本地报价单暂存数据并提示成功，不能再用随机编号伪造成功记录。
     const createdQuote = await exportCart({
-      extra_amount: 0,
+      extra_amount: (Number(installFee.value) || 0) + (Number(additionalFee.value) || 0),
+      install_fee: Number(installFee.value) || 0,
+      additional_fee: Number(additionalFee.value) || 0,
       remark: quoteRemark.value,
       clear_cart: 1
     });
@@ -955,6 +973,8 @@ const exportQuote = async () => {
       quote_status: 'draft',
       items: JSON.parse(JSON.stringify(quoteItems.value)),
       totalPrice: Number(createdQuote.pay_amount ?? finalTotal.value),
+      install_fee: Number(installFee.value) || 0,
+      additional_fee: Number(additionalFee.value) || 0,
       pay_amount: Number(createdQuote.pay_amount ?? finalTotal.value),
       goods_amount: totalPrice.value,
       discount_amount: discountAmount.value,

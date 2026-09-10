@@ -27,94 +27,33 @@
         <text class="search-row__action" @click="search">搜索</text>
       </view>
 
-      <!-- 三大核心大类卡片（全新轻奢渐变微质感排版，无右侧图片） -->
+      <!-- 动态大类卡片 -->
       <view class="category-cards-wrapper">
-        <!-- 1. 格力中央空调 -->
         <view
-          class="hero-card hero-card--central"
-          @click="openCategoryPage(58, '格力中央空调')"
+          v-for="(cat, index) in categoryTree"
+          :key="cat.id"
+          class="hero-card"
+          :class="['hero-card--central', 'hero-card--appliance', 'hero-card--split'][index % 3] || 'hero-card--central'"
+          @click="openCategoryPage(cat.id, cat.category_name)"
         >
           <view class="card-glass-glow" />
           <view class="card-head">
             <view class="card-title-group">
-              <text class="hero-card__title">格力中央空调</text>
-              <text class="hero-card__badge">多联 / 风管系统</text>
+              <text class="hero-card__title">{{ cat.category_name }}</text>
+              <text class="hero-card__badge">{{ ['专业暖通', '全屋智能', '变频高效', '品质甄选'][index % 4] || '优选产品' }}</text>
             </view>
-            <text class="card-sub-code">GREE HVAC</text>
+            <text class="card-sub-code">{{ ['HVAC', 'SMART LIVING', 'SPLIT AIRCON', 'PREMIUM'][index % 4] || 'PRODUCT' }}</text>
           </view>
           
-          <view class="card-tags-row">
-            <text class="card-tag">家用中央空调</text>
-            <text class="card-tag">一拖一风管机</text>
-            <text class="card-tag">商用中央空调</text>
-            <text class="card-tag">线控器辅件</text>
+          <view class="card-tags-row" v-if="cat.children && cat.children.length > 0">
+            <text class="card-tag" v-for="sub in cat.children.slice(0, 4)" :key="sub.id">{{ sub.category_name }}</text>
           </view>
 
           <view class="card-footer">
-            <text class="footer-tip">专业暖通冷量配比 · 官方正品</text>
-            <view class="white-pill white-pill--central">
+            <text class="footer-tip">点击探索更多型号配比</text>
+            <view class="white-pill" :class="['white-pill--central', 'white-pill--appliance', 'white-pill--split'][index % 3] || 'white-pill--central'">
               <text>进入选型</text>
-              <up-icon name="arrow-right" size="12" color="#1d4ed8" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 2. 格力生活电器 -->
-        <view
-          class="hero-card hero-card--appliance"
-          @click="openCategoryPage(87, '格力生活电器')"
-        >
-          <view class="card-glass-glow" />
-          <view class="card-head">
-            <view class="card-title-group">
-              <text class="hero-card__title">格力生活电器</text>
-              <text class="hero-card__badge">全屋智能生态</text>
-            </view>
-            <text class="card-sub-code">SMART LIVING</text>
-          </view>
-
-          <view class="card-tags-row">
-            <text class="card-tag">格力空气能</text>
-            <text class="card-tag">格力冰箱</text>
-            <text class="card-tag">格力洗衣机</text>
-            <text class="card-tag">格力净水</text>
-          </view>
-
-          <view class="card-footer">
-            <text class="footer-tip">舒适节能生活 · 原厂品质严选</text>
-            <view class="white-pill white-pill--appliance">
-              <text>进入选型</text>
-              <up-icon name="arrow-right" size="12" color="#c2410c" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 3. 分体式空调 -->
-        <view
-          class="hero-card hero-card--split"
-          @click="openCategoryPage(86, '分体式空调')"
-        >
-          <view class="card-glass-glow" />
-          <view class="card-head">
-            <view class="card-title-group">
-              <text class="hero-card__title">分体式空调</text>
-              <text class="hero-card__badge">变频高效冷暖</text>
-            </view>
-            <text class="card-sub-code">SPLIT AIRCON</text>
-          </view>
-
-          <view class="card-tags-row">
-            <text class="card-tag">1~3匹挂机</text>
-            <text class="card-tag">2~10匹柜机</text>
-            <text class="card-tag">天井工程机</text>
-            <text class="card-tag">防爆特种空调</text>
-          </view>
-
-          <view class="card-footer">
-            <text class="footer-tip">家用商用客餐厅 · 快速舒适温控</text>
-            <view class="white-pill white-pill--split">
-              <text>进入选型</text>
-              <up-icon name="arrow-right" size="12" color="#047857" />
+              <up-icon name="arrow-right" size="12" :color="['#1d4ed8', '#c2410c', '#047857'][index % 3] || '#1d4ed8'" />
             </view>
           </view>
         </view>

@@ -43,7 +43,7 @@
             <text class="greeting-badge" :class="{ 'greeting-badge--unlogin': !userStore.isLoggedIn }">{{ currentDisplayRole }}</text>
           </view>
           <view class="greeting-company-row">
-            <up-icon :name="userStore.isLoggedIn ? 'home' : 'lock'" size="14" color="#7a8b9e" />
+            <up-icon :name="userStore.isLoggedIn ? 'home' : 'lock'" size="14" color="rgba(255,255,255,0.8)" />
             <text class="greeting-company">{{ currentDisplayCompany }}</text>
           </view>
         </view>
@@ -180,11 +180,10 @@ const handleGreetingClick = () => {
 };
 
 const quickTools = [
-  { title: '产品中心', icon: 'grid-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/product/index' },
-  { title: '新建报价', icon: 'plus-circle-fill', color: '#10b981', bg: '#e7f7ef', path: '/pages/solution/create' },
   { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
-  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' }
+  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  { title: '品牌资讯', icon: 'volume-fill', color: '#ec4899', bg: '#fce7f3', path: '/pages/notice/index' }
 ];
 
 const formatMoney = (value) => Number(value || 0).toLocaleString();
@@ -351,11 +350,23 @@ onMounted(async () => {
 
 /* 问候与搜索整合卡片 */
 .greeting-card {
-  padding: 24rpx 24rpx 20rpx;
+  position: relative;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   border-radius: 24rpx;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 248, 255, 0.92) 100%);
-  box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.05);
-  border: 1rpx solid rgba(255, 255, 255, 0.8);
+  padding: 36rpx 36rpx 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 10rpx 30rpx rgba(59, 130, 246, 0.2);
+  overflow: hidden;
+}
+.greeting-card::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -20%;
+  width: 300rpx;
+  height: 300rpx;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+  border-radius: 50%;
 }
 
 .greeting-card__top {
@@ -376,35 +387,11 @@ onMounted(async () => {
   min-width: 0;
 }
 
-.greeting-name {
-  /* 用户名可能来自手机号、企业账号等长字符串：只占剩余空间，超出后显示省略号。 */
-  display: block;
-  flex: 1;
-  min-width: 0;
-  color: #15223a;
-  font-size: 36rpx;
-  font-weight: 900;
-  letter-spacing: 0.5rpx;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.greeting-name { font-size: 34rpx; font-weight: 700; color: #ffffff; margin-right: 12rpx; }
 
-.greeting-badge {
-  /* 会员标签不参与压缩，避免长用户名把标签挤成多行。 */
-  flex-shrink: 0;
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  background: #edf4ff;
-  color: #2468e8;
-  font-size: 20rpx;
-  font-weight: 700;
-}
+.greeting-badge { font-size: 20rpx; color: #1e3a8a; background: #e0f2fe; padding: 2rpx 12rpx; border-radius: 20rpx; }
 
-.greeting-badge--unlogin {
-  background: #f1f5f9;
-  color: #64748b;
-}
+.greeting-badge--unlogin { color: #ffffff; background: rgba(255,255,255,0.2); }
 
 .greeting-company-row {
   display: flex;
@@ -413,13 +400,7 @@ onMounted(async () => {
   margin-top: 6rpx;
 }
 
-.greeting-company {
-  color: #64748b;
-  font-size: 23rpx;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.greeting-company { font-size: 24rpx; color: rgba(255,255,255,0.8); margin-left: 8rpx; }
 
 .greeting-avatar-box {
   flex-shrink: 0;
@@ -450,13 +431,11 @@ onMounted(async () => {
 .search-row {
   display: flex;
   align-items: center;
-  height: 76rpx;
-  margin-top: 20rpx;
-  padding: 0 10rpx 0 24rpx;
-  border-radius: 38rpx;
-  background: #fff;
-  box-shadow: 0 4rpx 16rpx rgba(23, 35, 61, 0.04);
-  border: 1rpx solid #e5edf8;
+  margin-top: 32rpx;
+  height: 80rpx;
+  background: rgba(255,255,255,0.9);
+  border-radius: 40rpx;
+  padding: 0 10rpx 0 28rpx;
 }
 
 .search-row__input {

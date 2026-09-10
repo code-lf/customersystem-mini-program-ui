@@ -1,151 +1,100 @@
 <template>
-  <view class="design-page preview-page">
-    <AppNavbar title="客户方案报价预览" />
-
-    <!-- 加载中骨架 -->
-    <view v-if="loading" class="preview-card skeleton-wrap">
-      <view class="skeleton-block sk-head" />
-      <view class="skeleton-block sk-title" />
-      <view class="skeleton-block sk-banner" />
-      <view class="skeleton-block sk-price" />
-      <view class="skeleton-block sk-list" />
-    </view>
-
-    <!-- 真实报价单卡片 -->
-    <view v-else class="preview-card">
-      <!-- 电器公司/经销商信息栏 -->
-      <view class="company-row">
-        <view class="company-icon"><up-icon name="home" size="20" color="#fff" /></view>
-        <view class="company-text">
-          <text class="company-name">{{ dealerInfo.dealer_name || dealerInfo.company_name || quoteData.company_name_snapshot || '格宏电器科技有限公司' }}</text>
-          <text class="company-tagline">{{ dealerInfo.tagline || '官方认证服务商 · 专业空调系统方案 · 品质保障' }}</text>
-        </view>
-        <view v-if="quoteData.quote_status_text || quoteData.status_text" class="status-pill">
-          {{ quoteData.quote_status_text || quoteData.status_text || '方案报价' }}
-        </view>
+  <view class="share-page">
+    <AppNavbar title="" :show-back="true" />
+    
+    <view class="preview-container">
+      <view class="company-head">
+        预估报价：{{ dealerInfo.dealer_name || dealerInfo.company_name || quoteData.company_name_snapshot || '浙江格宏电器有限公司' }}
       </view>
 
-      <!-- 项目方案标题与编号 -->
-      <view class="project-title-box">
-        <view class="title-top-row">
-          <text class="project-name">{{ quoteData.title || quoteData.projectName || '空调暖通方案报价单' }}</text>
-        </view>
-        <view class="project-meta-row">
-          <text v-if="quoteData.quote_no" class="meta-tag">单号：{{ quoteData.quote_no }}</text>
-          <text class="meta-tag">客户：{{ quoteData.contact_name_snapshot || quoteData.customerName || '贵宾客户' }}</text>
-          <text v-if="quoteData.create_time_text || quoteData.date" class="meta-tag">日期：{{ (quoteData.create_time_text || quoteData.date || '').slice(0, 10) }}</text>
-        </view>
-      </view>
-
-      <!-- 主形象图 -->
-      <image
-        class="project-image"
-        :src="bannerImage"
-        mode="aspectFill"
-      />
-
-      <!-- 报价总额面板 -->
-      <view class="price-panel">
-        <view class="price-panel-head">
-          <text class="price-label">方案核算总额 (含税与设备)</text>
-          <text v-if="quoteData.discount_rate && quoteData.discount_rate < 100" class="discount-badge">
-            已享 {{ quoteData.discount_rate }}% 特惠折扣
-          </text>
-        </view>
-
-        <view class="price-main-row">
-          <text class="price-symbol">¥</text>
-          <text class="price-number">{{ money(quoteData.pay_amount ?? quoteData.totalPrice) }}</text>
-          <text v-if="quoteData.goods_amount && quoteData.goods_amount > (quoteData.pay_amount ?? quoteData.totalPrice)" class="origin-price-strike">
-            原价 ¥{{ money(quoteData.goods_amount) }}
-          </text>
-        </view>
-
-        <!-- 价格明细条目 -->
-        <view class="price-breakdown">
-          <view v-if="quoteData.goods_amount" class="breakdown-item">
-            <text>设备面价：</text>
-            <text class="bold">¥{{ money(quoteData.goods_amount) }}</text>
-          </view>
-          <view v-if="quoteData.discount_amount" class="breakdown-item discount">
-            <text>折扣减免：</text>
-            <text class="bold">- ¥{{ money(quoteData.discount_amount) }}</text>
-          </view>
-          <view v-if="quoteData.extra_amount" class="breakdown-item">
-            <text>辅材/安装：</text>
-            <text class="bold">¥{{ money(quoteData.extra_amount) }}</text>
-          </view>
-        </view>
-
-        <!-- 备注说明 -->
-        <view v-if="quoteData.remark" class="quote-remark-show">
-          <text class="remark-title">方案备注：</text>
-          <text class="remark-content">{{ quoteData.remark }}</text>
-        </view>
-
-        <!-- 服务保障 4 格 -->
-        <view class="promise-grid">
-          <view v-for="item in promises" :key="item.text" class="promise-item">
-            <up-icon :name="item.icon" size="22" color="#2468e8" />
-            <text>{{ item.text }}</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 设备选型清单 -->
-      <view class="product-section">
-        <view class="section-head">
-          <text class="section-title">选配设备清单</text>
-          <text class="section-count">共 {{ (quoteData.items || []).length }} 项产品</text>
-        </view>
-
-        <view class="product-list">
-          <view
-            v-for="(product, index) in (quoteData.items || [])"
-            :key="(product.goods_id || product.id) || index"
-            class="product-row"
-          >
-            <image
-              class="p-thumb"
-              :src="getProductImage(product)"
-              mode="aspectFill"
-            />
-            <view class="p-info">
-              <text class="p-name">{{ product.goods_name_snapshot || product.goods_name || product.name || '定制空调设备' }}</text>
-              <text v-if="product.model_snapshot || product.model" class="p-model">型号：{{ product.model_snapshot || product.model }}</text>
-              <view class="p-meta-line">
-                <text class="p-qty">数量：{{ product.quantity || 1 }} 台</text>
-                <text class="p-price">单价：¥{{ money(product.quote_price ?? product.unitPrice ?? product.price ?? 0) }}</text>
-              </view>
+      <view class="quote-summary">
+        <text class="summary-title">报价总计</text>
+        <view class="summary-main">
+          <view class="circle-total">
+            <view class="circle-inner">
+              <text class="circle-num">{{ money(finalTotalPrice) }}</text>
+              <text class="circle-unit">元</text>
             </view>
-            <view class="p-subtotal">
-              <text class="subtotal-label">小计</text>
-              <text class="subtotal-val">¥{{ money(getItemSubtotal(product)) }}</text>
+          </view>
+          
+          <view class="summary-details">
+            <view class="detail-row">
+              <view class="dot green"></view>
+              <text class="detail-label">设备</text>
+              <text class="detail-val">{{ money(goodsAmount) }}</text>
+            </view>
+            <view class="detail-row">
+              <view class="dot blue"></view>
+              <text class="detail-label">安装</text>
+              <text class="detail-val">{{ money(quoteData.install_fee || 0) }}</text>
+            </view>
+            <view class="detail-row">
+              <view class="dot orange"></view>
+              <text class="detail-label">增项</text>
+              <text class="detail-val">{{ money(quoteData.additional_fee || 0) }}</text>
+            </view>
+          </view>
+        </view>
+        <text class="summary-tip">该价格来自系统估算，请以实际为准</text>
+      </view>
+      
+      <view class="order-no">
+        订单号：{{ quoteData.quote_no || ('BJ' + Date.now()) }}
+      </view>
+      
+      <!-- 品牌分组展示 -->
+      <view class="brand-group">
+        <view class="brand-header">
+          <view class="brand-head-top">
+            <text class="brand-name">{{ brandName }}</text>
+            <text class="brand-total">共计：¥ {{ money(finalTotalPrice) }}</text>
+          </view>
+          <view class="brand-head-bottom">
+            设备 {{ money(goodsAmount) }}元  安装 {{ money(quoteData.install_fee || 0) }}元  增项 {{ money(quoteData.additional_fee || 0) }}元
+          </view>
+        </view>
+        
+        <!-- 系列展示 (由于数据可能没按系列分，这里做个假分组或统一样式) -->
+        <view class="series-group">
+          <view class="series-header" @click="toggleSeries">
+            <text class="series-name">全部系列</text>
+            <view class="series-right">
+              <text class="series-total">{{ money(goodsAmount) }}元</text>
+              <up-icon :name="seriesExpanded ? 'arrow-up' : 'arrow-down'" size="14" color="#999" />
+            </view>
+          </view>
+          
+          <view class="series-list" v-if="seriesExpanded">
+            <view class="table-header">
+              <text class="th-model">型号</text>
+              <text class="th-price">单价</text>
+              <text class="th-qty">数量</text>
+              <text class="th-total">总价</text>
+            </view>
+            
+            <view class="table-row" v-for="(product, idx) in quoteData.items" :key="idx">
+              <text class="td-model">{{ product.model_snapshot || product.model }}</text>
+              <text class="td-price">{{ money(product.quote_price ?? product.unitPrice ?? product.price ?? 0) }}元</text>
+              <text class="td-qty">{{ product.quantity }}</text>
+              <text class="td-total">{{ money(getItemSubtotal(product)) }}元</text>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 专属销售工程师联系名片 -->
-      <view class="contact-row">
-        <image class="engineer-avatar" :src="advisorAvatar" mode="aspectFill" />
-        <view class="engineer-info">
-          <text class="engineer-name">{{ advisorName }}</text>
-          <text class="engineer-org">{{ advisorOrg }}</text>
-          <text class="engineer-tel">服务热线：{{ advisorPhone }}</text>
-        </view>
-        <button class="call-btn" @click="call">
-          <up-icon name="phone-fill" size="20" color="#2468e8" />
-        </button>
+      <!-- 备注 -->
+      <view class="remark-box" v-if="quoteData.remark">
+        <text class="remark-title">备注：</text>
+        <text class="remark-content">{{ quoteData.remark }}</text>
       </view>
     </view>
-
+    
+    <view style="height: 140rpx;"></view>
+    
     <!-- 底部操作按钮 -->
-    <view class="share-actions-wrap">
-      <button class="share-btn" @click="shareToClient">
-        <up-icon name="share-fill" size="18" color="#fff" style="margin-right: 10rpx;" />
-        立即分享给客户 (微信/复制链接)
-      </button>
+    <view class="bottom-actions">
+      <button class="btn-download" @click="downloadPdf">下载pdf</button>
+      <button class="btn-share" @click="shareToClient">分享</button>
     </view>
   </view>
 </template>
@@ -154,609 +103,344 @@
 import { computed, ref, onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions } from '@/utils/pages';
-import { getSolutionDetail, getShareQuote, getMyDealer, sendQuote } from '@/api/solution';
-import { getUserInfo } from '@/api/user';
-import { uiSolutions } from '@/mock/ui-fixtures';
+import { getSolutionDetail, getShareQuote, getMyDealer } from '@/api/solution';
 
-const options = getPageOptions();
 const loading = ref(true);
-
 const quoteData = ref({});
 const dealerInfo = ref({});
-const userInfo = ref({});
+const seriesExpanded = ref(true);
 
-const promises = [
-  { icon: 'file-text-fill', text: '清单透明' },
-  { icon: 'leaf', text: '一级能效' },
-  { icon: 'rmb-circle-fill', text: '含税专票' },
-  { icon: 'checkmark-circle-fill', text: '官方质保' }
-];
-
-const money = (value) => Number(value || 0).toLocaleString();
-
-const bannerImage = computed(() => {
-  const firstItem = (quoteData.value.items || [])[0];
-  return (
-    firstItem?.image_snapshot ||
-    firstItem?.goods_image ||
-    firstItem?.image ||
-    'http://gh.starall.cn/static/resource/aircon/central-default.png'
-  );
-});
-
-const getProductImage = (product) => {
-  return (
-    product.image_snapshot ||
-    product.goods_image ||
-    product.image ||
-    'http://gh.starall.cn/static/resource/aircon/central-default.png'
-  );
+const toggleSeries = () => {
+  seriesExpanded.value = !seriesExpanded.value;
 };
 
+const money = (val) => {
+  return Number(val || 0).toFixed(2);
+};
+
+const goodsAmount = computed(() => {
+  if (quoteData.value.goods_amount) return quoteData.value.goods_amount;
+  let total = 0;
+  if (quoteData.value.items) {
+    quoteData.value.items.forEach(p => {
+      total += getItemSubtotal(p);
+    });
+  }
+  return total;
+});
+
+const finalTotalPrice = computed(() => {
+  return quoteData.value.pay_amount || quoteData.value.totalPrice || (goodsAmount.value + (quoteData.value.install_fee || 0) + (quoteData.value.additional_fee || 0));
+});
+
+const brandName = computed(() => {
+  if (quoteData.value.items && quoteData.value.items.length > 0) {
+     return quoteData.value.items[0].category_name || '格力';
+  }
+  return '格力';
+});
+
 const getItemSubtotal = (product) => {
-  if (product.subtotal_price !== undefined) return product.subtotal_price;
   const price = Number(product.quote_price ?? product.unitPrice ?? product.price ?? 0);
   const qty = Number(product.quantity || 1);
   return price * qty;
 };
 
-const advisorName = computed(() => {
-  return (
-    quoteData.value.contact_name_snapshot ||
-    dealerInfo.value.contact_name ||
-    userInfo.value.nickname ||
-    userInfo.value.username ||
-    '张工 (资深方案工程师)'
-  );
-});
-
-const advisorOrg = computed(() => {
-  return (
-    dealerInfo.value.dealer_name ||
-    dealerInfo.value.company_name ||
-    quoteData.value.company_name_snapshot ||
-    '格宏电器工程技术部 · 专属顾问'
-  );
-});
-
-const advisorPhone = computed(() => {
-  return (
-    quoteData.value.contact_mobile_snapshot ||
-    dealerInfo.value.mobile ||
-    dealerInfo.value.telephone ||
-    userInfo.value.mobile ||
-    '138 8888 8888'
-  );
-});
-
-const advisorAvatar = computed(() => {
-  return userInfo.value.avatar || '/static/avatars/avatar-demo.png';
-});
-
-const loadQuote = async () => {
-  loading.value = true;
-  const quoteId = options.id || options.quote_id;
-  const shareToken = options.token || options.share_token;
-
-  // 1. 尝试从后端接口拉取真实数据
-  let fetchedQuote = null;
-
-  if (shareToken) {
+onMounted(async () => {
+  const options = getPageOptions();
+  
+  if (options.data) {
     try {
-      fetchedQuote = await getShareQuote(shareToken);
-    } catch (e) {
-      console.warn('getShareQuote failed:', e);
-    }
-  }
-
-  if (!fetchedQuote && quoteId) {
+      const decoded = decodeURIComponent(options.data);
+      quoteData.value = JSON.parse(decoded);
+    } catch(e) {}
+  } else if (options.id) {
     try {
-      fetchedQuote = await getSolutionDetail(quoteId);
-    } catch (e) {
-      console.warn('getSolutionDetail failed:', e);
-    }
+      const res = await getSolutionDetail(options.id);
+      quoteData.value = res.data || res;
+    } catch(e) {}
   }
-
-  // 2. 如果后端未获取到，尝试从本地缓存中查找历史快照
-  if (!fetchedQuote) {
-    const localRecords = uni.getStorageSync('solution_history_records') || [];
-    if (quoteId) {
-      fetchedQuote = localRecords.find(
-        (r) => String(r.id) === String(quoteId) || String(r.quote_id) === String(quoteId) || String(r.quote_no) === String(quoteId)
-      );
-    }
-    if (!fetchedQuote && localRecords.length) {
-      fetchedQuote = localRecords[0];
-    }
-  }
-
-  // 3. 如果依然没有，兜底回 mock 方案数据
-  if (!fetchedQuote) {
-    const mockFound = uiSolutions.find((item) => String(item.id) === String(quoteId)) || uiSolutions[0];
-    fetchedQuote = {
-      ...mockFound,
-      pay_amount: mockFound.total || mockFound.totalPrice,
-      goods_amount: mockFound.productTotal,
-      discount_rate: mockFound.discount || 95,
-      items: mockFound.items || []
-    };
-  }
-
-  quoteData.value = fetchedQuote || {};
-
-  // 4. 并行加载经销商与用户信息
+  
   try {
-    const [dealer, user] = await Promise.allSettled([getMyDealer(), getUserInfo()]);
-    if (dealer.status === 'fulfilled' && dealer.value) {
-      dealerInfo.value = dealer.value;
+    const dRes = await getMyDealer();
+    if (dRes && dRes.data) {
+      dealerInfo.value = dRes.data;
     }
-    if (user.status === 'fulfilled' && user.value) {
-      userInfo.value = user.value;
-    }
-  } catch (e) {
-    console.warn('load dealer/user info error:', e);
-  }
-
+  } catch(e) {}
+  
   loading.value = false;
-};
-
-onMounted(() => {
-  loadQuote();
 });
 
-const call = () => {
-  const phone = advisorPhone.value.replace(/\s+/g, '');
-  uni.makePhoneCall({
-    phoneNumber: phone,
-    fail: () => {
-      uni.showToast({ title: `服务热线：${phone}`, icon: 'none' });
-    }
-  });
+const downloadPdf = () => {
+  uni.showToast({ title: 'PDF下载功能开发中', icon: 'none' });
 };
 
-const shareToClient = async () => {
-  const quoteId = quoteData.value.quote_id || quoteData.value.id;
-  try {
-    if (quoteId) {
-      await sendQuote(quoteId).catch(() => {});
-    }
-  } catch (e) {
-    // 忽略发送状态切换可能抛出的非关键错误
-  }
-
-  const shareText = `【${quoteData.value.title || '空调暖通方案报价单'}】核算总额：¥${money(quoteData.value.pay_amount ?? quoteData.value.totalPrice)}，请点击查看完整配置清单。`;
-
-  // 复制文本或链接
-  uni.setClipboardData({
-    data: shareText,
-    success: () => {
-      uni.showToast({ title: '报价单分享信息已复制', icon: 'success' });
-    }
-  });
+const shareToClient = () => {
+  uni.showShareMenu({ withShareTicket: true });
 };
 </script>
 
 <style lang="scss" scoped>
-.preview-page {
+.share-page {
   min-height: 100vh;
-  padding: 0 24rpx 160rpx;
-  background: #f4f7fc;
+  background: #f5f6f8;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.preview-card {
-  border-radius: 24rpx;
+.preview-container {
+  padding: 24rpx;
+}
+
+.company-head {
+  text-align: center;
+  font-size: 32rpx;
+  color: #333;
+  margin-bottom: 30rpx;
+}
+
+.quote-summary {
   background: #fff;
-  overflow: hidden;
-  box-shadow: 0 8rpx 30rpx rgba(23, 35, 61, 0.05);
-  margin-top: 16rpx;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
 }
 
-.company-row {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 28rpx;
-  background: #f8faff;
-  border-bottom: 1rpx solid #eef3fb;
+.summary-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 30rpx;
+  display: block;
 }
 
-.company-icon {
+.summary-main {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  margin-right: 18rpx;
+  margin-bottom: 40rpx;
+}
+
+.circle-total {
+  width: 240rpx;
+  height: 240rpx;
   border-radius: 50%;
-  background: #2468e8;
-  flex-shrink: 0;
-}
-
-.company-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.company-name {
-  display: block;
-  color: #17233d;
-  font-size: 28rpx;
-  font-weight: 900;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.company-tagline {
-  display: block;
-  margin-top: 4rpx;
-  color: #8b95a7;
-  font-size: 22rpx;
-}
-
-.status-pill {
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-  background: #edf4ff;
-  color: #2468e8;
-  font-size: 22rpx;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.project-title-box {
-  padding: 24rpx 28rpx 20rpx;
-}
-
-.title-top-row {
+  border: 16rpx solid #10b981;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  margin-right: 60rpx;
 }
 
-.project-name {
-  display: block;
-  color: #17233d;
-  font-size: 34rpx;
-  font-weight: 900;
-}
-
-.project-meta-row {
+.circle-inner {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 12rpx;
-}
-
-.meta-tag {
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  background: #f1f4f9;
-  color: #586477;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.project-image {
-  width: 100%;
-  height: 280rpx;
-  background: #edf3fb;
-}
-
-.price-panel {
-  padding: 24rpx 28rpx;
-}
-
-.price-panel-head {
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
 }
 
-.price-label {
-  color: #8b95a7;
+.circle-num {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.circle-unit {
   font-size: 24rpx;
+  color: #666;
 }
 
-.price-main-row {
+.summary-details {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8rpx;
-  margin-top: 8rpx;
-}
-
-.price-symbol {
-  color: #ef543f;
-  font-size: 32rpx;
-  font-weight: 800;
-}
-
-.price-number {
-  color: #ef543f;
-  font-size: 52rpx;
-  font-weight: 900;
-}
-
-.origin-price-strike {
-  color: #a0abbd;
-  font-size: 24rpx;
-  text-decoration: line-through;
-  margin-left: 12rpx;
-}
-
-.discount-badge {
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
-  background: #edf4ff;
-  color: #2468e8;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
-.price-breakdown {
-  display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 20rpx;
-  margin-top: 14rpx;
-  padding: 12rpx 16rpx;
-  border-radius: 12rpx;
-  background: #f9fbfd;
-  font-size: 23rpx;
-  color: #647389;
 }
 
-.breakdown-item {
+.detail-row {
   display: flex;
   align-items: center;
-  gap: 6rpx;
-
-  &.discount {
-    color: #ef543f;
-  }
-
-  .bold {
-    font-weight: 700;
-  }
 }
 
-.quote-remark-show {
-  margin-top: 14rpx;
-  padding: 14rpx 18rpx;
-  border-radius: 10rpx;
-  background: #f8fafc;
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+  
+  &.green { background: #10b981; }
+  &.blue { background: #3b82f6; }
+  &.orange { background: #f59e0b; }
+}
+
+.detail-label {
+  font-size: 28rpx;
+  color: #666;
+  width: 80rpx;
+}
+
+.detail-val {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.summary-tip {
+  display: block;
   font-size: 24rpx;
-  line-height: 1.4;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
+  color: #999;
+  text-align: center;
 }
 
-.remark-title {
-  color: #8b95a7;
-  font-weight: 700;
-}
-
-.remark-content {
-  color: #334155;
-}
-
-.promise-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12rpx;
-  margin-top: 24rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #edf1f8;
-}
-
-.promise-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  color: #586477;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-/* 产品清单列表 */
-.product-section {
-  padding: 24rpx 28rpx;
-  border-top: 1rpx solid #edf1f8;
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.order-no {
+  font-size: 26rpx;
+  color: #333;
   margin-bottom: 16rpx;
 }
 
-.section-title {
-  color: #17233d;
-  font-size: 28rpx;
-  font-weight: 900;
-}
-
-.section-count {
-  color: #8b95a7;
-  font-size: 22rpx;
-}
-
-.product-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.product-row {
-  display: flex;
-  align-items: center;
-  padding: 16rpx;
-  border-radius: 16rpx;
-  background: #f8fafc;
-}
-
-.p-thumb {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 12rpx;
+.brand-group {
   background: #fff;
-  margin-right: 16rpx;
-  flex-shrink: 0;
-}
-
-.p-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.p-name {
-  display: block;
-  color: #17233d;
-  font-size: 26rpx;
-  font-weight: 800;
-  white-space: nowrap;
+  border-radius: 20rpx;
   overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 24rpx;
 }
 
-.p-model {
-  display: block;
-  margin-top: 2rpx;
-  color: #2468e8;
-  font-size: 22rpx;
-  font-weight: 600;
+.brand-header {
+  background: #10b981;
+  padding: 24rpx 30rpx;
+  color: #fff;
 }
 
-.p-meta-line {
+.brand-head-top {
   display: flex;
-  gap: 16rpx;
-  margin-top: 4rpx;
-  color: #8b95a7;
-  font-size: 21rpx;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+  font-size: 30rpx;
 }
 
-.p-subtotal {
+.brand-total {
+  font-weight: bold;
+}
+
+.brand-head-bottom {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.series-group {
+  border-top: 1rpx solid #eee;
+}
+
+.series-header {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-left: 12rpx;
+  justify-content: space-between;
+  padding: 24rpx 30rpx;
+  background: #fafafa;
 }
 
-.subtotal-label {
-  color: #8b95a7;
-  font-size: 20rpx;
+.series-name {
+  font-size: 28rpx;
+  color: #333;
 }
 
-.subtotal-val {
-  color: #ef543f;
-  font-size: 27rpx;
-  font-weight: 800;
-  margin-top: 2rpx;
-}
-
-.contact-row {
-  display: flex;
-  align-items: center;
-  margin: 0 28rpx;
-  padding: 24rpx 0 28rpx;
-  border-top: 1rpx solid #edf1f8;
-}
-
-.engineer-avatar {
-  width: 84rpx;
-  height: 84rpx;
-  margin-right: 18rpx;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: #edf3fb;
-}
-
-.engineer-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.engineer-name {
-  display: block;
-  color: #17233d;
-  font-size: 27rpx;
-  font-weight: 800;
-}
-
-.engineer-org,
-.engineer-tel {
-  display: block;
-  margin-top: 4rpx;
-  color: #647389;
-  font-size: 22rpx;
-}
-
-.call-btn {
+.series-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: #edf4ff;
-  flex-shrink: 0;
 }
 
-.share-actions-wrap {
+.series-total {
+  font-size: 28rpx;
+  color: #333;
+  margin-right: 12rpx;
+}
+
+.series-list {
+  padding: 0 30rpx 20rpx;
+}
+
+.table-header {
+  display: flex;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #eee;
+  
+  text {
+    font-size: 24rpx;
+    color: #999;
+  }
+}
+
+.table-row {
+  display: flex;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+  align-items: center;
+  
+  text {
+    font-size: 26rpx;
+    color: #666;
+  }
+}
+
+.th-model, .td-model { flex: 2; word-break: break-all; padding-right: 10rpx; }
+.th-price, .td-price { flex: 1; text-align: right; }
+.th-qty, .td-qty { flex: 0.8; text-align: center; }
+.th-total, .td-total { flex: 1; text-align: right; }
+
+.remark-box {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+}
+
+.remark-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.remark-content {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+}
+
+.bottom-actions {
   position: fixed;
+  bottom: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom));
+  height: 120rpx;
   background: #fff;
-  box-shadow: 0 -6rpx 24rpx rgba(23, 35, 61, 0.08);
-  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40rpx;
+  box-shadow: 0 -4rpx 10rpx rgba(0,0,0,0.05);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.share-btn {
+.btn-download {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  background: #10b981;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
-  border-radius: 44rpx;
-  background: #2468e8;
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 800;
-  line-height: 88rpx;
-  box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.35);
+  font-size: 30rpx;
+  margin-right: 20rpx;
 }
 
-.skeleton-wrap {
-  padding: 28rpx;
-}
-
-.skeleton-block {
-  background: #e9eff8;
-  border-radius: 12rpx;
-  margin-bottom: 20rpx;
-}
-
-.sk-head {
+.btn-share {
+  flex: 1;
   height: 80rpx;
-}
-
-.sk-title {
-  height: 60rpx;
-  width: 60%;
-}
-
-.sk-banner {
-  height: 240rpx;
-}
-
-.sk-price {
-  height: 120rpx;
-}
-
-.sk-list {
-  height: 200rpx;
+  border-radius: 40rpx;
+  background: #3b82f6;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  margin-left: 20rpx;
 }
 </style>
