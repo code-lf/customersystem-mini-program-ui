@@ -16,71 +16,139 @@
         </view>
       </view>
 
-      <!-- Level 2 Horizontal Scroll -->
-      <scroll-view class="l2-scroll-tabs" scroll-x :show-scrollbar="false" v-if="currentL2List.length > 0">
-        <view class="l2-tabs-inner">
-          <view
-            class="l2-item"
-            :class="{ active: activeL2 === '全部' }"
-            @click="selectL2('全部')"
-          >
-            全部
-          </view>
-          <view
-            v-for="item in currentL2List"
-            :key="item.id"
-            class="l2-item"
-            :class="{ active: activeL2 === item.id }"
-            @click="selectL2(item.id)"
-          >
-            {{ item.category_name }}
-          </view>
-        </view>
-      </scroll-view>
+      <!-- 分类筛选区 -->
+      <!-- 模式 1：中央空调（层级联动单选，紧凑高度，展开/收起切换保留状态） -->
+      <view class="category-filters-container central-filters-box" v-if="isCentralAC">
+        <view
+          class="filter-rows-wrapper"
+          :class="{ 'is-collapsed': !isExpanded && canExpand }"
+        >
+          <view class="filter-rows-inner">
+            <!-- Level 2: 品牌 -->
+            <view class="filter-level-row" v-if="currentL2List.length > 0">
+              <view
+                class="filter-tag"
+                :class="{ active: activeL2 === '全部' }"
+                @click="selectL2('全部')"
+              >
+                全部
+              </view>
+              <view
+                v-for="item in currentL2List"
+                :key="item.id"
+                class="filter-tag"
+                :class="{ active: activeL2 === item.id }"
+                @click="selectL2(item.id)"
+              >
+                {{ item.category_name }}
+              </view>
+            </view>
 
-      <!-- Level 3 Horizontal Scroll -->
-      <scroll-view class="l3-scroll-tabs" scroll-x :show-scrollbar="false" v-if="currentL3List.length > 0">
-        <view class="l3-tabs-inner">
-          <view
-            class="l3-item"
-            :class="{ active: activeL3 === '全部' }"
-            @click="selectL3('全部')"
-          >
-            全部
-          </view>
-          <view
-            v-for="sub in currentL3List"
-            :key="sub.id"
-            class="l3-item"
-            :class="{ active: activeL3 === sub.id }"
-            @click="selectL3(sub.id)"
-          >
-            {{ sub.category_name }}
-          </view>
-        </view>
-      </scroll-view>
+            <!-- Level 3: 类型 -->
+            <view class="filter-level-row" v-if="currentL3List.length > 0">
+              <view
+                class="filter-tag"
+                :class="{ active: activeL3 === '全部' }"
+                @click="selectL3('全部')"
+              >
+                全部
+              </view>
+              <view
+                v-for="sub in currentL3List"
+                :key="sub.id"
+                class="filter-tag"
+                :class="{ active: activeL3 === sub.id }"
+                @click="selectL3(sub.id)"
+              >
+                {{ sub.category_name }}
+              </view>
+            </view>
 
-      <!-- Level 4 Horizontal Scroll (if any) -->
-      <scroll-view class="l4-scroll-tabs" scroll-x :show-scrollbar="false" v-if="currentL4List.length > 0">
-        <view class="l4-tabs-inner">
-          <view
-            class="l4-item"
-            :class="{ active: activeL4 === '全部' }"
-            @click="selectL4('全部')"
-          >
-            全部
-          </view>
-          <view
-            v-for="sub in currentL4List"
-            :key="sub.id"
-            class="l4-item"
-            :class="{ active: activeL4 === sub.id }"
-            @click="selectL4(sub.id)"
-          >
-            {{ sub.category_name }}
+            <!-- Level 4: 系列 -->
+            <view class="filter-level-row" v-if="currentL4List.length > 0">
+              <view
+                class="filter-tag"
+                :class="{ active: activeL4 === '全部' }"
+                @click="selectL4('全部')"
+              >
+                全部
+              </view>
+              <view
+                v-for="sub in currentL4List"
+                :key="sub.id"
+                class="filter-tag"
+                :class="{ active: activeL4 === sub.id }"
+                @click="selectL4(sub.id)"
+              >
+                {{ sub.category_name }}
+              </view>
+            </view>
           </view>
         </view>
-      </scroll-view>
+
+        <!-- 中央空调超过两行时的“更多/收起”切换按钮 -->
+        <view v-if="canExpand" class="expand-toggle-bar" @click="toggleExpand">
+          <text class="toggle-text">{{ isExpanded ? '收起分类' : '更多分类' }}</text>
+          <up-icon :name="isExpanded ? 'arrow-up' : 'arrow-down'" size="12" color="#1d4ed8" />
+        </view>
+      </view>
+
+      <!-- 模式 2：非中央空调（如分体式空调、格力生活电器）：横向滑动 + 侧边“更多”弹窗 + 子分类多选 -->
+      <view class="non-central-filters-box" v-else>
+        <!-- 二级分类横向滑动栏，右侧常驻固定“更多 ▾”按钮 -->
+        <view class="l2-scroll-wrapper" v-if="currentL2List.length > 0">
+          <scroll-view
+            class="l2-scroll-view"
+            scroll-x
+            :show-scrollbar="false"
+            :scroll-into-view="currentL2ScrollInto"
+            scroll-with-animation
+          >
+            <view class="l2-scroll-inner">
+              <view
+                id="l2-tag-all"
+                class="l2-pill-tag"
+                :class="{ active: activeL2 === '全部' }"
+                @click="selectL2('全部')"
+              >
+                全部
+              </view>
+              <view
+                v-for="item in currentL2List"
+                :key="item.id"
+                :id="'l2-tag-' + item.id"
+                class="l2-pill-tag"
+                :class="{ active: activeL2 === item.id }"
+                @click="selectL2(item.id)"
+              >
+                {{ item.category_name }}
+              </view>
+            </view>
+          </scroll-view>
+
+          <!-- 右侧屏幕侧边常驻“更多”小字按钮，点击弹窗平铺显示分类选择 -->
+          <view class="l2-more-fixed-btn" @click="showCategoryModal = true">
+            <text class="more-label">更多</text>
+            <up-icon name="arrow-down" size="11" color="#1d4ed8" />
+          </view>
+        </view>
+
+        <!-- 三级子分类多选模式（默认全部勾选，用户点击取消哪个就不显示哪个） -->
+        <view class="subcat-multi-container" v-if="currentL3List.length > 0">
+          <view class="subcat-multi-inner">
+            <view
+              v-for="sub in currentL3List"
+              :key="sub.id"
+              class="filter-tag multi-tag"
+              :class="{ 'is-selected': selectedSubCatIds.includes(sub.id) }"
+              @click="toggleSubCat(sub.id)"
+            >
+              <text class="tag-check-mark" v-if="selectedSubCatIds.includes(sub.id)">✓</text>
+              <text class="tag-title">{{ sub.category_name }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
 
       <!-- 搜索栏 -->
       <view class="category-search-box">
@@ -129,7 +197,11 @@
         </view>
         <view v-else class="empty-state">
           <up-icon name="info-circle" size="48" color="#b7c5d8" />
-          <text class="empty-title">暂无产品</text>
+          <text class="empty-title">{{ !isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0 ? '已取消所有子分类筛选' : '暂无产品' }}</text>
+          <text v-if="!isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0" class="empty-hint">点击上方分类标签或下方按钮重新选中</text>
+          <view v-if="!isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0" class="select-all-btn" @click="selectAllSubCats">
+            一键全选
+          </view>
         </view>
         <!-- Bottom padding for mini cart -->
         <view style="height: 120rpx;"></view>
@@ -152,12 +224,54 @@
         </view>
       </view>
 
+      <!-- 非中央空调点击“更多”弹窗：平铺显示全部分类供选择，不用一直横向滑动 -->
+      <up-popup
+        :show="showCategoryModal"
+        mode="bottom"
+        round="24"
+        close-on-click-overlay
+        safe-area-inset-bottom
+        @close="showCategoryModal = false"
+      >
+        <view class="cat-modal-content">
+          <view class="cat-modal-header">
+            <view class="cat-modal-title-box">
+              <text class="cat-modal-title">全部分类</text>
+              <text class="cat-modal-sub">点击可直接切换，无需左右横向滑动</text>
+            </view>
+            <view class="cat-modal-close" @click="showCategoryModal = false">
+              <up-icon name="close" size="18" color="#64748b" />
+            </view>
+          </view>
+          <scroll-view class="cat-modal-scroll" scroll-y>
+            <view class="cat-modal-grid">
+              <view
+                class="cat-modal-item"
+                :class="{ active: activeL2 === '全部' }"
+                @click="selectL2FromModal('全部')"
+              >
+                全部
+              </view>
+              <view
+                v-for="item in currentL2List"
+                :key="item.id"
+                class="cat-modal-item"
+                :class="{ active: activeL2 === item.id }"
+                @click="selectL2FromModal(item.id)"
+              >
+                {{ item.category_name }}
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+      </up-popup>
+
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
@@ -170,6 +284,16 @@ const currentRootId = ref(null);
 const activeL2 = ref('全部');
 const activeL3 = ref('全部');
 const activeL4 = ref('全部');
+
+// 非中央空调子分类多选状态（默认全选）
+const selectedSubCatIds = ref([]);
+
+// 展开/收起状态（中央空调紧凑限高，展开展示全部，切换分类不重置）
+const isExpanded = ref(false);
+const canExpand = ref(false);
+
+// 非中央空调更多分类弹窗控制
+const showCategoryModal = ref(false);
 
 const searchKeyword = ref('');
 const products = ref([]);
@@ -233,8 +357,6 @@ const goToCart = () => {
 };
 
 // 根分类定义
-
-
 const rootCategories = computed(() => {
   return allTree.value.map(r => ({
     id: r.id,
@@ -248,6 +370,11 @@ const currentRoot = computed(() => {
 });
 
 const currentRootName = computed(() => currentRoot.value?.category_name || '产品分类');
+
+// 是否属于中央空调系列（中央空调保留单选层级，其他品类为多选模式）
+const isCentralAC = computed(() => {
+  return String(currentRootId.value) === '120' || Boolean(currentRoot.value?.category_name?.includes('中央空调'));
+});
 
 const currentL2List = computed(() => {
   const root = allTree.value.find(c => c.id === currentRootId.value);
@@ -274,6 +401,52 @@ const currentL4List = computed(() => {
   return currentL3Object.value.children || [];
 });
 
+const currentL2ScrollInto = computed(() => {
+  if (activeL2.value === '全部') return 'l2-tag-all';
+  return 'l2-tag-' + activeL2.value;
+});
+
+const selectL2FromModal = (l2Id) => {
+  selectL2(l2Id);
+  showCategoryModal.value = false;
+};
+
+// 多选子分类初始化与操作（非中央空调模式下，去掉“全部”，默认全选）
+const initSelectedSubCats = () => {
+  if (!isCentralAC.value && currentL3List.value.length > 0) {
+    selectedSubCatIds.value = currentL3List.value.map(c => c.id);
+  } else {
+    selectedSubCatIds.value = [];
+  }
+};
+
+const toggleSubCat = (id) => {
+  const index = selectedSubCatIds.value.indexOf(id);
+  if (index > -1) {
+    selectedSubCatIds.value = selectedSubCatIds.value.filter(item => item !== id);
+  } else {
+    selectedSubCatIds.value = [...selectedSubCatIds.value, id];
+  }
+};
+
+const selectAllSubCats = () => {
+  selectedSubCatIds.value = currentL3List.value.map(c => c.id);
+};
+
+// 测量行数是否超出2行（中央空调超过2行时提供展开/收起）
+const updateCanExpand = () => {
+  if (!isCentralAC.value) {
+    canExpand.value = false;
+    return;
+  }
+  // 当中央空调存在三级类型较多或第四级系列时，需要提供展开/收起
+  canExpand.value = currentL4List.value.length > 0 || currentL3List.value.length > 3;
+};
+
+const toggleExpand = () => {
+  isExpanded.value = !isExpanded.value;
+};
+
 const loadCategories = async (pageOptions = {}) => {
   try {
     const res = await getProductCategories();
@@ -288,15 +461,21 @@ const loadCategories = async (pageOptions = {}) => {
       : null;
     if (matchedRoot) {
       currentRootId.value = matchedRoot.id;
-      if (queryCategoryId && queryCategoryId !== queryRootId) locateAnyCategory(queryCategoryId);
+      if (queryCategoryId && queryCategoryId !== queryRootId) {
+        locateAnyCategory(queryCategoryId);
+      } else {
+        initSelectedSubCats();
+      }
     } else if (queryCategoryId && locateAnyCategory(queryCategoryId)) {
       // category_id 可能是任意层级，定位成功后由 locateAnyCategory 同步完整选中路径。
     } else if (allTree.value.length > 0) {
       currentRootId.value = allTree.value[0].id;
+      initSelectedSubCats();
       if (queryRootId || queryCategoryId) {
         console.warn('[产品分类] 未找到路由指定分类，已回退第一项：', pageOptions);
       }
     }
+    updateCanExpand();
   } catch (e) {
     console.error('[产品分类] 分类树加载失败：', e);
   }
@@ -305,19 +484,24 @@ const loadCategories = async (pageOptions = {}) => {
 const locateAnyCategory = (targetId) => {
   for (const root of allTree.value) {
     if (String(root.id) === String(targetId)) {
-      currentRootId.value = root.id; activeL2.value = '全部'; activeL3.value = '全部'; activeL4.value = '全部'; return true;
+      currentRootId.value = root.id; activeL2.value = '全部'; activeL3.value = '全部'; activeL4.value = '全部'; initSelectedSubCats(); updateCanExpand(); return true;
     }
     for (const l2 of (root.children || [])) {
       if (String(l2.id) === String(targetId)) {
-        currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = '全部'; activeL4.value = '全部'; return true;
+        currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = '全部'; activeL4.value = '全部'; initSelectedSubCats(); updateCanExpand(); return true;
       }
       for (const l3 of (l2.children || [])) {
         if (String(l3.id) === String(targetId)) {
-          currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = '全部'; return true;
+          currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = '全部';
+          if (String(root.id) !== '120' && !root.category_name?.includes('中央空调')) {
+            selectedSubCatIds.value = [l3.id];
+          }
+          updateCanExpand();
+          return true;
         }
         for (const l4 of (l3.children || [])) {
            if (String(l4.id) === String(targetId)) {
-             currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = l4.id; return true;
+             currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = l4.id; updateCanExpand(); return true;
            }
         }
       }
@@ -333,25 +517,113 @@ const selectRootCategory = (rootId) => {
   activeL3.value = '全部';
   activeL4.value = '全部';
   searchKeyword.value = '';
+  // 注意：切换根分类时保留用户的展开/收起状态，不要默认重置收起
+  initSelectedSubCats();
+  updateCanExpand();
 };
-const selectL2 = (l2Id) => { activeL2.value = l2Id; activeL3.value = '全部'; activeL4.value = '全部'; };
-const selectL3 = (l3Id) => { activeL3.value = l3Id; activeL4.value = '全部'; };
-const selectL4 = (l4Id) => { activeL4.value = l4Id; };
+
+const selectL2 = (l2Id) => {
+  activeL2.value = l2Id;
+  activeL3.value = '全部';
+  activeL4.value = '全部';
+  // 切换二级分类时保留用户的展开状态
+  initSelectedSubCats();
+  updateCanExpand();
+};
+
+const selectL3 = (l3Id) => {
+  activeL3.value = l3Id;
+  activeL4.value = '全部';
+  updateCanExpand();
+};
+
+const selectL4 = (l4Id) => {
+  activeL4.value = l4Id;
+  updateCanExpand();
+};
 
 const loadProducts = async () => {
   isLoading.value = true;
   try {
     const params = { limit: 100 };
-    if (activeL4.value !== '全部') params.category_id = activeL4.value;
-    else if (activeL3.value !== '全部') params.category_id = activeL3.value;
-    else if (activeL2.value !== '全部') params.category_id = activeL2.value;
-    else if (currentRootId.value) params.category_id = currentRootId.value;
+    if (isCentralAC.value) {
+      if (activeL4.value !== '全部') params.category_id = activeL4.value;
+      else if (activeL3.value !== '全部') params.category_id = activeL3.value;
+      else if (activeL2.value !== '全部') params.category_id = activeL2.value;
+      else if (currentRootId.value) params.category_id = currentRootId.value;
+    } else {
+      if (activeL2.value !== '全部') {
+        params.category_id = activeL2.value;
+      } else if (currentRootId.value) {
+        params.category_id = currentRootId.value;
+      }
+    }
 
     if (searchKeyword.value) params.keyword = searchKeyword.value.trim();
 
     const res = await getProductList(params);
-    products.value = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    let list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
+
+    // 智能兜底 1: 中央空调第四级系列（如颐居、star等）在后端暂未直接挂载 category_id 时，查询三级父类并根据系列名称智能匹配
+    if (isCentralAC.value && list.length === 0 && activeL4.value !== '全部' && activeL3.value !== '全部') {
+      const parentRes = await getProductList({ limit: 100, category_id: activeL3.value });
+      const parentList = Array.isArray(parentRes) ? parentRes : (Array.isArray(parentRes.data) ? parentRes.data : (parentRes.data?.data || []));
+      if (parentList.length > 0) {
+        const l4Obj = currentL4List.value.find(c => c.id === activeL4.value);
+        const l4Name = (l4Obj?.category_name || '').replace('系列', '').trim().toLowerCase();
+        const matched = parentList.filter(g => {
+          const info = ((g.goods_name || '') + ' ' + (g.model || '')).toLowerCase();
+          return l4Name && info.includes(l4Name);
+        });
+        list = matched.length > 0 ? matched : parentList;
+      }
+    }
+
+    // 智能兜底 2：若后台新分类树节点暂未绑定数据，但全量库存在对应商品，做平滑回显
+    if (!isCentralAC.value && list.length === 0 && !searchKeyword.value) {
+      const allRes = await getProductList({ limit: 100 });
+      const rawAll = Array.isArray(allRes) ? allRes : (Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []));
+      
+      if (currentRootId.value === 87) {
+        // 生活电器：空气能、冰箱、洗衣机、净水
+        list = rawAll.filter(g => 
+          [33, 46, 49, 25].includes(g.category_id) || 
+          ['冰箱', '洗衣机', '净水', '空气能', '电风扇', '电饭煲', '加湿器', '消毒液', '电火锅', '果汁机', '吸尘器'].some(k => (g.goods_name || '').includes(k))
+        );
+        if (activeL2.value !== '全部') {
+          const l2Obj = currentL2List.value.find(c => c.id === activeL2.value);
+          const l2Name = l2Obj?.category_name || '';
+          if (l2Name.includes('空气能')) {
+            list = list.filter(g => g.category_id === 33 || (g.goods_name || '').includes('空气能'));
+          } else if (l2Name.includes('冰箱')) {
+            list = list.filter(g => [46, 49].includes(g.category_id) || (g.goods_name || '').includes('冰箱'));
+          } else if (l2Name.includes('洗衣机')) {
+            list = list.filter(g => (g.goods_name || '').includes('洗衣机'));
+          } else if (l2Name.includes('净水')) {
+            list = list.filter(g => (g.goods_name || '').includes('净水') || (g.goods_name || '').includes('过滤'));
+          }
+        }
+      } else if (currentRootId.value === 86) {
+        // 分体式空调：挂机、柜机
+        list = rawAll.filter(g => 
+          [23, 21, 19, 17, 16].includes(g.category_id) ||
+          ((g.goods_name || '').includes('挂机') || (g.goods_name || '').includes('柜机') || (g.goods_name || '').includes('GW') || (g.goods_name || '').includes('LW'))
+        );
+        if (activeL2.value !== '全部') {
+          const l2Obj = currentL2List.value.find(c => c.id === activeL2.value);
+          const l2Name = l2Obj?.category_name || '';
+          if (l2Name.includes('挂机')) {
+            list = list.filter(g => (g.goods_name || '').includes('挂机') || (g.goods_name || '').includes('GW') || (g.goods_name || '').includes('G('));
+          } else if (l2Name.includes('柜机')) {
+            list = list.filter(g => (g.goods_name || '').includes('柜机') || (g.goods_name || '').includes('LW') || (g.goods_name || '').includes('L('));
+          }
+        }
+      }
+    }
+
+    products.value = list;
   } catch (e) {
+    console.error('[产品分类] 加载商品失败:', e);
   } finally {
     isLoading.value = false;
   }
@@ -369,12 +641,47 @@ watch([currentRootId, activeL2, activeL3, activeL4, searchKeyword], () => {
 });
 
 const filteredProducts = computed(() => {
-  if (!searchKeyword.value) return products.value;
-  const kw = searchKeyword.value.toLowerCase().trim();
-  return products.value.filter(p => 
-    (p.goods_name && p.goods_name.toLowerCase().includes(kw)) ||
-    (p.model && p.model.toLowerCase().includes(kw))
-  );
+  let list = products.value;
+
+  // 搜索关键字过滤
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase().trim();
+    list = list.filter(p => 
+      (p.goods_name && p.goods_name.toLowerCase().includes(kw)) ||
+      (p.model && p.model.toLowerCase().includes(kw))
+    );
+  }
+
+  // 非中央空调子分类多选过滤（默认全部勾选；取消选中哪个，就不显示哪个）
+  if (!isCentralAC.value && currentL3List.value.length > 0) {
+    if (selectedSubCatIds.value.length === 0) {
+      return [];
+    }
+
+    const deselectedItems = currentL3List.value.filter(
+      item => !selectedSubCatIds.value.includes(item.id)
+    );
+
+    if (deselectedItems.length > 0) {
+      list = list.filter(p => {
+        // 1. 如果商品绑定的 category_id 正好在未选中的子分类中，排除
+        if (deselectedItems.some(d => d.id === p.category_id)) {
+          return false;
+        }
+        // 2. 如果商品名称或型号中含有未选中的子分类名称（如品牌名“美的”、“奥克斯”或“商用”等），排除
+        const pInfo = ((p.goods_name || '') + ' ' + (p.model || '')).toLowerCase();
+        for (const d of deselectedItems) {
+          const dName = (d.category_name || '').toLowerCase();
+          if (dName && pInfo.includes(dName)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+  }
+
+  return list;
 });
 
 const formatPrice = (val) => Number(val || 0).toLocaleString();
@@ -427,31 +734,258 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   }
 }
 
-/* 水平滚动层级分类 */
-.l2-scroll-tabs, .l3-scroll-tabs, .l4-scroll-tabs {
-  width: 100%;
+/* 分类筛选区：中央空调紧凑联动、非中央空调横向滑动与弹窗 */
+.category-filters-container {
+  background: #ffffff;
+  border-bottom: 1rpx solid #e2e8f0;
+  padding: 10rpx 24rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.central-filters-box {
+  .filter-rows-wrapper {
+    overflow: hidden;
+    transition: max-height 0.28s ease;
+
+    &.is-collapsed {
+      /* 缩小限高：刚好整齐显示 2 行完整标签，避免截断半截文字 */
+      max-height: 146rpx;
+    }
+  }
+
+  .filter-rows-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10rpx;
+    padding-bottom: 4rpx;
+  }
+
+  .filter-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8rpx 22rpx;
+    border-radius: 28rpx;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 23rpx;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+    
+    &.active {
+      background: #e0e7ff;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+  }
+
+  .expand-toggle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6rpx;
+    padding: 8rpx 0 2rpx;
+    cursor: pointer;
+  }
+
+  .toggle-text {
+    font-size: 22rpx;
+    color: #1d4ed8;
+    font-weight: 600;
+  }
+}
+
+/* 非中央空调模式：横向滑动 + 侧边常驻“更多”按钮 */
+.non-central-filters-box {
+  background: #ffffff;
+}
+
+.l2-scroll-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
   background: #ffffff;
   border-bottom: 1rpx solid #eef2f7;
 }
 
-.l2-tabs-inner, .l3-tabs-inner, .l4-tabs-inner {
-  display: inline-flex;
-  padding: 16rpx 24rpx;
-  gap: 20rpx;
+.l2-scroll-view {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
 
-.l2-item, .l3-item, .l4-item {
-  padding: 10rpx 24rpx;
-  border-radius: 30rpx;
+.l2-scroll-inner {
+  display: inline-flex;
+  align-items: center;
+  padding: 14rpx 16rpx 14rpx 24rpx;
+  gap: 14rpx;
+}
+
+.l2-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
   background: #f1f5f9;
-  color: #64748b;
+  color: #475569;
   font-size: 24rpx;
   white-space: nowrap;
-  
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
   &.active {
     background: #e0e7ff;
     color: #1d4ed8;
     font-weight: 600;
+  }
+}
+
+.l2-more-fixed-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  height: 68rpx;
+  padding: 0 22rpx 0 16rpx;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 26%, #ffffff 100%);
+  cursor: pointer;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.more-label {
+  font-size: 22rpx;
+  color: #1d4ed8;
+  font-weight: 600;
+  margin-right: 2rpx;
+}
+
+.subcat-multi-container {
+  background: #ffffff;
+  border-bottom: 1rpx solid #eef2f7;
+  padding: 10rpx 24rpx 14rpx;
+}
+
+.subcat-multi-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.filter-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* 非中央空调子分类多选标签：默认全选，取消选中哪个就不显示哪个 */
+.multi-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 22rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+  border: 1.5rpx solid #cbd5e1;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+
+  &.is-selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 600;
+    box-shadow: 0 2rpx 6rpx rgba(59, 130, 246, 0.12);
+  }
+
+  .tag-check-mark {
+    font-size: 22rpx;
+    margin-right: 8rpx;
+    font-weight: bold;
+    color: #2563eb;
+  }
+}
+
+/* 更多分类弹窗面板 */
+.cat-modal-content {
+  background: #ffffff;
+  padding: 28rpx 28rpx 40rpx;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.cat-modal-title-box {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.cat-modal-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cat-modal-sub {
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.cat-modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cat-modal-scroll {
+  max-height: 55vh;
+}
+
+.cat-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+  padding-bottom: 24rpx;
+}
+
+.cat-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 76rpx;
+  padding: 0 12rpx;
+  background: #f8fafc;
+  border: 1.5rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  color: #334155;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 700;
   }
 }
 
@@ -579,6 +1113,21 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   margin-top: 24rpx;
   font-size: 28rpx;
   color: #64748b;
+}
+.empty-hint {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+.select-all-btn {
+  margin-top: 24rpx;
+  padding: 12rpx 36rpx;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 24rpx;
+  border-radius: 28rpx;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(29, 78, 216, 0.2);
 }
 
 /* 底部浮动购物车 */
