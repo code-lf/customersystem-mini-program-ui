@@ -167,7 +167,7 @@ const pageOptions = getPageOptions();
 
 // 分类数据
 const allTree = ref([]);
-const currentRootId = ref(58);
+const currentRootId = ref(null);
 const activeL2 = ref('全部');
 const activeL3 = ref('全部');
 const activeL4 = ref('全部');
@@ -232,24 +232,14 @@ const goToCart = () => {
 };
 
 // 根分类定义
-const ROOT_DEFS = [
-  { id: 58, defaultName: '格力中央空调', alias: 'central' },
-  { id: 87, defaultName: '格力生活电器', alias: 'appliance' },
-  { id: 86, defaultName: '分体式空调', alias: 'split', legacyAlias: 'home' }
-];
+
 
 const rootCategories = computed(() => {
-  if (!allTree.value.length) {
-    return ROOT_DEFS.map(r => ({ id: r.id, category_name: r.defaultName }));
-  }
-  return ROOT_DEFS.map(r => {
-    const found = allTree.value.find(c => c.id === r.id);
-    return {
-      id: r.id,
-      category_name: found ? found.category_name : r.defaultName,
-      children: found ? (found.children || []) : []
-    };
-  });
+  return allTree.value.map(r => ({
+    id: r.id,
+    category_name: r.category_name,
+    children: r.children || []
+  }));
 });
 
 const currentRoot = computed(() => {
@@ -290,10 +280,17 @@ const loadCategories = async () => {
     
     const queryRootId = pageOptions.root_id ? Number(pageOptions.root_id) : null;
     const queryCategoryId = pageOptions.category_id ? Number(pageOptions.category_id) : null;
+    
+    // Set initial root to the first available root if nothing is passed or found yet
+    if (allTree.value.length > 0) {
+      currentRootId.value = allTree.value[0].id;
+    }
 
-    if (queryRootId && ROOT_DEFS.some(r => r.id === queryRootId)) {
+    if (queryRootId && allTree.value.some(r => r.id === queryRootId)) {
       currentRootId.value = queryRootId;
       if (queryCategoryId && queryCategoryId !== queryRootId) locateAnyCategory(queryCategoryId);
+    } else if (queryCategoryId) {
+      locateAnyCategory(queryCategoryId);
     } else if (queryCategoryId) {
       locateAnyCategory(queryCategoryId);
     }
