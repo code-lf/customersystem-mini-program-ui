@@ -157,13 +157,12 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
-import { getProductCategories, getProductList, CATEGORY_IDS } from '@/api/product';
+import { openPage } from '@/utils/pages';
+import { getProductCategories, getProductList } from '@/api/product';
 import { getCart, addCartItem, editCartItem, removeCartItem } from '@/api/solution';
-
-const pageOptions = getPageOptions();
 
 // 分类数据
 const allTree = ref([]);
@@ -176,6 +175,8 @@ const searchKeyword = ref('');
 const products = ref([]);
 const cartData = ref(null);
 const isLoading = ref(false);
+// 初始化期间会连续设置多级分类，完成后再开放 watch 请求，避免重复加载商品列表。
+const isPageReady = ref(false);
 
 const loadCartData = async () => {
   try {
@@ -273,7 +274,7 @@ const currentL4List = computed(() => {
   return currentL3Object.value.children || [];
 });
 
-const loadCategories = async () => {
+const loadCategories = async (pageOptions = {}) => {
   try {
     const res = await getProductCategories();
     allTree.value = Array.isArray(res) ? res : (res?.data || []);
@@ -281,43 +282,48 @@ const loadCategories = async () => {
     const queryRootId = pageOptions.root_id ? Number(pageOptions.root_id) : null;
     const queryCategoryId = pageOptions.category_id ? Number(pageOptions.category_id) : null;
     
-    // Set initial root to the first available root if nothing is passed or found yet
-    if (allTree.value.length > 0) {
-      currentRootId.value = allTree.value[0].id;
-    }
-
-    if (queryRootId && allTree.value.some(r => r.id === queryRootId)) {
-      currentRootId.value = queryRootId;
+    // 优先同步产品页传入的根分类；只有参数缺失或分类不存在时才回退到第一项。
+    const matchedRoot = queryRootId
+      ? allTree.value.find((root) => String(root.id) === String(queryRootId))
+      : null;
+    if (matchedRoot) {
+      currentRootId.value = matchedRoot.id;
       if (queryCategoryId && queryCategoryId !== queryRootId) locateAnyCategory(queryCategoryId);
-    } else if (queryCategoryId) {
-      locateAnyCategory(queryCategoryId);
-    } else if (queryCategoryId) {
-      locateAnyCategory(queryCategoryId);
+    } else if (queryCategoryId && locateAnyCategory(queryCategoryId)) {
+      // category_id 可能是任意层级，定位成功后由 locateAnyCategory 同步完整选中路径。
+    } else if (allTree.value.length > 0) {
+      currentRootId.value = allTree.value[0].id;
+      if (queryRootId || queryCategoryId) {
+        console.warn('[产品分类] 未找到路由指定分类，已回退第一项：', pageOptions);
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('[产品分类] 分类树加载失败：', e);
+  }
 };
 
 const locateAnyCategory = (targetId) => {
   for (const root of allTree.value) {
-    if (root.id === targetId) {
-      currentRootId.value = root.id; activeL2.value = '全部'; activeL3.value = '全部'; activeL4.value = '全部'; return;
+    if (String(root.id) === String(targetId)) {
+      currentRootId.value = root.id; activeL2.value = '全部'; activeL3.value = '全部'; activeL4.value = '全部'; return true;
     }
     for (const l2 of (root.children || [])) {
-      if (l2.id === targetId) {
-        currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = '全部'; activeL4.value = '全部'; return;
+      if (String(l2.id) === String(targetId)) {
+        currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = '全部'; activeL4.value = '全部'; return true;
       }
       for (const l3 of (l2.children || [])) {
-        if (l3.id === targetId) {
-          currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = '全部'; return;
+        if (String(l3.id) === String(targetId)) {
+          currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = '全部'; return true;
         }
         for (const l4 of (l3.children || [])) {
-           if (l4.id === targetId) {
-             currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = l4.id; return;
+           if (String(l4.id) === String(targetId)) {
+             currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = l4.id; return true;
            }
         }
       }
     }
   }
+  return false;
 };
 
 const selectRootCategory = (rootId) => {
@@ -351,13 +357,16 @@ const loadProducts = async () => {
   }
 };
 
-onMounted(async () => {
-  await loadCategories();
-  await loadProducts();
-  await loadCartData();
+onLoad(async (pageOptions = {}) => {
+  // 微信小程序页面参数应从 onLoad 获取，setup 阶段读取 getCurrentPages 可能得到上一页或空参数。
+  await loadCategories(pageOptions);
+  isPageReady.value = true;
+  await Promise.all([loadProducts(), loadCartData()]);
 });
 
-watch([currentRootId, activeL2, activeL3, activeL4, searchKeyword], () => loadProducts());
+watch([currentRootId, activeL2, activeL3, activeL4, searchKeyword], () => {
+  if (isPageReady.value) loadProducts();
+});
 
 const filteredProducts = computed(() => {
   if (!searchKeyword.value) return products.value;
