@@ -1,5 +1,6 @@
 <template>
   <view class="login-wrapper">
+    <AppWatermark />
     <!-- 顶部状态栏与返回按钮 -->
     <view class="nav-header" :style="{ paddingTop: safeTop + 'px' }">
       <view class="back-btn" @click="handleBack">
@@ -192,6 +193,7 @@ import { computed, reactive, ref } from 'vue';
 import { login, mobileLogin, weappLogin, sendMobileCode } from '@/api/auth';
 import { useUserStore } from '@/store/user';
 import { openPage, replacePage } from '@/utils/pages';
+import AppWatermark from '@/components/app-watermark.vue';
 
 import { onLoad } from '@dcloudio/uni-app';
 

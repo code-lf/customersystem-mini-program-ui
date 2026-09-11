@@ -1,5 +1,6 @@
 <template>
   <view class="crm-page my-page">
+    <AppWatermark />
     <!-- 只增加顶部占位，把完整的个人信息卡片移到胶囊下方；不改变卡片内部原有排版。 -->
     <view class="my-safe-top" :style="{ height: (metrics.totalNavHeight + 6) + 'px' }" />
 
@@ -296,6 +297,7 @@ import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
+import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
 // “我的”页面仅提供分享入口，不把个人账户信息带入分享参数。

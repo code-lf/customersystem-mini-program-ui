@@ -1,5 +1,7 @@
 <template>
   <view class="app-navbar" :style="{ backgroundColor: bgColor }">
+    <!-- 公共导航栏页面统一挂载登录手机号水印，避免各业务页面重复实现。 -->
+    <AppWatermark />
     <view class="nav-safe-top" :style="{ height: metrics.statusBarHeight + 'px' }" />
     <view
       class="custom-nav-bar"
@@ -39,6 +41,7 @@
 <script setup>
 import { computed } from 'vue';
 import { getNavMetrics } from '@/utils/system';
+import AppWatermark from '@/components/app-watermark.vue';
 
 const props = defineProps({
   title: { type: String, default: '' },

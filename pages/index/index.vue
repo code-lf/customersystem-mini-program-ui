@@ -1,5 +1,6 @@
 <template>
   <view class="crm-page home-page">
+    <AppWatermark />
     <view class="home-safe" :style="{ height: (metrics.statusBarHeight + 6) + 'px' }" />
 
     <!-- 顶部高质感品牌与状态栏 -->
@@ -134,6 +135,7 @@ import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
+import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
 // 首页路由：/pages/index/index；生命周期直接注册在页面顶层，编译器才能启用分享菜单。

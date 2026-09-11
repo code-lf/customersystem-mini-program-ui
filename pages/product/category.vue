@@ -1004,7 +1004,9 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 .design-search input {
   flex: 1;
   margin-left: 14rpx;
-  font-size: 24rpx;
+  // 搜索文字和占位提示适当放大，提升真机上的可读性。
+  font-size: 28rpx;
+  line-height: 68rpx;
 }
 
 /* 商品列表（整行显示型号和名称，无图片） */

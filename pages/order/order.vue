@@ -1,10 +1,12 @@
 <template>
   <view class="container">
+    <AppWatermark />
     <text>订单页面</text>
   </view>
 </template>
 
 <script setup>
+import AppWatermark from '@/components/app-watermark.vue';
 </script>
 
 <style>
@@ -14,4 +16,4 @@
   align-items: center;
   height: 100%;
 }
-</style> 
+</style>

@@ -1,5 +1,6 @@
 <template>
   <view class="quote-page">
+    <AppWatermark />
     <view class="quote-safe-top" :style="{ height: (metrics.statusBarHeight + 4) + 'px' }" />
     <view
       class="quote-header"
@@ -452,6 +453,7 @@ import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, ex
 import { getProductList, getProductCategories } from '@/api/product';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
+import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
 // 不分享当前用户的报价单数据，只分享小程序公共首页入口。

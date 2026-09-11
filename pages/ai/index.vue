@@ -1,5 +1,6 @@
 <template>
   <view class="crm-page ai-home-page">
+    <AppWatermark />
     <view class="ai-safe-top" :style="{ height: (metrics.statusBarHeight + 6) + 'px' }" />
     <!-- 顶部状态栏与品牌标 -->
     <view
@@ -108,6 +109,7 @@ import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
 import { useUserStore } from '@/store/user';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
+import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
 const userStore = useUserStore();
