@@ -56,7 +56,7 @@
             mode="aspectFill"
           />
           <view v-else class="greeting-avatar-placeholder">
-            <up-icon name="account" size="24" color="#8c9cb0" />
+            <up-icon name="account" size="24" color="#ffffff" />
           </view>
         </view>
       </view>
@@ -95,10 +95,19 @@
     </view>
     <view v-if="solutions.length" class="solution-mini" @click="openPage('/pages/solution/edit', { id: solutions[0].id })">
       <view class="solution-mini__left">
-        <text class="solution-mini__title">{{ solutions[0].title }}</text>
-        <text class="solution-mini__desc">{{ solutions[0].items.length }}项产品 · ¥{{ formatMoney(solutions[0].totalPrice) }}</text>
+        <view class="solution-mini__head-row">
+          <text class="solution-mini__title">{{ solutions[0].displayTitle || solutions[0].title }}</text>
+          <text class="solution-mini__badge">编辑中</text>
+        </view>
+        <view class="solution-mini__meta">
+          <text v-if="solutions[0].quoteNo" class="solution-mini__no">{{ solutions[0].quoteNo }}</text>
+          <text class="solution-mini__desc">{{ solutions[0].items.length }}项产品 · ¥{{ formatMoney(solutions[0].totalPrice) }}</text>
+        </view>
       </view>
-      <text class="solution-mini__link">继续编辑 ›</text>
+      <view class="solution-mini__btn-wrap">
+        <text class="solution-mini__link">继续编辑</text>
+        <up-icon name="arrow-right" size="12" color="#2468e8" />
+      </view>
     </view>
     <view v-else class="solution-empty" @click="openPage('/pages/solution/create')">
       <view class="solution-empty__info">
@@ -182,6 +191,7 @@ const handleGreetingClick = () => {
 };
 
 const quickTools = [
+  { title: '产品选型', icon: 'grid-fill', color: '#2563eb', bg: '#eff6ff', path: '/pages/product/category' },
   { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
   { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
@@ -238,14 +248,24 @@ onMounted(async () => {
         ? resVal
         : (Array.isArray(resVal.data) ? resVal.data : (resVal.data?.data || []));
       
-      solutions.value = rawSolutions.map(item => ({
-        id: item.quote_id || item.id,
-        title: item.quote_no || item.title || '暖通报价方案',
-        items: item.items || Array(item.item_count || 1).fill({}),
-        totalPrice: item.pay_amount || item.total_price || 0,
-        customerName: item.contact_name_snapshot || '',
-        date: item.create_time_text || ''
-      }));
+      solutions.value = rawSolutions.map(item => {
+        const quoteNo = item.quote_no || '';
+        // 优先展示有业务意义的项目标题或备注；若只有单纯单号，格式化为带业务前缀的标题
+        const displayTitle = item.title && !item.title.startsWith('BJ')
+          ? item.title
+          : (item.remark || (quoteNo ? `空调方案报价 (${quoteNo.slice(-6)})` : '暖通空调报价方案'));
+
+        return {
+          id: item.quote_id || item.id,
+          quoteNo,
+          title: item.title || quoteNo || '暖通空调方案',
+          displayTitle,
+          items: item.items || Array(item.item_count || 1).fill({}),
+          totalPrice: item.pay_amount || item.total_price || 0,
+          customerName: item.contact_name_snapshot || '',
+          date: item.create_time_text || ''
+        };
+      });
     }
   } catch(e) {
     console.warn('Load home error:', e);
@@ -422,9 +442,10 @@ onMounted(async () => {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: #e9f0f8;
-  border: 3rpx solid #fff;
-  box-shadow: 0 4rpx 14rpx rgba(23, 35, 61, 0.08);
+  background: rgba(255, 255, 255, 0.22);
+  border: 3rpx solid rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -587,28 +608,70 @@ onMounted(async () => {
   min-width: 0;
 }
 
+.solution-mini__head-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .solution-mini__title {
   display: block;
   color: #17233d;
   font-size: 29rpx;
   font-weight: 800;
   line-height: 38rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solution-mini__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2rpx 12rpx;
+  border-radius: 12rpx;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 20rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.solution-mini__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 6rpx;
+}
+
+.solution-mini__no {
+  font-size: 22rpx;
+  color: #94a3b8;
+  font-family: monospace;
 }
 
 .solution-mini__desc {
-  display: block;
-  margin-top: 8rpx;
-  color: #8b95a7;
-  font-size: 24rpx;
+  color: #64748b;
+  font-size: 23rpx;
   line-height: 32rpx;
+}
+
+.solution-mini__btn-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 24rpx;
+  background: #eff6ff;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 
 .solution-mini__link {
   color: #2468e8;
-  font-size: 24rpx;
+  font-size: 23rpx;
   font-weight: 700;
-  flex-shrink: 0;
-  margin-left: 16rpx;
 }
 
 .solution-empty {
@@ -682,6 +745,7 @@ onMounted(async () => {
 
 .notice-mini__title {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   color: #17233d;
   font-size: 25rpx;
@@ -690,10 +754,11 @@ onMounted(async () => {
 }
 
 .notice-mini__date {
-  margin-left: 14rpx;
-  color: #8b95a7;
+  margin-left: 16rpx;
+  color: #94a3b8;
   font-size: 22rpx;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .tabbar-space {

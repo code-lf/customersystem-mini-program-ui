@@ -1,5 +1,6 @@
 <template>
   <view class="design-page customer-page">
+    <AppWatermark />
     <AppNavbar title="报价详情" />
 
     <view class="brand-row">
@@ -17,7 +18,7 @@
           <text>{{ solution.subtitle }}</text>
         </view>
         <view>
-          <text>报价总价（含税）</text>
+          <text>方案总报价</text>
           <text>¥{{ money(solution.total) }}</text>
         </view>
       </view>
@@ -35,9 +36,21 @@
       </view>
     </view>
 
+    <view v-if="Number(solution.install_fee || 0) > 0 || Number(solution.additional_fee || 0) > 0" class="customer-card">
+      <text class="section-title">工程安装与增项</text>
+      <view v-if="Number(solution.install_fee || 0) > 0" class="fee-row-item">
+        <text>安装费</text>
+        <text>¥{{ money(solution.install_fee) }}</text>
+      </view>
+      <view v-if="Number(solution.additional_fee || 0) > 0" class="fee-row-item">
+        <text>增项费用</text>
+        <text>¥{{ money(solution.additional_fee) }}</text>
+      </view>
+    </view>
+
     <view class="customer-card">
       <text class="section-title">报价说明</text>
-      <text class="paragraph">本报价采用高效节能设备，运行稳定，控制灵活，满足此项目空调使用需求，具体配置可根据实际情况调整优化。</text>
+      <text class="paragraph">{{ solution.remark || '本报价采用高效节能设备，运行稳定，控制灵活，满足此项目空调使用需求，具体配置可根据实际情况调整优化。' }}</text>
     </view>
 
     <view class="customer-card contact">
@@ -54,11 +67,16 @@
 
 <script setup>
 import AppNavbar from '@/components/app-navbar.vue';
+import AppWatermark from '@/components/app-watermark.vue';
 import { getPageOptions } from '@/utils/pages';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const options = getPageOptions();
-const solution = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];
+const draftKey = `solution_draft_${options.id || 1}`;
+const cached = uni.getStorageSync(draftKey);
+const base = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];
+const solution = cached ? { ...base, ...cached } : base;
+
 const money = (value) => Number(value || 0).toLocaleString();
 const specText = (item) => Array.isArray(item.specs) ? item.specs.slice(0, 2).join(' | ') : item.name;
 </script>
@@ -152,6 +170,29 @@ const specText = (item) => Array.isArray(item.specs) ? item.specs.slice(0, 2).jo
   font-size: 27rpx;
   font-weight: 900;
   margin-bottom: 16rpx;
+}
+
+.fee-row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #edf0f5;
+  font-size: 25rpx;
+}
+
+.fee-row-item:last-child {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.fee-row-item text:first-child {
+  color: #586477;
+}
+
+.fee-row-item text:last-child {
+  color: #17233d;
+  font-weight: 700;
 }
 
 .item-row {

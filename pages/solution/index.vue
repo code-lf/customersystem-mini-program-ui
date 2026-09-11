@@ -91,7 +91,7 @@
 
         <view class="quote-tip">
           <up-icon name="info-circle" size="16" color="#2468e8" />
-          <text>报价单先用于配置设备与数量。折扣率、税率和项目名称可在「导出报价」时统一核算生成方案。</text>
+          <text>报价单先用于配置设备与数量。折扣率、安装与增项费用可在「导出报价」时统一核算生成方案。</text>
         </view>
       </view>
 
@@ -158,7 +158,7 @@
     <!-- 底部固定面价合计与导出按钮 -->
     <view v-if="activeTab === 'current' && quoteItems.length && !isLoading" class="quote-footer">
       <view class="footer-left">
-        <text class="footer-label">设备面价合计 (含税)</text>
+        <text class="footer-label">设备面价合计</text>
         <view class="footer-price-row">
           <text class="footer-symbol">¥</text>
           <text class="footer-price">{{ formatPrice(totalPrice) }}</text>
@@ -208,7 +208,7 @@
 
         <view class="price-form">
           <view class="form-row-summary">
-            <text>设备面价总额 (含税)</text>
+            <text>设备面价总额</text>
             <text class="val">¥{{ formatPrice(totalPrice) }}</text>
           </view>
 
@@ -289,7 +289,7 @@
           
 <!-- 最终核算价格 -->
           <view class="final-price-box">
-            <text class="f-label">方案最终报价 (含税)</text>
+            <text class="f-label">方案最终报价</text>
             <text class="f-price">¥{{ formatPrice(finalTotal) }}</text>
           </view>
         </view>

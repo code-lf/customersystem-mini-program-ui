@@ -1,5 +1,6 @@
 <template>
   <view class="design-page solution-edit-page">
+    <AppWatermark />
     <AppNavbar title="编辑报价单" />
 
     <view class="base-card">
@@ -41,12 +42,53 @@
       </view>
     </view>
 
+    <!-- 安装与工程增项费用 -->
+    <view class="fee-card">
+      <view class="fee-card__head">
+        <text class="fee-head-txt">安装与增项费用</text>
+        <text class="fee-head-sub">可直接输入金额计入方案</text>
+      </view>
+      <view class="fee-row">
+        <view class="fee-label-box">
+          <text class="fee-label">安装费</text>
+          <text class="fee-sub">安装人工及基础辅材</text>
+        </view>
+        <view class="fee-input-box">
+          <text class="fee-symbol">¥</text>
+          <input
+            v-model="solution.install_fee"
+            type="digit"
+            placeholder="0.00"
+            class="fee-input"
+          />
+        </view>
+      </view>
+      <view class="fee-row">
+        <view class="fee-label-box">
+          <text class="fee-label">增项费用</text>
+          <text class="fee-sub">加长铜管、打孔打洞等</text>
+        </view>
+        <view class="fee-input-box">
+          <text class="fee-symbol">¥</text>
+          <input
+            v-model="solution.additional_fee"
+            type="digit"
+            placeholder="0.00"
+            class="fee-input"
+          />
+        </view>
+      </view>
+    </view>
+
     <view class="summary-bar">
       <view class="summary-left">
-        <text class="summary-label">设备小计 (含税)</text>
-        <text class="summary-val">¥{{ money(total) }}</text>
+        <text class="summary-label">{{ hasExtraFees ? '方案合计' : '设备小计' }}</text>
+        <text class="summary-val">¥{{ money(grandTotal) }}</text>
+        <text v-if="hasExtraFees" class="summary-breakdown">
+          设备 ¥{{ money(goodsTotal) }} + 安装 ¥{{ money(solution.install_fee || 0) }} + 增项 ¥{{ money(solution.additional_fee || 0) }}
+        </text>
       </view>
-      <button class="summary-next-btn" @click="openPage('/pages/solution/price', { id: solution.id })">下一步：核算价格</button>
+      <button class="summary-next-btn" @click="handleGoToPrice">下一步：核算价格</button>
     </view>
   </view>
 </template>
@@ -54,13 +96,29 @@
 <script setup>
 import { computed, reactive } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
+import AppWatermark from '@/components/app-watermark.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const options = getPageOptions();
+const draftKey = `solution_draft_${options.id || 1}`;
+const cached = uni.getStorageSync(draftKey);
 const source = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];
-const solution = reactive(JSON.parse(JSON.stringify(source)));
-const total = computed(() => (solution.items || []).reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0));
+
+const solution = reactive(
+  cached
+    ? { ...source, ...cached }
+    : {
+        ...JSON.parse(JSON.stringify(source)),
+        install_fee: source.install_fee !== undefined ? source.install_fee : 0,
+        additional_fee: source.additional_fee !== undefined ? source.additional_fee : 0
+      }
+);
+
+const goodsTotal = computed(() => (solution.items || []).reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0));
+const grandTotal = computed(() => goodsTotal.value + Number(solution.install_fee || 0) + Number(solution.additional_fee || 0));
+const hasExtraFees = computed(() => Number(solution.install_fee || 0) > 0 || Number(solution.additional_fee || 0) > 0);
+
 const money = (value) => Number(value || 0).toLocaleString();
 const specText = (item) => Array.isArray(item.specs) ? item.specs.slice(0, 2).join(' · ') : (item.spec || item.name);
 
@@ -76,16 +134,22 @@ const deleteItem = (index) => {
     uni.showToast({ title: '至少保留一件设备', icon: 'none' });
   }
 };
+
+const handleGoToPrice = () => {
+  uni.setStorageSync(draftKey, JSON.parse(JSON.stringify(solution)));
+  openPage('/pages/solution/price', { id: solution.id });
+};
 </script>
 
 <style lang="scss" scoped>
 .solution-edit-page {
-  padding-bottom: 200rpx;
+  padding-bottom: 240rpx;
   background: #f4f7fc;
 }
 
 .base-card,
-.list-card {
+.list-card,
+.fee-card {
   border-radius: 20rpx;
   background: #fff;
   box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
@@ -135,6 +199,7 @@ const deleteItem = (index) => {
 
 .list-card {
   padding: 0 24rpx;
+  margin-bottom: 20rpx;
 }
 
 .list-card__head {
@@ -248,6 +313,86 @@ const deleteItem = (index) => {
   font-weight: 700;
 }
 
+.fee-card {
+  padding: 24rpx 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.fee-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 18rpx;
+  border-bottom: 1rpx solid #edf1f8;
+}
+
+.fee-head-txt {
+  color: #17233d;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.fee-head-sub {
+  color: #94a3b8;
+  font-size: 22rpx;
+}
+
+.fee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #edf1f8;
+}
+
+.fee-row:last-child {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.fee-label-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.fee-label {
+  color: #17233d;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.fee-sub {
+  color: #94a3b8;
+  font-size: 21rpx;
+  margin-top: 4rpx;
+}
+
+.fee-input-box {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 12rpx;
+  padding: 0 16rpx;
+  height: 64rpx;
+}
+
+.fee-symbol {
+  color: #64748b;
+  font-size: 24rpx;
+  font-weight: 700;
+  margin-right: 6rpx;
+}
+
+.fee-input {
+  width: 160rpx;
+  height: 60rpx;
+  color: #0f172a;
+  font-size: 26rpx;
+  font-weight: 700;
+  text-align: right;
+}
+
 .summary-bar {
   position: fixed;
   left: 24rpx;
@@ -266,6 +411,8 @@ const deleteItem = (index) => {
 .summary-left {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .summary-label {
@@ -280,6 +427,15 @@ const deleteItem = (index) => {
   margin-top: 2rpx;
 }
 
+.summary-breakdown {
+  color: #94a3b8;
+  font-size: 20rpx;
+  margin-top: 2rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .summary-next-btn {
   height: 72rpx;
   padding: 0 36rpx;
@@ -290,5 +446,7 @@ const deleteItem = (index) => {
   font-weight: 800;
   line-height: 72rpx;
   box-shadow: 0 6rpx 18rpx rgba(36, 104, 232, 0.35);
+  flex-shrink: 0;
+  margin-left: 20rpx;
 }
 </style>
