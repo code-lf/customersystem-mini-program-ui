@@ -51,6 +51,13 @@
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "wx96b8b2823a01e728",
+        /* 微信同声传译插件：用于 AI 对话页把用户录音转换为文字。 */
+        "plugins" : {
+            "WechatSI" : {
+                "version" : "0.3.5",
+                "provider" : "wx069ba97219f66d99"
+            }
+        },
         "setting" : {
             "urlCheck" : false,
             "es6" : true,
@@ -62,6 +69,9 @@
         "permission" : {
             "scope.userLocation" : {
                 "desc" : "为了获取您的配送距离"
+            },
+            "scope.record" : {
+                "desc" : "用于将您的语音转换成文字并发送给 AI 助手"
             }
         }
     },

@@ -147,12 +147,21 @@
 
     <!-- 底部输入框与发送按钮 -->
     <view class="input-bar">
+      <button
+        class="voice-btn"
+        :class="{ recording: isRecording }"
+        :disabled="isThinking"
+        @click="toggleVoiceRecord"
+      >
+        <up-icon name="mic" size="19" :color="isRecording ? '#fff' : '#2468e8'" />
+      </button>
       <view class="input-field-wrap">
         <input
           v-model="inputContent"
-          placeholder="向百炼 AI 助手提问 (如: 120㎡办公室、VK8R参数)..."
+          :placeholder="isRecording ? '正在听，请说出问题，再点麦克风结束' : '向百炼 AI 助手提问 (如: 120㎡办公室、VK8R参数)...'"
           placeholder-class="placeholder"
           confirm-type="send"
+          :disabled="isRecording"
           @confirm="sendMessage(inputContent)"
         />
         <up-icon
@@ -165,7 +174,8 @@
       </view>
       <button
         class="send-btn"
-        :class="{ active: inputContent.trim() }"
+        :class="{ active: inputContent.trim() && !isRecording }"
+        :disabled="isRecording"
         @click="sendMessage(inputContent)"
       >
         <up-icon name="arrow-up" size="18" color="#fff" />
@@ -176,6 +186,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
+import { onUnload } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
 import { askAi } from '@/api/ai-assistant';
@@ -187,6 +198,8 @@ const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/
 
 const inputContent = ref('');
 const isThinking = ref(false);
+const isRecording = ref(false);
+const recognizedText = ref('');
 const scrollTop = ref(0);
 // sessionId 由后端返回，用于维持连续会话上下文
 const sessionId = ref('');
@@ -200,6 +213,105 @@ const quickChips = [
 
 // 对话消息列表
 const messages = ref([]);
+
+// 微信同声传译录音识别管理器，仅在微信小程序平台初始化。
+let recognitionManager = null;
+let isPageLeaving = false;
+
+const initVoiceRecognition = () => {
+  // #ifdef MP-WEIXIN
+  if (recognitionManager) return true;
+  try {
+    const plugin = requirePlugin('WechatSI');
+    recognitionManager = plugin.getRecordRecognitionManager();
+
+    // 实时识别结果同步到输入框，让用户在录音过程中看到识别进度。
+    recognitionManager.onRecognize = (result = {}) => {
+      const text = String(result.result || '').trim();
+      if (text) {
+        recognizedText.value = text;
+        inputContent.value = text;
+      }
+    };
+
+    recognitionManager.onStop = (result = {}) => {
+      isRecording.value = false;
+      const text = String(result.result || recognizedText.value || '').trim();
+      console.info('[AI语音输入] 录音识别结束：', {
+        hasText: Boolean(text),
+        tempFilePath: result.tempFilePath || ''
+      });
+
+      // 页面退出触发的停止只负责释放麦克风，不应把半段识别结果继续发送。
+      if (isPageLeaving) return;
+
+      if (!text) {
+        inputContent.value = '';
+        uni.showToast({ title: '没有识别到文字，请重试', icon: 'none' });
+        return;
+      }
+
+      // 用户结束录音后直接发送识别文字，不再要求二次点击发送按钮。
+      inputContent.value = '';
+      sendMessage(text);
+    };
+
+    recognitionManager.onError = (error = {}) => {
+      isRecording.value = false;
+      console.error('[AI语音输入] 录音或识别失败：', error);
+      // 插件停止录音时偶尔会返回这两个正常终止码，不重复弹出错误提示。
+      if (error.retcode === -30001 || error.retcode === -30011) return;
+      uni.showToast({
+        title: error.msg ? `语音识别失败：${error.msg}` : '语音识别失败，请重试',
+        icon: 'none'
+      });
+    };
+    return true;
+  } catch (error) {
+    console.error('[AI语音输入] WechatSI 插件初始化失败：', error);
+    uni.showToast({ title: '语音插件初始化失败', icon: 'none' });
+    return false;
+  }
+  // #endif
+
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请在微信小程序中使用语音输入', icon: 'none' });
+  return false;
+  // #endif
+};
+
+const toggleVoiceRecord = () => {
+  if (!userStore.isLoggedIn) {
+    uni.showToast({ title: '请先登录后使用语音提问', icon: 'none' });
+    return;
+  }
+  if (isThinking.value) {
+    uni.showToast({ title: '请等待当前回答完成', icon: 'none' });
+    return;
+  }
+  if (!initVoiceRecognition()) return;
+
+  // #ifdef MP-WEIXIN
+  if (isRecording.value) {
+    recognitionManager.stop();
+    return;
+  }
+
+  recognizedText.value = '';
+  inputContent.value = '';
+  try {
+    recognitionManager.start({
+      // 单次最长录音 60 秒，与参考项目保持一致。
+      duration: 60000,
+      lang: 'zh_CN'
+    });
+    isRecording.value = true;
+  } catch (error) {
+    console.error('[AI语音输入] 启动录音失败：', error);
+    uni.showToast({ title: '无法启动录音，请检查麦克风权限', icon: 'none' });
+  }
+  // #endif
+};
 
 const goToLogin = () => {
   openPage('/pages/auth/login', { tab: 'account' });
@@ -322,8 +434,23 @@ const sendMessage = async (text) => {
 };
 
 onMounted(() => {
+  // #ifdef MP-WEIXIN
+  initVoiceRecognition();
+  // #endif
   if (pageOptions.question) {
     sendMessage(pageOptions.question);
+  }
+});
+
+onUnload(() => {
+  // 页面退出时主动停止录音，避免插件在后台继续占用麦克风。
+  isPageLeaving = true;
+  if (isRecording.value && recognitionManager) {
+    try {
+      recognitionManager.stop();
+    } catch (error) {
+      console.warn('[AI语音输入] 页面退出停止录音失败：', error);
+    }
   }
 });
 </script>
@@ -601,6 +728,36 @@ onMounted(() => {
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   background: #fff;
   box-shadow: 0 -4rpx 20rpx rgba(23, 35, 61, 0.03);
+}
+
+.voice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  padding: 0;
+  border: 2rpx solid #bfd3fb;
+  border-radius: 50%;
+  background: #edf4ff;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.voice-btn::after {
+  display: none;
+}
+
+.voice-btn.recording {
+  border-color: #ef4444;
+  background: #ef4444;
+  box-shadow: 0 0 0 10rpx rgba(239, 68, 68, 0.12);
+  animation: voice-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 .input-field-wrap {
