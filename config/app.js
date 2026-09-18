@@ -26,7 +26,11 @@ const config = {
     appId: '64455b17fc2c43efbc8ce2832c4eece4',
     // 小程序调用自己的后端代理；最终请求地址为 baseUrl + /ai/ask。
     proxyPath: 'ai/ask',
+    // 微信小程序流式接口，后端以 text/event-stream 返回统一 SSE 事件。
+    streamProxyPath: 'ai/ask-stream',
     timeout: 120000,
+    // 超过该时间仍未收到首个 delta 时，终止流请求并自动降级为普通接口。
+    streamFirstDeltaTimeout: 3000,
     // 发送给后端的历史消息上限，20 条大约对应 10 轮用户与助手对话。
     maxHistoryMessages: 20
   },

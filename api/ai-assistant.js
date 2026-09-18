@@ -22,6 +22,22 @@ function normalizeHistory(history = []) {
     }));
 }
 
+function normalizeProducts(rawProducts = []) {
+  return Array.isArray(rawProducts)
+    ? rawProducts.map((p) => ({
+        id: p.goods_id || p.id,
+        goods_id: p.goods_id || p.id,
+        name: p.goods_name || p.name || '推荐机型',
+        model: p.model || '',
+        image: p.image || 'http://gh.starall.cn/static/resource/aircon/central-default.png',
+        price: Number(p.price || 0),
+        series: p.category_name || p.series || '',
+        specs: p.spec ? (Array.isArray(p.spec) ? p.spec : [String(p.spec)]) : (p.specs || []),
+        area: p.area || p.comment || ''
+      }))
+    : [];
+}
+
 function normalizeResponse(result = {}) {
   const data = result?.data || result || {};
   const output = data.output || {};
@@ -35,19 +51,7 @@ function normalizeResponse(result = {}) {
     || (Array.isArray(output.texts) ? output.texts[0]?.text || output.texts[0] : '');
 
   const rawProducts = data.products || output.products || [];
-  const products = Array.isArray(rawProducts)
-    ? rawProducts.map((p) => ({
-        id: p.goods_id || p.id,
-        goods_id: p.goods_id || p.id,
-        name: p.goods_name || p.name || '推荐机型',
-        model: p.model || '',
-        image: p.image || 'http://gh.starall.cn/static/resource/aircon/central-default.png',
-        price: Number(p.price || 0),
-        series: p.category_name || p.series || '',
-        specs: p.spec ? (Array.isArray(p.spec) ? p.spec : [String(p.spec)]) : [],
-        area: p.area || p.comment || ''
-      }))
-    : [];
+  const products = normalizeProducts(rawProducts);
 
   return {
     text: String(text || 'AI 助手已为您生成方案建议。'),
@@ -224,7 +228,9 @@ export async function askAi(question, history = [], options = {}) {
     question: content,
     session_id: options.sessionId || '',
     history: normalizeHistory(history),
-    app_id: aiConfig.appId || ''
+    app_id: aiConfig.appId || '',
+    // 流式失败降级时复用相同幂等键，避免后端重复创建报价单等副作用。
+    ...(options.idempotencyKey ? { idempotency_key: options.idempotencyKey } : {})
   };
 
   // 严格向后端代理接口 (https://gh.starall.cn/api/ai/ask) 发起请求
@@ -255,8 +261,421 @@ export async function askAi(question, history = [], options = {}) {
   }
 }
 
+/**
+ * 检测当前运行环境是否具备微信小程序分块响应能力。
+ * 非微信平台直接返回 false，由统一入口走非流式打字机降级。
+ */
+export function supportAiChunked() {
+  // #ifdef MP-WEIXIN
+  try {
+    return typeof uni !== 'undefined'
+      && typeof uni.request === 'function'
+      && (typeof uni.canIUse !== 'function' || uni.canIUse('requestTask.onChunkReceived'));
+  } catch (error) {
+    console.warn('[AI流式请求] 分块能力检测异常，将由运行时降级兜底：', error);
+    return true;
+  }
+  // #endif
+
+  // #ifndef MP-WEIXIN
+  return false;
+  // #endif
+}
+
+function resolveAiUrl(path) {
+  const baseUrl = String(config.baseUrl || '').replace(/\/$/, '');
+  const apiPath = String(path || '').replace(/^\//, '');
+  return baseUrl ? `${baseUrl}/${apiPath}` : `/${apiPath}`;
+}
+
+function createIdempotencyKey() {
+  return `weapp_ai_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * 创建支持跨分块多字节字符的 UTF-8 解码器。
+ * 优先使用 TextDecoder 的流式模式；旧基础库使用带残留字节缓存的手写解码。
+ */
+function createUtf8StreamDecoder() {
+  if (typeof TextDecoder !== 'undefined') {
+    const decoder = new TextDecoder('utf-8');
+    return {
+      decode(buffer) {
+        return decoder.decode(new Uint8Array(buffer || new ArrayBuffer(0)), { stream: true });
+      },
+      flush() {
+        return decoder.decode();
+      }
+    };
+  }
+
+  let remaining = new Uint8Array(0);
+
+  const decodeBytes = (buffer, flush = false) => {
+    const incoming = buffer ? new Uint8Array(buffer) : new Uint8Array(0);
+    const bytes = new Uint8Array(remaining.length + incoming.length);
+    bytes.set(remaining, 0);
+    bytes.set(incoming, remaining.length);
+
+    let output = '';
+    let index = 0;
+    while (index < bytes.length) {
+      const first = bytes[index];
+      let length = 1;
+      let codePoint = first;
+
+      if (first >= 0xc2 && first < 0xe0) {
+        length = 2;
+        codePoint = first & 0x1f;
+      } else if (first >= 0xe0 && first < 0xf0) {
+        length = 3;
+        codePoint = first & 0x0f;
+      } else if (first >= 0xf0 && first < 0xf5) {
+        length = 4;
+        codePoint = first & 0x07;
+      } else if (first >= 0x80) {
+        output += '\ufffd';
+        index += 1;
+        continue;
+      }
+
+      if (index + length > bytes.length) {
+        if (!flush) break;
+        output += '\ufffd';
+        index += 1;
+        continue;
+      }
+
+      let valid = true;
+      for (let offset = 1; offset < length; offset += 1) {
+        const next = bytes[index + offset];
+        if ((next & 0xc0) !== 0x80) {
+          valid = false;
+          break;
+        }
+        codePoint = (codePoint << 6) | (next & 0x3f);
+      }
+
+      if (!valid) {
+        output += '\ufffd';
+        index += 1;
+        continue;
+      }
+
+      output += codePoint <= 0xffff
+        ? String.fromCharCode(codePoint)
+        : String.fromCharCode(
+            0xd800 + ((codePoint - 0x10000) >> 10),
+            0xdc00 + ((codePoint - 0x10000) & 0x3ff)
+          );
+      index += length;
+    }
+
+    remaining = flush ? new Uint8Array(0) : bytes.slice(index);
+    return output;
+  };
+
+  return {
+    decode(buffer) {
+      return decodeBytes(buffer, false);
+    },
+    flush() {
+      return decodeBytes(null, true);
+    }
+  };
+}
+
+/**
+ * 按后端约定解析逐行 data: JSON 事件，并保留被网络分块截断的半行。
+ */
+function createSseParser(handler = {}) {
+  let pending = '';
+  let fullText = '';
+  let meta = {};
+  let done = false;
+
+  const handleLine = (line) => {
+    const text = String(line || '').trim();
+    if (!text.startsWith('data:')) return;
+
+    const json = text.slice(5).trim();
+    if (!json) return;
+
+    let event;
+    try {
+      event = JSON.parse(json);
+    } catch (error) {
+      console.warn('[AI流式请求] 忽略无法解析的 SSE 数据行：', json, error);
+      return;
+    }
+
+    switch (event.type) {
+      case 'delta': {
+        const delta = String(event.delta || '');
+        if (!delta) return;
+        fullText += delta;
+        handler.onDelta?.(delta, fullText);
+        break;
+      }
+      case 'meta':
+        meta = { ...meta, ...event };
+        handler.onMeta?.(meta);
+        break;
+      case 'done':
+        done = true;
+        handler.onDone?.();
+        break;
+      case 'error':
+        handler.onError?.(event.message || 'AI 服务异常');
+        break;
+      default:
+        break;
+    }
+  };
+
+  return {
+    feed(chunk) {
+      pending += String(chunk || '').replace(/\r\n/g, '\n');
+      let lineEnd = pending.indexOf('\n');
+      while (lineEnd >= 0) {
+        handleLine(pending.slice(0, lineEnd).replace(/\r$/, ''));
+        pending = pending.slice(lineEnd + 1);
+        lineEnd = pending.indexOf('\n');
+      }
+    },
+    flush() {
+      if (pending.trim()) handleLine(pending);
+      pending = '';
+    },
+    getResult() {
+      return { fullText, meta, done };
+    }
+  };
+}
+
+function createStreamResult(text, meta = {}, fallbackResult = null) {
+  if (fallbackResult) return fallbackResult;
+  return {
+    text: String(text || ''),
+    sessionId: meta.session_id || meta.sessionId || '',
+    quoteId: meta.quote_id || null,
+    products: normalizeProducts(meta.products || []),
+    responseId: meta.response_id || '',
+    idempotencyKey: meta.idempotency_key || '',
+    raw: meta,
+    streamed: true
+  };
+}
+
+function playTypewriter(text, onDelta, options = {}) {
+  const content = String(text || '');
+  const step = Number(options.step || 2);
+  const interval = Number(options.interval || 20);
+
+  return new Promise((resolve) => {
+    let index = 0;
+    const timer = setInterval(() => {
+      if (options.isCancelled?.()) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+      const delta = content.slice(index, index + step);
+      if (!delta) {
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+      index += step;
+      onDelta?.(delta, content.slice(0, index));
+    }, interval);
+  });
+}
+
+/**
+ * 以流式方式发送 AI 问题；能力不足、首字超时或流中断时自动调用 askAi 降级。
+ * 返回控制器而不是单独 Promise，页面退出时可调用 abort() 释放网络请求。
+ */
+export function askAiStream(question, history = [], options = {}, handler = {}) {
+  const content = String(question || '').trim();
+  let requestTask = null;
+  let cancelled = false;
+  let fallbackStarted = false;
+  let firstDeltaTimer = null;
+  let rejectPromise = null;
+
+  const idempotencyKey = options.idempotencyKey || createIdempotencyKey();
+  const aiConfig = config.aiAssistant || {};
+  const token = getStorage(STORAGE_KEYS.token, '');
+  const payload = {
+    question: content,
+    session_id: options.sessionId || '',
+    history: normalizeHistory(history),
+    idempotency_key: idempotencyKey
+  };
+
+  const createCancelledError = () => {
+    const error = new Error('AI 请求已取消');
+    error.cancelled = true;
+    return error;
+  };
+
+  const promise = new Promise((resolve, reject) => {
+    rejectPromise = reject;
+    if (!content) {
+      reject(new Error('请输入要咨询的问题'));
+      return;
+    }
+    if (!token) {
+      reject(new Error('请先登录账号后再使用百炼 AI 助手'));
+      return;
+    }
+
+    // 所有降级路径只允许执行一次，且复用幂等键防止后端重复产生业务结果。
+    const runFallback = async (reason) => {
+      if (fallbackStarted || cancelled) return;
+      fallbackStarted = true;
+      if (firstDeltaTimer) clearTimeout(firstDeltaTimer);
+      // 流事件已确定失败时及时断开旧连接，避免它与降级请求同时占用网络。
+      requestTask?.abort?.();
+      console.warn('[AI流式请求] 切换至非流式接口：', reason);
+      handler.onFallback?.(reason);
+
+      try {
+        const result = await askAi(content, history, {
+          ...options,
+          idempotencyKey
+        });
+        if (cancelled) throw createCancelledError();
+        await playTypewriter(result.text, handler.onDelta, {
+          isCancelled: () => cancelled
+        });
+        if (cancelled) throw createCancelledError();
+        handler.onMeta?.({
+          session_id: result.sessionId,
+          quote_id: result.quoteId,
+          products: result.products,
+          idempotency_key: idempotencyKey
+        });
+        handler.onDone?.({ fallback: true });
+        resolve({ ...result, streamed: false, fallback: true, idempotencyKey });
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    if (!supportAiChunked()) {
+      runFallback('当前环境不支持微信分块响应');
+      return;
+    }
+
+    const decoder = createUtf8StreamDecoder();
+    let receivedDelta = false;
+    let settled = false;
+
+    const parser = createSseParser({
+      onDelta(delta, fullText) {
+        if (cancelled || fallbackStarted) return;
+        if (!receivedDelta) {
+          receivedDelta = true;
+          if (firstDeltaTimer) clearTimeout(firstDeltaTimer);
+        }
+        handler.onDelta?.(delta, fullText);
+      },
+      onMeta(meta) {
+        if (!cancelled && !fallbackStarted) handler.onMeta?.(meta);
+      },
+      onDone() {
+        if (cancelled || fallbackStarted || settled) return;
+        const result = parser.getResult();
+        if (!result.fullText) {
+          runFallback('流已结束但没有返回回答文本');
+          return;
+        }
+        settled = true;
+        if (firstDeltaTimer) clearTimeout(firstDeltaTimer);
+        handler.onDone?.({ fallback: false });
+        resolve(createStreamResult(result.fullText, result.meta));
+      },
+      onError(message) {
+        runFallback(`后端流事件报错：${message}`);
+      }
+    });
+
+    requestTask = uni.request({
+      url: resolveAiUrl(aiConfig.streamProxyPath || 'ai/ask-stream'),
+      method: 'POST',
+      enableChunked: true,
+      timeout: aiConfig.timeout || 120000,
+      header: {
+        channel: 'weapp',
+        token,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream'
+      },
+      data: payload,
+      success(response = {}) {
+        if (cancelled || fallbackStarted || settled) return;
+
+        const tail = decoder.flush();
+        if (tail) parser.feed(tail);
+        parser.flush();
+        const result = parser.getResult();
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          runFallback(`流接口 HTTP 状态异常：${response.statusCode || 0}`);
+          return;
+        }
+        if (result.done) return;
+        if (result.fullText) {
+          // 网络正常结束但后端漏发 done 时，保留已完整收到的回答并记录协议告警。
+          console.warn('[AI流式请求] 响应结束但未收到 done 事件，按已接收文本完成。');
+          settled = true;
+          if (firstDeltaTimer) clearTimeout(firstDeltaTimer);
+          handler.onDone?.({ fallback: false, missingDone: true });
+          resolve(createStreamResult(result.fullText, result.meta));
+          return;
+        }
+        runFallback('流接口未返回可解析的 SSE 文本');
+      },
+      fail(error = {}) {
+        if (cancelled || fallbackStarted || settled) return;
+        runFallback(error.errMsg || '流式网络请求失败');
+      }
+    });
+
+    if (!requestTask || typeof requestTask.onChunkReceived !== 'function') {
+      requestTask?.abort?.();
+      runFallback('RequestTask 不支持 onChunkReceived');
+      return;
+    }
+
+    requestTask.onChunkReceived((response = {}) => {
+      if (cancelled || fallbackStarted || settled || !response.data) return;
+      const chunk = decoder.decode(response.data);
+      if (chunk) parser.feed(chunk);
+    });
+
+    firstDeltaTimer = setTimeout(() => {
+      if (receivedDelta || settled || cancelled || fallbackStarted) return;
+      requestTask?.abort?.();
+      runFallback('超过首字等待时间');
+    }, Number(aiConfig.streamFirstDeltaTimeout || 3000));
+  });
+
+  return {
+    promise,
+    abort() {
+      if (cancelled) return;
+      cancelled = true;
+      if (firstDeltaTimer) clearTimeout(firstDeltaTimer);
+      requestTask?.abort?.();
+      rejectPromise?.(createCancelledError());
+    }
+  };
+}
+
 export default {
-  ask: askAi
+  ask: askAi,
+  askStream: askAiStream
 };
-
-

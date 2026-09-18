@@ -44,7 +44,13 @@
             <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
             <view class="ai-content">
               <view class="ai-bubble" :class="{ 'error-bubble': msg.isError }">
-                <text class="text-body">{{ msg.text }}</text>
+                <view v-if="msg.isStreaming && !msg.text" class="stream-thinking">
+                  <view class="dot" />
+                  <view class="dot" />
+                  <view class="dot" />
+                  <text class="thinking-text">AI 专家正在分析方案中...</text>
+                </view>
+                <text v-else class="text-body">{{ msg.text }}</text>
               </view>
 
               <!-- 未登录引导卡片 -->
@@ -109,18 +115,6 @@
           </template>
         </view>
 
-        <!-- 输入思考中动画 -->
-        <view v-if="isThinking" class="message-row ai-row">
-          <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
-          <view class="ai-content">
-            <view class="ai-bubble thinking-bubble">
-              <view class="dot" />
-              <view class="dot" />
-              <view class="dot" />
-              <text class="thinking-text">AI 专家正在分析方案中...</text>
-            </view>
-          </view>
-        </view>
       </view>
     </scroll-view>
 
@@ -189,7 +183,7 @@ import { computed, nextTick, onMounted, ref } from 'vue';
 import { onUnload } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, openPage } from '@/utils/pages';
-import { askAi } from '@/api/ai-assistant';
+import { askAiStream } from '@/api/ai-assistant';
 import { useUserStore } from '@/store/user';
 
 const pageOptions = getPageOptions();
@@ -217,6 +211,8 @@ const messages = ref([]);
 // 微信同声传译录音识别管理器，仅在微信小程序平台初始化。
 let recognitionManager = null;
 let isPageLeaving = false;
+let activeAiRequest = null;
+let scrollTimer = null;
 
 const initVoiceRecognition = () => {
   // #ifdef MP-WEIXIN
@@ -323,6 +319,15 @@ const scrollToBottom = () => {
   });
 };
 
+// 流式分片可能非常密集，限制滚动刷新频率，避免每个字都触发一次页面重排。
+const scheduleScrollToBottom = () => {
+  if (scrollTimer) return;
+  scrollTimer = setTimeout(() => {
+    scrollTimer = null;
+    scrollToBottom();
+  }, 60);
+};
+
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 const addQuote = (product) => {
@@ -344,6 +349,10 @@ const clearChat = () => {
     content: '确定要清空当前对话记录吗？',
     success: (res) => {
       if (res.confirm) {
+        // 清空对话时同步中止正在进行的流式请求，避免旧回答继续写回页面。
+        activeAiRequest?.abort?.();
+        activeAiRequest = null;
+        isThinking.value = false;
         messages.value = [];
         sessionId.value = '';
         uni.showToast({ title: '已清空', icon: 'none' });
@@ -386,34 +395,57 @@ const sendMessage = async (text) => {
   });
   scrollToBottom();
 
+  // 先插入空的 AI 消息，后续每收到一个 delta 就原位追加，实现边生成边展示。
+  const aiMessage = {
+    id: Date.now() + 1,
+    role: 'ai',
+    text: '',
+    products: [],
+    quoteId: null,
+    isStreaming: true
+  };
+  messages.value.push(aiMessage);
   isThinking.value = true;
+
+  const requestController = askAiStream(userText, historyBeforeQuestion, {
+    sessionId: sessionId.value
+  }, {
+    onDelta(delta, fullText) {
+      // 使用 API 层提供的累计文本覆盖，避免网络重试或重复分片造成内容重复。
+      aiMessage.text = fullText || (aiMessage.text + delta);
+      scheduleScrollToBottom();
+    },
+    onFallback(reason) {
+      console.warn('[AI助手页面] 流式接收不可用，正在使用非流式打字机：', reason);
+      // 回退时清空流式阶段的半段内容，再从完整答案开头播放，避免重复文字。
+      aiMessage.text = '';
+      aiMessage.products = [];
+      aiMessage.quoteId = null;
+    }
+  });
+  activeAiRequest = requestController;
+
   try {
-    const result = await askAi(userText, historyBeforeQuestion, {
-      sessionId: sessionId.value
-    });
+    const result = await requestController.promise;
 
     if (result.sessionId) sessionId.value = result.sessionId;
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'ai',
-      text: result.text,
-      products: result.products,
-      quoteId: result.quoteId
-    });
+    // 最终结果补齐 meta 中的报价单与商品卡片；文本通常已由 delta 实时写入。
+    aiMessage.text = result.text || aiMessage.text;
+    aiMessage.products = result.products || [];
+    aiMessage.quoteId = result.quoteId;
+    aiMessage.isStreaming = false;
   } catch (error) {
-    console.warn('AI assistant request error:', error);
+    if (error?.cancelled) return;
+    console.warn('[AI助手页面] 请求失败：', error);
     const tip = error?.message || '百炼智能助手调用异常，请稍后重试。';
     const isLoginErr = tip.includes('登录') || tip.includes('401');
 
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'ai',
-      isError: true,
-      isLoginRequired: isLoginErr,
-      text: isLoginErr
-        ? '后端接口校验提示：请先登录。您当前的登录会话已失效或未在后台鉴权，请重新登录。'
-        : ('百炼 AI 助手请求失败：' + tip)
-    });
+    aiMessage.isStreaming = false;
+    aiMessage.isError = true;
+    aiMessage.isLoginRequired = isLoginErr;
+    aiMessage.text = isLoginErr
+      ? '后端接口校验提示：请先登录。您当前的登录会话已失效或未在后台鉴权，请重新登录。'
+      : ('百炼 AI 助手请求失败：' + tip);
 
     if (isLoginErr) {
       uni.showModal({
@@ -428,7 +460,10 @@ const sendMessage = async (text) => {
       });
     }
   } finally {
-    isThinking.value = false;
+    if (activeAiRequest === requestController) {
+      activeAiRequest = null;
+      isThinking.value = false;
+    }
     scrollToBottom();
   }
 };
@@ -445,6 +480,12 @@ onMounted(() => {
 onUnload(() => {
   // 页面退出时主动停止录音，避免插件在后台继续占用麦克风。
   isPageLeaving = true;
+  activeAiRequest?.abort?.();
+  activeAiRequest = null;
+  if (scrollTimer) {
+    clearTimeout(scrollTimer);
+    scrollTimer = null;
+  }
   if (isRecording.value && recognitionManager) {
     try {
       recognitionManager.stop();
@@ -671,7 +712,7 @@ onUnload(() => {
   box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.25);
 }
 
-.thinking-bubble {
+.stream-thinking {
   display: flex;
   align-items: center;
   gap: 8rpx;
