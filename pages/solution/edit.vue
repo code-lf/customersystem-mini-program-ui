@@ -94,13 +94,21 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue';
+import { computed, onMounted, reactive } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppWatermark from '@/components/app-watermark.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
+import { getPageOptions, openPage, replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const options = getPageOptions();
+
+// 旧编辑页仅用于 Mock 设计稿；生产环境正式报价不可原地修改，统一跳转真实详情页。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    replacePage(options.id ? '/pages/solution/share' : '/pages/solution/index', { id: options.id });
+  }
+});
 const draftKey = `solution_draft_${options.id || 1}`;
 const cached = uni.getStorageSync(draftKey);
 const source = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];

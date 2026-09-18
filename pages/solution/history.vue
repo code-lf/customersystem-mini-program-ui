@@ -27,11 +27,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
+import { replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const active = ref('all');
+
+// 生产环境历史报价由报价单 Tab 的真实列表接口统一展示。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    replacePage('/pages/solution/index');
+  }
+});
 const tabs = [
   { label: '全部', value: 'all' },
   { label: '编辑中', value: 'draft' },

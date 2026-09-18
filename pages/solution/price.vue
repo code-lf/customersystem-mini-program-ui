@@ -116,13 +116,21 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppWatermark from '@/components/app-watermark.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
+import { getPageOptions, openPage, replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const options = getPageOptions();
+
+// 旧价格页仅操作本地草稿；生产环境价格统一在报价篮弹窗中由后端计算。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    replacePage(options.id ? '/pages/solution/share' : '/pages/solution/index', { id: options.id });
+  }
+});
 const draftKey = `solution_draft_${options.id || 1}`;
 const cachedDraft = uni.getStorageSync(draftKey);
 const baseSource = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];

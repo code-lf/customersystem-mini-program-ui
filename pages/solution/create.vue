@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { onMounted, reactive } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { saveSolution } from '@/api/solution';
 import { replacePage } from '@/utils/pages';
@@ -47,6 +47,13 @@ const form = reactive({
   title: '',
   customerName: '',
   projectName: ''
+});
+
+// 正式接口不支持创建空报价单，生产环境直接进入真实报价篮选择商品。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    replacePage('/pages/solution/index');
+  }
 });
 
 const create = async () => {

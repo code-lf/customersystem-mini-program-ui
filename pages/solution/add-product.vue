@@ -29,11 +29,20 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getPageOptions, replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 import { uiProducts } from '@/mock/ui-fixtures';
 
 const solutionId = getPageOptions().id;
+
+// 生产环境统一使用真实商品分类页加入报价篮，禁止继续读取 Mock 商品。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    replacePage('/pages/product/category');
+  }
+});
 const money = (value) => Number(value || 0).toLocaleString();
 
 const add = (product) => {

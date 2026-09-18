@@ -50,6 +50,8 @@ export function setCartDiscount(data) {
 
 /**
  * 把报价单暂存清单生成为正式报价单。
+ * data 中安装费、增项费用分别使用 `installation_amount`、`addition_amount`；
+ * 两项费用不参与商品折扣，由后端直接计入最终 `pay_amount`。
  * 成功时直接返回 `{ quote_id, quote_no, pay_amount }`，外层 code/data 已由请求层剥离。
  */
 export function exportCart(data) {
@@ -58,7 +60,8 @@ export function exportCart(data) {
 
 /**
  * 直接创建报价单。
- * data 必须符合 QuoteCreateInput，其中 `items` 至少一项，且每项必须有 `goods_id`。
+ * data 必须符合 QuoteCreateInput，其中 `items` 至少一项，且每项必须有 `goods_id`；
+ * 安装费、增项费用同样使用 `installation_amount`、`addition_amount`。
  */
 export function createQuote(data) {
   return apiPost('crm/quote', data);
@@ -74,11 +77,6 @@ export function getSolutionDetail(id) {
   return apiGet(`crm/quote/${id}`);
 }
 
-/** 删除历史报价单 */
-export function deleteQuote(id) {
-  return apiDelete(`crm/quote/${id}`);
-}
-
 /** 发送报价 */
 export function sendQuote(id) {
   return apiPut(`crm/quote/${id}/send`);
@@ -89,9 +87,18 @@ export function getShareQuote(token) {
   return apiGet(`crm/quote/share/${token}`);
 }
 
-/** 当前会员绑定经销商 */
-export function getMyDealer() {
-  return apiGet('crm/quote/dealer/me');
+/** 下载分享报价 PDF，接口返回 ArrayBuffer 文件流。 */
+export function downloadQuotePdf(token) {
+  return apiGet(`crm/quote/share/${token}/pdf`, {}, {
+    responseType: 'arraybuffer',
+    timeout: 120000,
+    showError: false
+  });
+}
+
+/** 客户确认或拒绝分享报价，quote_status 仅支持 accepted / rejected。 */
+export function confirmShareQuote(token, data) {
+  return apiPut(`crm/quote/share/${token}/confirm`, data);
 }
 
 /**

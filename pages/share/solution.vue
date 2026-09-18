@@ -66,12 +66,25 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppWatermark from '@/components/app-watermark.vue';
-import { getPageOptions } from '@/utils/pages';
+import { getPageOptions, replacePage } from '@/utils/pages';
+import appConfig from '@/config/app';
 import { uiSolutions } from '@/mock/ui-fixtures';
 
 const options = getPageOptions();
+
+// 旧分享页只读取 Mock 草稿，生产环境统一跳转支持 share_token 的真实报价预览页。
+onMounted(() => {
+  if (appConfig.apiMode !== 'mock') {
+    const hasQuoteParam = options.id || options.token;
+    replacePage(hasQuoteParam ? '/pages/solution/share' : '/pages/solution/index', {
+      id: options.id,
+      token: options.token
+    });
+  }
+});
 const draftKey = `solution_draft_${options.id || 1}`;
 const cached = uni.getStorageSync(draftKey);
 const base = uiSolutions.find((item) => String(item.id) === String(options.id)) || uiSolutions[0];

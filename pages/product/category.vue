@@ -215,7 +215,6 @@
             <view class="badge" v-if="cartTotalQty > 0">{{ cartTotalQty }}</view>
           </view>
           <view class="cart-price-info">
-            <text class="cart-total-price">¥{{ formatPrice(cartTotalPrice) }}</text>
             <text class="cart-tip">已选 {{ cartTotalQty }} 件设备</text>
           </view>
         </view>
@@ -272,7 +271,7 @@
 
 <script setup>
 import { computed, ref, watch, nextTick } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
 import { getProductCategories, getProductList } from '@/api/product';
@@ -301,6 +300,8 @@ const cartData = ref(null);
 const isLoading = ref(false);
 // 初始化期间会连续设置多级分类，完成后再开放 watch 请求，避免重复加载商品列表。
 const isPageReady = ref(false);
+// 把同一页面的加减操作串行提交，避免连续点击时按过期数量覆盖后端结果。
+let cartUpdateQueue = Promise.resolve();
 
 const loadCartData = async () => {
   try {
@@ -313,43 +314,49 @@ const loadCartData = async () => {
 
 const getCartQty = (goodsId) => {
   if (!cartData.value || !cartData.value.items) return 0;
-  const item = cartData.value.items.find(i => i.goods_id === goodsId);
-  return item ? item.quantity : 0;
+  const item = cartData.value.items.find(i => String(i.goods_id) === String(goodsId));
+  // 接口数量可能返回 "3.00"，统一转数字用于展示及加减计算。
+  return item ? (Number(item.quantity) || 0) : 0;
 };
 
 const getCartItemId = (goodsId) => {
   if (!cartData.value || !cartData.value.items) return null;
-  const item = cartData.value.items.find(i => i.goods_id === goodsId);
+  const item = cartData.value.items.find(i => String(i.goods_id) === String(goodsId));
   return item ? item.cart_item_id : null;
 };
 
 const cartTotalQty = computed(() => {
   if (!cartData.value || !cartData.value.items) return 0;
-  return cartData.value.items.reduce((acc, item) => acc + item.quantity, 0);
-});
-
-const cartTotalPrice = computed(() => {
-  if (!cartData.value || !cartData.value.items) return 0;
-  return cartData.value.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+  // 接口中的 quantity 可能是字符串，必须转成数值，避免角标显示成“03.00”。
+  return cartData.value.items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
 });
 
 const updateCart = async (product, delta) => {
-  const currentQty = getCartQty(product.goods_id);
-  const newQty = currentQty + delta;
-  const cartItemId = getCartItemId(product.goods_id);
-  
-  try {
+  cartUpdateQueue = cartUpdateQueue.then(async () => {
+    // 在队列里读取最新数量；接口写入成功后直接采用后端返回的完整报价篮。
+    const currentQty = getCartQty(product.goods_id);
+    const newQty = currentQty + delta;
+    const cartItemId = getCartItemId(product.goods_id);
+    let updatedCart;
     if (newQty <= 0) {
-      if (cartItemId) await removeCartItem(cartItemId);
+      if (!cartItemId) return;
+      updatedCart = await removeCartItem(cartItemId);
     } else if (cartItemId) {
-      await editCartItem(cartItemId, { quantity: newQty });
+      updatedCart = await editCartItem(cartItemId, { quantity: newQty });
     } else {
-      await addCartItem({ goods_id: product.goods_id, quantity: newQty });
+      updatedCart = await addCartItem({ goods_id: product.goods_id, quantity: newQty });
     }
+    if (!updatedCart || !Array.isArray(updatedCart.items)) {
+      throw new Error('报价篮接口未返回商品清单');
+    }
+    cartData.value = updatedCart;
+  }).catch(async (error) => {
+    console.error('[产品分类] 更新报价篮失败：', error);
+    uni.showToast({ title: error?.message || '操作失败', icon: 'none' });
+    // 写接口失败时重新读取后端，避免本地数量与实际报价篮不一致。
     await loadCartData();
-  } catch(e) {
-    uni.showToast({ title: '操作失败', icon: 'none' });
-  }
+  });
+  return cartUpdateQueue;
 };
 
 const goToCart = () => {
@@ -634,6 +641,11 @@ onLoad(async (pageOptions = {}) => {
   await loadCategories(pageOptions);
   isPageReady.value = true;
   await Promise.all([loadProducts(), loadCartData()]);
+});
+
+onShow(() => {
+  // 从报价单页返回分类页时刷新数量，避免沿用上次进入时的购物车状态。
+  if (isPageReady.value) loadCartData();
 });
 
 watch([currentRootId, activeL2, activeL3, activeL4, searchKeyword], () => {
@@ -1184,15 +1196,10 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   flex-direction: column;
 }
 
-.cart-total-price {
-  color: #fff;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
 .cart-tip {
-  color: #94a3b8;
-  font-size: 22rpx;
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
 .cart-right {

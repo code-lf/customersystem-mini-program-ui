@@ -93,11 +93,11 @@
       <text>进行中的报价单</text>
       <text class="section-more" @click="openPage('/pages/solution/index')">查看全部 ›</text>
     </view>
-    <view v-if="solutions.length" class="solution-mini" @click="openPage('/pages/solution/edit', { id: solutions[0].id })">
+    <view v-if="solutions.length" class="solution-mini" @click="openPage('/pages/solution/share', { id: solutions[0].id })">
       <view class="solution-mini__left">
         <view class="solution-mini__head-row">
           <text class="solution-mini__title">{{ solutions[0].displayTitle || solutions[0].title }}</text>
-          <text class="solution-mini__badge">编辑中</text>
+          <text class="solution-mini__badge">{{ quoteStatusText(solutions[0].status) }}</text>
         </view>
         <view class="solution-mini__meta">
           <text v-if="solutions[0].quoteNo" class="solution-mini__no">{{ solutions[0].quoteNo }}</text>
@@ -105,11 +105,11 @@
         </view>
       </view>
       <view class="solution-mini__btn-wrap">
-        <text class="solution-mini__link">继续编辑</text>
+        <text class="solution-mini__link">查看报价</text>
         <up-icon name="arrow-right" size="12" color="#2468e8" />
       </view>
     </view>
-    <view v-else class="solution-empty" @click="openPage('/pages/solution/create')">
+    <view v-else class="solution-empty" @click="openPage('/pages/solution/index')">
       <view class="solution-empty__info">
         <text class="solution-empty__title">暂无进行中的报价方案</text>
         <text class="solution-empty__desc">点击快速添加设备，智能匹配机型与价格</text>
@@ -153,6 +153,14 @@ onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
 onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 const isLoading = ref(true);
 const userStore = useUserStore();
+
+const quoteStatusText = (status) => ({
+  draft: '草稿',
+  sent: '已发送',
+  accepted: '已确认',
+  rejected: '已拒绝',
+  void: '已作废'
+}[status] || '草稿');
 const keyword = ref('');
 const notices = ref([]);
 const solutions = ref([]);
@@ -262,6 +270,7 @@ onMounted(async () => {
           displayTitle,
           items: item.items || Array(item.item_count || 1).fill({}),
           totalPrice: item.pay_amount || item.total_price || 0,
+          status: item.quote_status || 'draft',
           customerName: item.contact_name_snapshot || '',
           date: item.create_time_text || ''
         };
