@@ -84,25 +84,36 @@
         </view>
       </view>
 
-      <!-- 模式 2：非中央空调（如分体式空调、格力生活电器）：二级全展开平铺 + 三级多选全展开 -->
+      <!-- 模式 2：非中央空调：二级分类横向滚动，右侧固定“更多”入口。 -->
       <view class="category-filters-container non-central-filters-box" v-else>
-        <!-- 二级分类平铺全展开 -->
-        <view class="filter-level-row" v-if="currentL2List.length > 0">
-          <view
-            class="filter-tag"
-            :class="{ active: activeL2 === '全部' }"
-            @click="selectL2('全部')"
+        <view class="l2-scroll-wrapper" v-if="currentL2List.length > 0">
+          <scroll-view
+            class="l2-scroll-view"
+            scroll-x
+            :show-scrollbar="false"
+            :scroll-into-view="currentL2ScrollInto"
+            scroll-with-animation
           >
-            全部
-          </view>
-          <view
-            v-for="item in currentL2List"
-            :key="item.id"
-            class="filter-tag"
-            :class="{ active: activeL2 === item.id }"
-            @click="selectL2(item.id)"
-          >
-            {{ item.category_name }}
+            <view class="l2-scroll-inner">
+              <view
+                id="l2-tag-all"
+                class="l2-pill-tag"
+                :class="{ active: activeL2 === '全部' }"
+                @click="selectL2('全部')"
+              >全部</view>
+              <view
+                v-for="item in currentL2List"
+                :key="item.id"
+                :id="'l2-tag-' + item.id"
+                class="l2-pill-tag"
+                :class="{ active: activeL2 === item.id }"
+                @click="selectL2(item.id)"
+              >{{ item.category_name }}</view>
+            </view>
+          </scroll-view>
+          <view class="l2-more-fixed-btn" @click="showCategoryModal = true">
+            <text class="more-label">更多</text>
+            <up-icon name="arrow-down" size="11" color="#1d4ed8" />
           </view>
         </view>
 
@@ -123,6 +134,37 @@
         </view>
       </view>
 
+      <!-- “更多”分类弹窗：保留完整分类选择，避免横向列表影响主页面高度。 -->
+      <up-popup
+        :show="showCategoryModal"
+        mode="bottom"
+        round="24"
+        close-on-click-overlay
+        safe-area-inset-bottom
+        @close="showCategoryModal = false"
+      >
+        <view class="cat-modal-content">
+          <view class="cat-modal-header">
+            <text class="cat-modal-title">全部分类</text>
+            <view class="cat-modal-close" @click="showCategoryModal = false">
+              <up-icon name="close" size="18" color="#64748b" />
+            </view>
+          </view>
+          <scroll-view class="cat-modal-scroll" scroll-y>
+            <view class="cat-modal-grid">
+              <view class="cat-modal-item" :class="{ active: activeL2 === '全部' }" @click="selectL2FromModal('全部')">全部</view>
+              <view
+                v-for="item in currentL2List"
+                :key="item.id"
+                class="cat-modal-item"
+                :class="{ active: activeL2 === item.id }"
+                @click="selectL2FromModal(item.id)"
+              >{{ item.category_name }}</view>
+            </view>
+          </scroll-view>
+        </view>
+      </up-popup>
+
       <!-- 搜索栏 -->
       <view class="category-search-box">
         <view class="design-search">
@@ -142,7 +184,8 @@
         </view>
       </view>
 
-      <scroll-view class="product-scroll" scroll-y>
+      <!-- 商品使用页面原生滚动，避免小程序 scroll-view 弹性高度失效导致列表截断。 -->
+      <view class="product-scroll">
         <view v-if="filteredProducts.length" class="product-list-container">
           <!-- Full width list view -->
           <view
@@ -176,9 +219,7 @@
             一键全选
           </view>
         </view>
-        <!-- Bottom padding for mini cart -->
-        <view style="height: 120rpx;"></view>
-      </scroll-view>
+      </view>
 
       <!-- 底部浮动购物车 -->
       <view class="mini-cart-bar">
@@ -188,7 +229,6 @@
             <view class="badge" v-if="cartTotalQty > 0">{{ cartTotalQty }}</view>
           </view>
           <view class="cart-price-info">
-            <text class="cart-total-price">¥{{ formatPrice(cartTotalPrice) }}</text>
             <text class="cart-tip">已选 {{ cartTotalQty }} 件设备</text>
           </view>
         </view>
@@ -218,6 +258,8 @@ const activeL4 = ref('全部');
 
 // 非中央空调子分类多选状态（默认全选）
 const selectedSubCatIds = ref([]);
+// 非中央空调二级分类采用横向滚动，完整分类通过“更多”弹窗选择。
+const showCategoryModal = ref(false);
 
 const searchKeyword = ref('');
 const products = ref([]);
@@ -295,15 +337,6 @@ const getCartItemId = (goodsId) => {
 const cartTotalQty = computed(() => {
   if (!cartData.value || !Array.isArray(cartData.value.items)) return 0;
   return cartData.value.items.reduce((acc, item) => acc + Math.max(0, Math.round(Number(item.quantity) || 0)), 0);
-});
-
-const cartTotalPrice = computed(() => {
-  if (!cartData.value || !Array.isArray(cartData.value.items)) return 0;
-  return cartData.value.items.reduce((acc, item) => {
-    const qty = Math.max(0, Math.round(Number(item.quantity) || 0));
-    const price = Number(item.price || item.origin_price || item.quote_price || 0);
-    return acc + (qty * price);
-  }, 0);
 });
 
 // 操作防抖锁，避免狂点产生并发乱序
@@ -430,6 +463,15 @@ const currentL4List = computed(() => {
   if (!currentL3Object.value) return [];
   return currentL3Object.value.children || [];
 });
+
+const currentL2ScrollInto = computed(() => (
+  activeL2.value === '全部' ? 'l2-tag-all' : `l2-tag-${activeL2.value}`
+));
+
+const selectL2FromModal = (id) => {
+  selectL2(id);
+  showCategoryModal.value = false;
+};
 
 // 多选子分类初始化与操作（非中央空调模式下，去掉“全部”，默认全选）
 const initSelectedSubCats = () => {
@@ -693,20 +735,17 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 <style lang="scss" scoped>
 .category-page {
-  padding: 0;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  /* 页面整体滚动，底部只预留原有 110rpx 购物车高度。 */
+  padding: 0 0 110rpx;
+  min-height: 100vh;
+  height: auto;
+  box-sizing: border-box;
   background: #f8fafc;
 }
 
 .central-category-wrap {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  height: calc(100vh - 88rpx);
-  overflow: hidden;
-  position: relative;
+  /* 不裁切商品内容，长列表交给小程序页面本身滚动。 */
+  overflow: visible;
 }
 
 /* 顶部根分类 */
@@ -765,6 +804,127 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: flex;
   flex-direction: column;
   gap: 14rpx;
+}
+
+/* 二级分类只占一行并支持横向滑动，右侧“更多”始终可见。字号沿用当前 28rpx。 */
+.l2-scroll-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: -14rpx -24rpx 0;
+  background: #ffffff;
+  border-bottom: 1rpx solid #eef2f7;
+}
+
+.l2-scroll-view {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.l2-scroll-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 14rpx 16rpx 14rpx 24rpx;
+}
+
+.l2-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 28rpx;
+  white-space: nowrap;
+
+  &.active {
+    background: #e0e7ff;
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+}
+
+.l2-more-fixed-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  height: 68rpx;
+  flex-shrink: 0;
+  padding: 0 22rpx 0 16rpx;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.95) 26%, #fff 100%);
+  z-index: 2;
+}
+
+.more-label {
+  font-size: 26rpx;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* 更多分类弹窗 */
+.cat-modal-content {
+  background: #fff;
+  padding: 28rpx 28rpx 40rpx;
+  max-height: 70vh;
+}
+
+.cat-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.cat-modal-title {
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.cat-modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 50%;
+}
+
+.cat-modal-scroll {
+  max-height: 55vh;
+}
+
+.cat-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.cat-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76rpx;
+  padding: 0 12rpx;
+  border: 1.5rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 24rpx;
+  text-align: center;
+
+  &.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 700;
+  }
 }
 
 .filter-level-row {
@@ -866,8 +1026,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 /* 商品列表（整行显示型号和名称，无图片） */
 .product-scroll {
-  flex: 1;
-  overflow: hidden;
+  width: 100%;
 }
 
 .product-list-container {
@@ -1005,24 +1164,27 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   box-shadow: 0 4rpx 12rpx rgba(29, 78, 216, 0.2);
 }
 
-/* 底部浮动购物车 */
+/* 购物车始终固定在屏幕底部，页面底部内边距保证末尾商品可完整滚出。 */
 .mini-cart-bar {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
   left: 0;
   right: 0;
+  bottom: 0;
   height: 110rpx;
+  box-sizing: border-box;
   background: #1e293b;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 0 0 32rpx;
+  align-items: stretch;
+  padding-left: 32rpx;
   z-index: 100;
 }
 
 .cart-left {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .cart-icon-box {
@@ -1057,19 +1219,14 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   flex-direction: column;
 }
 
-.cart-total-price {
-  color: #fff;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-
 .cart-tip {
-  color: #94a3b8;
   font-size: 22rpx;
 }
 
 .cart-right {
-  height: 100%;
+  /* 蓝色点击区只占原有 110rpx 高度。 */
+  flex: 0 0 32%;
+  min-width: 0;
   background: #1d4ed8;
   color: #fff;
   font-size: 30rpx;
@@ -1077,6 +1234,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 48rpx;
+  padding: 0 12rpx;
+  box-sizing: border-box;
 }
 </style>

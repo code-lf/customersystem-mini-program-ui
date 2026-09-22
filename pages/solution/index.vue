@@ -188,24 +188,6 @@
           </view>
         </view>
 
-        <!-- 折扣模式切换：默认显示输入折扣率，保留自定义一口价可切换 -->
-        <view class="pricing-mode-tabs">
-          <view
-            class="p-tab"
-            :class="{ active: pricingMode === 'discount' }"
-            @click="pricingMode = 'discount'"
-          >
-            <text>输入折扣率</text>
-          </view>
-          <view
-            class="p-tab"
-            :class="{ active: pricingMode === 'total' }"
-            @click="pricingMode = 'total'"
-          >
-            <text>自定义一口价</text>
-          </view>
-        </view>
-
         <view class="price-form">
           <view class="form-row-summary">
             <text>设备面价总额</text>
@@ -249,23 +231,6 @@
             </view>
           </view>
 
-          <!-- 自定义一口价 -->
-          <view v-else class="form-section">
-            <view class="setting-item">
-              <text class="label">方案成交总价</text>
-              <input
-                v-model="customTotalInput"
-                type="digit"
-                class="price-custom-input"
-                placeholder="请输入客户最终报价"
-              />
-            </view>
-            <view class="setting-item">
-              <text class="label">相当于折扣</text>
-              <text class="val-bold">{{ finalDiscount }}%</text>
-            </view>
-          </view>
-
           <!-- 附加费用与备注 -->
           <view class="form-section">
             <view class="setting-item">
@@ -298,7 +263,7 @@
           
 <!-- 最终核算价格 -->
           <view class="final-price-box">
-            <text class="f-label">方案最终报价</text>
+            <text class="f-label">预计应付总额</text>
             <text class="f-price">¥{{ formatPrice(finalTotal) }}</text>
           </view>
         </view>
@@ -479,7 +444,6 @@ const selectedScope = ref('all'); // 'all' | 'central' | 'home' | 'accessory'
 const selectedSubCategory = ref('all');
 const pricingMode = ref('discount');
 const discountRate = ref(95);
-const customTotalInput = ref('');
 const installFee = ref('');
 const additionalFee = ref('');
 const taxRate = ref(13);
@@ -616,19 +580,14 @@ const changeCandidateItemQty = async (item, delta) => {
 };
 
 // 核心：计算与同步报价单价格与数量
-const recalculateCart = (items, mode = pricingMode.value, rate = discountRate.value, customTotal = customTotalInput.value, remark = quoteRemark.value) => {
+const recalculateCart = (items, mode = 'discount', rate = discountRate.value, remark = quoteRemark.value) => {
   const goods_amount = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
   const total_quantity = items.reduce((sum, it) => sum + Number(it.quantity || 1), 0);
   let pay_amount = goods_amount;
   let discount_amount = 0;
   
-  if (mode === 'discount') {
-    pay_amount = Math.round(goods_amount * (Number(rate || 100) / 100) * 100) / 100;
-    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
-  } else if (mode === 'total' && customTotal) {
-    pay_amount = Number(customTotal);
-    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
-  }
+  pay_amount = Math.round(goods_amount * (Number(rate || 100) / 100) * 100) / 100;
+  discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
 
   const updatedCart = {
     items,
@@ -680,7 +639,8 @@ const applyServerCart = (serverCart) => {
 
   cartData.value = normalizedCart;
   quoteItems.value = normalizedItems;
-  pricingMode.value = serverCart.pricing_mode || 'discount';
+  // 后端目前只支持面价或统一折扣，页面统一按折扣模式操作。
+  pricingMode.value = 'discount';
   discountRate.value = Number(serverCart.global_discount_rate ?? 100);
   quoteRemark.value = serverCart.remark || '';
   uni.setStorageSync('solution_local_cart', normalizedCart);
@@ -698,7 +658,7 @@ const loadCart = async () => {
   if (localCart && Array.isArray(localCart.items)) {
     quoteItems.value = localCart.items;
     cartData.value = localCart;
-    pricingMode.value = localCart.pricing_mode || 'discount';
+    pricingMode.value = 'discount';
     discountRate.value = localCart.global_discount_rate || 95;
     quoteRemark.value = localCart.remark || '';
   }
@@ -848,34 +808,42 @@ const finalTotal = computed(() => {
   const extra = (Number(installFee.value) || 0) + (Number(additionalFee.value) || 0);
   return basePay + extra;
 });
-const finalDiscount = computed(() => {
-  if (!totalPrice.value) return 100;
-  const basePay = Number(cartData.value.pay_amount) || 0;
-  return Math.round(basePay / totalPrice.value * 10000) / 100;
-});
 const discountAmount = computed(() => cartData.value.discount_amount || 0);
 
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
-const openExportPanel = () => {
-  // 确保导出报价单默认显示的是输入折扣率模式，非一口价
-  pricingMode.value = 'discount';
-  if (quoteItems.value && quoteItems.value.length) {
-    recalculateCart(quoteItems.value, pricingMode.value, Number(discountRate.value) || 100, customTotalInput.value, quoteRemark.value);
+const syncDiscountPricing = async () => {
+  try {
+    const updatedCart = await setCartDiscount({
+      pricing_mode: 'discount',
+      global_discount_rate: Number(discountRate.value) || 100
+    });
+    if (!applyServerCart(updatedCart)) throw new Error('后端未返回有效的报价篮');
+  } catch (error) {
+    console.error('[报价核价] 后端核价失败：', error);
+    uni.showToast({ title: error?.message || '价格核算失败', icon: 'none' });
   }
+};
+
+const openExportPanel = async () => {
+  // 打开弹窗时先以当前折扣向后端核价，弹窗金额以服务端返回为准。
+  pricingMode.value = 'discount';
   showPricePanel.value = true;
+  await syncDiscountPricing();
 };
 
 const handleStepDiscount = (delta) => {
   let rate = Math.round(Number(discountRate.value) || 100) + delta;
   rate = Math.max(1, Math.min(100, rate));
   discountRate.value = rate;
-  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+  recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
+  syncDiscountPricing();
 };
 
 const setDiscount = (d) => {
   discountRate.value = d;
-  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+  recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
+  syncDiscountPricing();
 };
 
 const normalizeDiscountRate = () => {
@@ -883,14 +851,9 @@ const normalizeDiscountRate = () => {
   if (isNaN(rate) || rate <= 0) rate = 100;
   if (rate > 100) rate = 100;
   discountRate.value = rate;
-  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+  recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
+  syncDiscountPricing();
 };
-
-watch([pricingMode, discountRate, customTotalInput], () => {
-  if (quoteItems.value && quoteItems.value.length) {
-    recalculateCart(quoteItems.value, pricingMode.value, Number(discountRate.value) || 100, customTotalInput.value, quoteRemark.value);
-  }
-});
 
 const changeItemQty = async (item, delta) => {
   const currentList = [...quoteItems.value];
@@ -970,7 +933,7 @@ const addProductToQuote = async (product) => {
 };
 
 const applyPricing = async () => {
-  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+  recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
   showPricePanel.value = false;
   uni.showToast({ title: '价格配置已更新', icon: 'success' });
 
@@ -996,11 +959,9 @@ const exportQuote = async () => {
   try {
     // 导出前先同步最新的折扣/价格模式到后端
     try {
-      const activeDiscount = pricingMode.value === 'discount'
-        ? (Number(discountRate.value) || 100)
-        : (Number(finalDiscount.value) || 100);
+      const activeDiscount = Number(discountRate.value) || 100;
       await setCartDiscount({
-        pricing_mode: pricingMode.value,
+        pricing_mode: 'discount',
         global_discount_rate: activeDiscount
       });
     } catch (e) {
@@ -1011,15 +972,23 @@ const exportQuote = async () => {
     // `{ quote_id, quote_no, pay_amount }`。只有后端真正创建成功后，
     // 才能清空本地报价单暂存数据并提示成功，不能再用随机编号伪造成功记录。
     const createdQuote = await exportCart({
-      extra_amount: (Number(installFee.value) || 0) + (Number(additionalFee.value) || 0),
-      install_fee: Number(installFee.value) || 0,
-      additional_fee: Number(additionalFee.value) || 0,
+      // 安装费和增项费用不参与折扣，使用 OpenAPI 新字段提交。
+      installation_amount: Number(installFee.value) || 0,
+      addition_amount: Number(additionalFee.value) || 0,
       remark: quoteRemark.value,
       clear_cart: 1
     });
 
     if (!createdQuote?.quote_id) {
       throw new Error('后端未返回 quote_id，无法确认报价单是否创建成功');
+    }
+    // 正式报价金额必须由后端返回，不能用前端预计值冒充最终金额。
+    const hasBackendPayAmount = createdQuote.pay_amount !== undefined
+      && createdQuote.pay_amount !== null
+      && createdQuote.pay_amount !== '';
+    const backendPayAmount = Number(createdQuote.pay_amount);
+    if (!hasBackendPayAmount || !Number.isFinite(backendPayAmount)) {
+      throw new Error('后端未返回有效的 pay_amount，无法确认报价金额');
     }
 
     const nowText = new Date().toISOString().slice(0, 16).replace('T', ' ');
@@ -1028,9 +997,7 @@ const exportQuote = async () => {
       quote_id: createdQuote.quote_id,
       quote_no: createdQuote.quote_no || '',
       title: createdQuote.quote_no ? `方案报价单 (${createdQuote.quote_no})` : '方案报价单',
-      subtitle: pricingMode.value === 'discount'
-        ? `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`
-        : `${totalCount.value} 项设备 · 自定义总价 ¥${formatPrice(createdQuote.pay_amount ?? finalTotal.value)}`,
+      subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
       contact_name_snapshot: '贵宾客户',
       customerName: '贵宾客户',
       date: nowText,
@@ -1038,10 +1005,12 @@ const exportQuote = async () => {
       status: 'draft',
       quote_status: 'draft',
       items: JSON.parse(JSON.stringify(quoteItems.value)),
-      totalPrice: Number(createdQuote.pay_amount ?? finalTotal.value),
+      totalPrice: backendPayAmount,
+      installation_amount: Number(installFee.value) || 0,
+      addition_amount: Number(additionalFee.value) || 0,
       install_fee: Number(installFee.value) || 0,
       additional_fee: Number(additionalFee.value) || 0,
-      pay_amount: Number(createdQuote.pay_amount ?? finalTotal.value),
+      pay_amount: backendPayAmount,
       goods_amount: totalPrice.value,
       discount_amount: discountAmount.value,
       discount_rate: Number(discountRate.value) || 100,
