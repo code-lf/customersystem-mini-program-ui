@@ -4,8 +4,8 @@
     <AppNavbar title="价格与费用设置" />
 
     <view class="mode-tabs">
-      <text :class="{ active: mode === 'discount' }" @click="mode = 'discount'">统一折扣率</text>
-      <text :class="{ active: mode === 'total' }" @click="mode = 'total'">设置成交总价</text>
+      <text :class="{ active: mode === 'discount' }" @click="mode = 'discount'">输入折扣率</text>
+      <text :class="{ active: mode === 'total' }" @click="mode = 'total'">自定义一口价</text>
     </view>
 
     <!-- 设备价格与折扣卡片 -->
@@ -17,11 +17,14 @@
 
       <!-- 统一折扣 -->
       <view v-if="mode === 'discount'" class="setting-box">
-        <text>统一折扣率</text>
+        <text>整单折扣率</text>
         <view class="stepper">
-          <button class="step-btn" @click="discount = Math.max(1, discount - 1)">-</button>
-          <text class="step-val">{{ discount }}%</text>
-          <button class="step-btn" @click="discount = Math.min(100, discount + 1)">+</button>
+          <button class="step-btn" @click="discount = Math.max(1, Number(discount) - 1)">-</button>
+          <view class="step-input-wrap">
+            <input v-model="discount" type="number" class="step-input" maxlength="3" />
+            <text class="step-unit">%</text>
+          </view>
+          <button class="step-btn" @click="discount = Math.min(100, Number(discount) + 1)">+</button>
         </view>
       </view>
 
@@ -328,6 +331,34 @@ const handleSaveAndShare = () => {
   color: #586477;
   font-size: 26rpx;
   line-height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-input-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4rpx;
+}
+
+.step-input {
+  width: 60rpx;
+  height: 48rpx;
+  color: #17233d;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 800;
+  padding: 0;
+  margin: 0;
+}
+
+.step-unit {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: #17233d;
+  margin-right: 4rpx;
 }
 
 .step-val {

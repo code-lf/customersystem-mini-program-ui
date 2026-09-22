@@ -76,6 +76,38 @@
       </view>
     </view>
 
+    <!-- 顶置报价单综合卡片（放高置顶于搜索栏正下方） -->
+    <view class="hero-quote-card">
+      <view class="hero-quote-card__top" @click="handleActiveQuoteClick">
+        <view class="hero-quote-card__badge-row">
+          <view class="hero-quote-badge">
+            <view class="hero-quote-badge__dot" />
+            <text class="hero-quote-badge__text">{{ activeQuoteDisplay.statusText }}</text>
+          </view>
+          <up-icon name="arrow-right" size="14" color="#94a3b8" />
+        </view>
+
+        <view class="hero-quote-card__price-row">
+          <text class="hero-quote-symbol">¥</text>
+          <text class="hero-quote-price">{{ formatMoney(activeQuoteDisplay.price) }}</text>
+        </view>
+
+        <view class="hero-quote-card__desc">
+          <text>{{ activeQuoteDisplay.desc }}</text>
+        </view>
+      </view>
+
+      <view class="hero-quote-card__divider" />
+
+      <view class="hero-quote-card__bottom" @click="handleHistoryQuoteClick">
+        <text class="hero-quote-card__history-label">历史报价单</text>
+        <view class="hero-quote-card__history-right">
+          <text class="hero-quote-card__history-count">{{ solutions.length ? `${solutions.length} 笔` : '暂无' }}</text>
+          <up-icon name="arrow-right" size="13" color="#94a3b8" />
+        </view>
+      </view>
+    </view>
+
     <!-- 快捷工作台 -->
     <view class="section-head section-head--compact">
       <text>快捷工作台</text>
@@ -87,34 +119,6 @@
         </view>
         <text>{{ item.title }}</text>
       </view>
-    </view>
-
-    <view class="section-head">
-      <text>进行中的报价单</text>
-      <text class="section-more" @click="openPage('/pages/solution/index')">查看全部 ›</text>
-    </view>
-    <view v-if="solutions.length" class="solution-mini" @click="openPage('/pages/solution/share', { id: solutions[0].id })">
-      <view class="solution-mini__left">
-        <view class="solution-mini__head-row">
-          <text class="solution-mini__title">{{ solutions[0].displayTitle || solutions[0].title }}</text>
-          <text class="solution-mini__badge">{{ quoteStatusText(solutions[0].status) }}</text>
-        </view>
-        <view class="solution-mini__meta">
-          <text v-if="solutions[0].quoteNo" class="solution-mini__no">{{ solutions[0].quoteNo }}</text>
-          <text class="solution-mini__desc">{{ solutions[0].items.length }}项产品 · ¥{{ formatMoney(solutions[0].totalPrice) }}</text>
-        </view>
-      </view>
-      <view class="solution-mini__btn-wrap">
-        <text class="solution-mini__link">查看报价</text>
-        <up-icon name="arrow-right" size="12" color="#2468e8" />
-      </view>
-    </view>
-    <view v-else class="solution-empty" @click="openPage('/pages/solution/index')">
-      <view class="solution-empty__info">
-        <text class="solution-empty__title">暂无进行中的报价方案</text>
-        <text class="solution-empty__desc">点击快速添加设备，智能匹配机型与价格</text>
-      </view>
-      <button class="solution-empty__btn">新建方案</button>
     </view>
 
     <view class="section-head latest-head">
@@ -140,7 +144,7 @@ import { computed, onMounted, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
-import { getSolutionList } from '@/api/solution';
+import { getSolutionList, getCart } from '@/api/solution';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -164,6 +168,91 @@ const quoteStatusText = (status) => ({
 const keyword = ref('');
 const notices = ref([]);
 const solutions = ref([]);
+const cartInfo = ref({
+  count: 0,
+  amount: 0,
+  hasItems: false
+});
+
+const loadCartSummary = async () => {
+  // 1. 本地缓存快速渲染，避免闪烁
+  try {
+    const localCart = uni.getStorageSync('solution_local_cart');
+    if (localCart && Array.isArray(localCart.items) && localCart.items.length) {
+      cartInfo.value = {
+        count: Number(localCart.total_quantity || localCart.items.length || 0),
+        amount: Number(localCart.pay_amount || localCart.goods_amount || 0),
+        hasItems: true
+      };
+    }
+  } catch (e) {}
+
+  // 2. 登录时向后端核实真实购物车数据
+  if (userStore.isLoggedIn) {
+    try {
+      const res = await getCart({ showError: false });
+      const serverCart = res?.data || res;
+      if (serverCart && Array.isArray(serverCart.items)) {
+        const count = Number(serverCart.total_quantity || serverCart.items.length || 0);
+        const amount = Number(serverCart.pay_amount || serverCart.goods_amount || 0);
+        cartInfo.value = {
+          count,
+          amount,
+          hasItems: count > 0
+        };
+      } else if (serverCart && Array.isArray(serverCart.items) && serverCart.items.length === 0) {
+        cartInfo.value = { count: 0, amount: 0, hasItems: false };
+      }
+    } catch (e) {}
+  }
+};
+
+const activeQuoteDisplay = computed(() => {
+  // 1. 如果当前报价篮暂存有商品，优先展示进行中的暂存清单
+  if (cartInfo.value.hasItems) {
+    return {
+      price: cartInfo.value.amount,
+      count: cartInfo.value.count,
+      statusText: '进行中',
+      desc: `${cartInfo.value.count} 件商品 · 面价合计`,
+      actionPath: '/pages/solution/index'
+    };
+  }
+  // 2. 否则若有报价单方案，展示最新一笔方案
+  if (solutions.value.length > 0) {
+    const latest = solutions.value[0];
+    const count = latest.items ? latest.items.length : 1;
+    return {
+      price: latest.totalPrice || 0,
+      count,
+      statusText: quoteStatusText(latest.status) || '进行中',
+      desc: `${count} 件商品 · 面价合计`,
+      actionPath: '/pages/solution/share',
+      actionQuery: { id: latest.id }
+    };
+  }
+  // 3. 暂无设备/报价
+  return {
+    price: 0,
+    count: 0,
+    statusText: '进行中',
+    desc: '0 件商品 · 面价合计',
+    actionPath: '/pages/solution/index'
+  };
+});
+
+const handleActiveQuoteClick = () => {
+  const active = activeQuoteDisplay.value;
+  if (active.actionQuery) {
+    openPage(active.actionPath, active.actionQuery);
+  } else {
+    openPage(active.actionPath);
+  }
+};
+
+const handleHistoryQuoteClick = () => {
+  openPage('/pages/solution/index');
+};
 
 const greetingPeriod = computed(() => {
   const hour = new Date().getHours();
@@ -206,7 +295,10 @@ const quickTools = [
   { title: '品牌资讯', icon: 'volume-fill', color: '#ec4899', bg: '#fce7f3', path: '/pages/notice/index' }
 ];
 
-const formatMoney = (value) => Number(value || 0).toLocaleString();
+const formatMoney = (value) => {
+  const num = Number(value || 0);
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 const handleSearch = () => {
   const text = keyword.value.trim();
@@ -218,6 +310,7 @@ const syncData = async () => {
   if (userStore.token) {
     userStore.fetchUserInfo().catch(() => {});
   }
+  loadCartSummary().catch(() => {});
 };
 
 onShow(() => {
@@ -504,7 +597,7 @@ onMounted(async () => {
 }
 
 .section-head--compact {
-  margin-top: 30rpx;
+  margin-top: 10rpx;
 }
 
 .section-head--blue text:first-child {
@@ -512,9 +605,21 @@ onMounted(async () => {
 }
 
 .section-head text:first-child {
+  display: inline-flex;
+  align-items: center;
   color: #17233d;
   font-size: 30rpx;
   font-weight: 800;
+}
+
+.section-head text:first-child::before {
+  content: '';
+  display: inline-block;
+  width: 6rpx;
+  height: 26rpx;
+  background: #2468e8;
+  border-radius: 4rpx;
+  margin-right: 12rpx;
 }
 
 .section-more {
@@ -599,132 +704,110 @@ onMounted(async () => {
   line-height: 80rpx;
 }
 
-.solution-mini {
+/* 顶置报价单综合卡片（放高置顶） */
+.hero-quote-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx 32rpx 26rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.05);
+  border: 1rpx solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  transition: transform 0.12s ease;
+}
+
+.hero-quote-card:active {
+  transform: scale(0.995);
+}
+
+.hero-quote-card__top {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-quote-card__badge-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 110rpx;
-  padding: 24rpx 26rpx;
-  border-radius: 20rpx;
-  background: #fff;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
 }
 
-.solution-mini__left {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.solution-mini__head-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.solution-mini__title {
-  display: block;
-  color: #17233d;
-  font-size: 29rpx;
-  font-weight: 800;
-  line-height: 38rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.solution-mini__badge {
+.hero-quote-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2rpx 12rpx;
-  border-radius: 12rpx;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 20rpx;
-  font-weight: 600;
-  flex-shrink: 0;
+  gap: 10rpx;
 }
 
-.solution-mini__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 6rpx;
+.hero-quote-badge__dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #2468e8;
+  box-shadow: 0 0 8rpx rgba(36, 104, 232, 0.5);
 }
 
-.solution-mini__no {
-  font-size: 22rpx;
-  color: #94a3b8;
-  font-family: monospace;
-}
-
-.solution-mini__desc {
-  color: #64748b;
-  font-size: 23rpx;
+.hero-quote-badge__text {
+  color: #2468e8;
+  font-size: 26rpx;
+  font-weight: 700;
   line-height: 32rpx;
 }
 
-.solution-mini__btn-wrap {
+.hero-quote-card__price-row {
   display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 10rpx 18rpx;
-  border-radius: 24rpx;
-  background: #eff6ff;
-  flex-shrink: 0;
-  margin-left: 16rpx;
+  align-items: baseline;
+  margin-top: 14rpx;
 }
 
-.solution-mini__link {
-  color: #2468e8;
-  font-size: 23rpx;
+.hero-quote-symbol {
+  font-size: 32rpx;
   font-weight: 700;
+  color: #17233d;
+  margin-right: 8rpx;
 }
 
-.solution-empty {
+.hero-quote-price {
+  font-size: 54rpx;
+  font-weight: 800;
+  color: #17233d;
+  line-height: 1.1;
+  letter-spacing: -0.5rpx;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.hero-quote-card__desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8b95a7;
+  font-weight: 500;
+}
+
+.hero-quote-card__divider {
+  height: 1rpx;
+  background: #f1f5f9;
+  margin: 26rpx 0 22rpx;
+}
+
+.hero-quote-card__bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
-  background: #fff;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
-  border: 1rpx dashed #d5e2f5;
 }
 
-.solution-empty__info {
+.hero-quote-card__history-label {
+  font-size: 26rpx;
+  color: #334155;
+  font-weight: 600;
+}
+
+.hero-quote-card__history-right {
   display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
+  gap: 6rpx;
 }
 
-.solution-empty__title {
-  color: #1e293b;
-  font-size: 27rpx;
-  font-weight: 700;
-  line-height: 36rpx;
-}
-
-.solution-empty__desc {
+.hero-quote-card__history-count {
+  font-size: 24rpx;
   color: #94a3b8;
-  font-size: 22rpx;
-  margin-top: 6rpx;
-}
-
-.solution-empty__btn {
-  margin: 0 0 0 20rpx;
-  padding: 0 24rpx;
-  height: 56rpx;
-  line-height: 56rpx;
-  border-radius: 28rpx;
-  background: #2468e8;
-  color: #fff;
-  font-size: 23rpx;
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
 .notice-mini {

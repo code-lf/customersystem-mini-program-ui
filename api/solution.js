@@ -82,6 +82,11 @@ export function sendQuote(id) {
   return apiPut(`crm/quote/${id}/send`);
 }
 
+/** 删除报价单 */
+export function deleteQuote(id) {
+  return apiDelete(`crm/quote/${id}`);
+}
+
 /** 分享报价详情 */
 export function getShareQuote(token) {
   return apiGet(`crm/quote/share/${token}`);

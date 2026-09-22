@@ -130,8 +130,8 @@
         >
           <view class="history-card-head">
             <text class="history-title">{{ sol.title }}</text>
-            <text class="status-badge" :class="sol.status">
-              {{ getQuoteStatusText(sol.status) }}
+            <text class="status-badge" :class="sol.status === 'shared' ? 'shared' : 'draft'">
+              {{ sol.status === 'shared' ? '已分享客户' : '草稿方案' }}
             </text>
           </view>
           <text class="history-sub">{{ sol.subtitle }}</text>
@@ -146,7 +146,8 @@
               <text class="price-num">{{ formatPrice(sol.total) }}</text>
             </view>
             <view class="history-btns">
-              <button class="btn-history-edit" @click.stop="restartQuote(sol)">重新报价</button>
+              <button class="btn-history-del" @click.stop="handleDeleteHistoryQuote(sol)">删除</button>
+              <button class="btn-history-edit" @click.stop="openPage('/pages/solution/edit', { id: sol.id })">编辑</button>
               <button class="btn-history-view" @click.stop="openPage('/pages/solution/share', { id: sol.id })">查看预览</button>
             </view>
           </view>
@@ -164,7 +165,7 @@
           <text class="footer-count">· 共 {{ totalCount }} 台设备</text>
         </view>
       </view>
-      <button class="export-main-btn" @click="openPricePanel">导出方案报价</button>
+      <button class="export-main-btn" @click="openExportPanel">导出方案报价</button>
     </view>
 
     <!-- 导出报价单价格与折扣配置弹窗 -->
@@ -174,16 +175,34 @@
       round="20"
       close-on-click-overlay
       safe-area-inset-bottom
-      @close="closePricePanel"
+      @close="showPricePanel = false"
     >
       <view class="price-panel">
         <view class="price-panel__head">
           <view>
             <text class="popup-main-title">导出方案报价单</text>
-            <text class="popup-sub-title">设置统一折扣率后，生成可分享给客户的正式报价</text>
+            <text class="popup-sub-title">设置折扣率或总金额后，可生成精美方案分享给客户</text>
           </view>
-          <view class="panel-close" @click="closePricePanel">
+          <view class="panel-close" @click="showPricePanel = false">
             <up-icon name="close" size="20" color="#8b95a7" />
+          </view>
+        </view>
+
+        <!-- 折扣模式切换：默认显示输入折扣率，保留自定义一口价可切换 -->
+        <view class="pricing-mode-tabs">
+          <view
+            class="p-tab"
+            :class="{ active: pricingMode === 'discount' }"
+            @click="pricingMode = 'discount'"
+          >
+            <text>输入折扣率</text>
+          </view>
+          <view
+            class="p-tab"
+            :class="{ active: pricingMode === 'total' }"
+            @click="pricingMode = 'total'"
+          >
+            <text>自定义一口价</text>
           </view>
         </view>
 
@@ -193,14 +212,23 @@
             <text class="val">¥{{ formatPrice(totalPrice) }}</text>
           </view>
 
-          <!-- 统一折扣调节 -->
-          <view class="form-section">
+          <!-- 输入折扣率调节（支持直接输入数字、步进加减与快捷标签） -->
+          <view v-if="pricingMode === 'discount'" class="form-section">
             <view class="setting-item">
               <text class="label">整单折扣率</text>
               <view class="discount-stepper">
-                <button class="d-btn" @click="scheduleBackendPricing(discountRate - 1)">-</button>
-                <text class="d-val">{{ discountRate }}%</text>
-                <button class="d-btn" @click="scheduleBackendPricing(discountRate + 1)">+</button>
+                <button class="d-btn" @click="handleStepDiscount(-1)">-</button>
+                <view class="d-val-wrap">
+                  <input
+                    v-model="discountRate"
+                    type="number"
+                    maxlength="3"
+                    class="d-val-input"
+                    @blur="normalizeDiscountRate"
+                  />
+                  <text class="d-val-unit">%</text>
+                </view>
+                <button class="d-btn" @click="handleStepDiscount(1)">+</button>
               </view>
             </view>
             <!-- 快捷折扣标签 -->
@@ -209,17 +237,32 @@
                 v-for="d in [95, 90, 88, 85, 80]"
                 :key="d"
                 class="d-chip"
-                :class="{ active: discountRate === d }"
-                @click="scheduleBackendPricing(d)"
+                :class="{ active: Number(discountRate) === d }"
+                @click="setDiscount(d)"
               >
                 <text>{{ d }}折 ({{ d }}%)</text>
               </view>
             </view>
             <view class="setting-item">
               <text class="label">优惠减免金额</text>
-              <text class="discount-val-text">
-                {{ isPricingLoading ? '核算中...' : (isPricingValid ? `- ¥${formatPrice(previewDiscountAmount)}` : '核算失败') }}
-              </text>
+              <text class="discount-val-text">- ¥{{ formatPrice(discountAmount) }}</text>
+            </view>
+          </view>
+
+          <!-- 自定义一口价 -->
+          <view v-else class="form-section">
+            <view class="setting-item">
+              <text class="label">方案成交总价</text>
+              <input
+                v-model="customTotalInput"
+                type="digit"
+                class="price-custom-input"
+                placeholder="请输入客户最终报价"
+              />
+            </view>
+            <view class="setting-item">
+              <text class="label">相当于折扣</text>
+              <text class="val-bold">{{ finalDiscount }}%</text>
             </view>
           </view>
 
@@ -255,20 +298,12 @@
           
 <!-- 最终核算价格 -->
           <view class="final-price-box">
-            <text class="f-label">预计应付总额</text>
-            <text class="f-price">
-              {{ isPricingLoading ? '核算中...' : (isPricingValid ? `¥${formatPrice(previewPayAmount)}` : '核算失败') }}
-            </text>
+            <text class="f-label">方案最终报价</text>
+            <text class="f-price">¥{{ formatPrice(finalTotal) }}</text>
           </view>
         </view>
 
-        <button
-          class="confirm-export-btn"
-          :disabled="isPricingLoading || !isPricingValid"
-          @click="exportQuote"
-        >
-          {{ isPricingLoading ? '正在核算价格...' : '生成客户预览报价单' }}
-        </button>
+        <button class="confirm-export-btn" @click="exportQuote">生成客户预览报价单</button>
       </view>
     </up-popup>
 
@@ -421,20 +456,9 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { onShareAppMessage, onShareTimeline, onShow, onUnload } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
-import {
-  getCart,
-  clearCart,
-  addCartItem,
-  addCartItems,
-  editCartItem,
-  removeCartItem,
-  setCartDiscount,
-  exportCart,
-  getSolutionList,
-  getSolutionDetail
-} from '@/api/solution';
+import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
 import { getProductList, getProductCategories } from '@/api/product';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -453,19 +477,13 @@ const showPricePanel = ref(false);
 const addSearchKeyword = ref('');
 const selectedScope = ref('all'); // 'all' | 'central' | 'home' | 'accessory'
 const selectedSubCategory = ref('all');
-// OpenAPI 的报价篮只支持 face_price / discount，这里统一使用 discount 模式。
 const pricingMode = ref('discount');
 const discountRate = ref(95);
-const isPricingLoading = ref(false);
-const isPricingValid = ref(false);
+const customTotalInput = ref('');
 const installFee = ref('');
 const additionalFee = ref('');
 const taxRate = ref(13);
 const quoteRemark = ref('');
-// 折扣连续调节时合并请求，并使用序号阻止较早返回的结果覆盖最新价格。
-let pricingTimer = null;
-let pricingRequestSequence = 0;
-const pricingPendingRequests = new Set();
 
 const candidateScopes = [
   { id: 'all', name: '全部品类' },
@@ -475,8 +493,6 @@ const candidateScopes = [
 ];
 
 const quoteItems = ref([]);
-// 商品增删改串行提交，连续点击加减时总是基于最新后端数量计算。
-let cartMutationQueue = Promise.resolve();
 const cartData = ref({
   goods_amount: 0,
   total_quantity: 0,
@@ -599,6 +615,38 @@ const changeCandidateItemQty = async (item, delta) => {
   }
 };
 
+// 核心：计算与同步报价单价格与数量
+const recalculateCart = (items, mode = pricingMode.value, rate = discountRate.value, customTotal = customTotalInput.value, remark = quoteRemark.value) => {
+  const goods_amount = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
+  const total_quantity = items.reduce((sum, it) => sum + Number(it.quantity || 1), 0);
+  let pay_amount = goods_amount;
+  let discount_amount = 0;
+  
+  if (mode === 'discount') {
+    pay_amount = Math.round(goods_amount * (Number(rate || 100) / 100) * 100) / 100;
+    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
+  } else if (mode === 'total' && customTotal) {
+    pay_amount = Number(customTotal);
+    discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
+  }
+
+  const updatedCart = {
+    items,
+    goods_amount,
+    total_quantity,
+    pay_amount,
+    discount_amount,
+    pricing_mode: mode,
+    global_discount_rate: rate,
+    remark
+  };
+  
+  cartData.value = updatedCart;
+  quoteItems.value = items;
+  uni.setStorageSync('solution_local_cart', updatedCart);
+  return updatedCart;
+};
+
 /**
  * 把 OpenAPI 的 Cart 对象转换成页面直接使用的结构。
  *
@@ -637,110 +685,6 @@ const applyServerCart = (serverCart) => {
   quoteRemark.value = serverCart.remark || '';
   uni.setStorageSync('solution_local_cart', normalizedCart);
   return true;
-};
-
-// 统一处理报价篮写入结果：接口成功后才更新金额及提示，失败后重新同步后端状态。
-const runCartMutation = (operation, successTitle, fallbackErrorTitle) => {
-  cartMutationQueue = cartMutationQueue.then(async () => {
-    const updatedCart = await operation();
-    if (!updatedCart) return;
-    if (!applyServerCart(updatedCart)) throw new Error('后端未返回有效的报价篮');
-    if (successTitle) uni.showToast({ title: successTitle, icon: 'none' });
-  }).catch(async (error) => {
-    console.error('[报价篮] 更新失败：', error);
-    uni.showToast({ title: error?.message || fallbackErrorTitle, icon: 'none' });
-    await loadCart();
-  });
-  return cartMutationQueue;
-};
-
-/**
- * 请求后端重新核算报价篮。
- *
- * 中文说明：设备金额、优惠金额和折后商品金额均以后端返回的 Cart 为准。
- * 弹窗中的安装费、增项费用暂由前端叠加展示，因为核价接口不接收这两个字段；
- * 正式生成时仍会由导出接口重新计算并返回最终 pay_amount。
- */
-const refreshBackendPricing = async ({ silent = false } = {}) => {
-  const requestId = ++pricingRequestSequence;
-  isPricingLoading.value = true;
-  isPricingValid.value = false;
-
-  try {
-    // 等待上一笔核价落库后再提交最新折扣，防止旧请求最后写入覆盖用户的选择。
-    if (pricingPendingRequests.size) {
-      await Promise.allSettled([...pricingPendingRequests]);
-    }
-    if (requestId !== pricingRequestSequence) return false;
-    const pricingRequest = setCartDiscount({
-      pricing_mode: 'discount',
-      global_discount_rate: discountRate.value
-    });
-    pricingPendingRequests.add(pricingRequest);
-    let updatedCart;
-    try {
-      updatedCart = await pricingRequest;
-    } finally {
-      pricingPendingRequests.delete(pricingRequest);
-    }
-
-    // 用户快速切换折扣时，只采纳最后一次请求的返回结果。
-    if (requestId !== pricingRequestSequence) return false;
-    const currentRemark = quoteRemark.value;
-    if (!applyServerCart(updatedCart)) throw new Error('后端未返回有效的报价篮');
-    // 折扣接口不接收备注，避免刷新 Cart 时覆盖用户正在填写的备注。
-    quoteRemark.value = currentRemark;
-    isPricingValid.value = true;
-    return true;
-  } catch (error) {
-    if (requestId === pricingRequestSequence) {
-      console.error('[报价核价] 后端核价失败：', error);
-      if (!silent) {
-        uni.showToast({
-          title: error?.message || '价格核算失败，请稍后重试',
-          icon: 'none'
-        });
-      }
-    }
-    return false;
-  } finally {
-    if (requestId === pricingRequestSequence) {
-      isPricingLoading.value = false;
-    }
-  }
-};
-
-// 打开导出弹窗时立即向后端核价，不再展示本地折扣计算结果。
-const openPricePanel = async () => {
-  showPricePanel.value = true;
-  isPricingLoading.value = true;
-  isPricingValid.value = false;
-  await cartMutationQueue;
-  if (!showPricePanel.value) return;
-  await refreshBackendPricing();
-};
-
-const closePricePanel = () => {
-  showPricePanel.value = false;
-  if (pricingTimer) clearTimeout(pricingTimer);
-  pricingTimer = null;
-  // 关闭弹窗后忽略此前核价请求的结果，重新打开时再发起一次核价。
-  pricingRequestSequence += 1;
-  isPricingLoading.value = false;
-  isPricingValid.value = false;
-};
-
-// 连续点击折扣按钮时延迟 300ms 核价，减少无意义的重复请求。
-const scheduleBackendPricing = (rate) => {
-  discountRate.value = Math.min(100, Math.max(1, Number(rate) || 100));
-  pricingRequestSequence += 1;
-  isPricingLoading.value = true;
-  isPricingValid.value = false;
-  if (pricingTimer) clearTimeout(pricingTimer);
-  pricingTimer = setTimeout(() => {
-    pricingTimer = null;
-    refreshBackendPricing();
-  }, 300);
 };
 
 const isItemInQuote = (item) => {
@@ -784,7 +728,8 @@ const loadHistory = async () => {
     const res = await getSolutionList({ limit: 100 });
     // 报价列表解包后是 QuotePageData，其中 data 才是当前页的数组。
     const serverList = Array.isArray(res?.data) ? res.data : [];
-    const serverMapped = serverList.map(item => {
+    if (serverList.length > 0) {
+      const serverMapped = serverList.map(item => {
         const itemPrice = item.pay_amount ?? item.total_price ?? item.totalPrice ?? item.total ?? 0;
         return {
           ...item,
@@ -793,17 +738,16 @@ const loadHistory = async () => {
           title: item.title || (item.quote_no ? `方案报价单 (${item.quote_no})` : '方案报价单'),
           subtitle: item.remark || `共 ${item.item_count || (item.items || []).length} 项设备`,
           customerName: item.contact_name_snapshot || '贵宾客户',
-          time: formatQuoteTime(item.create_time_text || item.create_time),
-          date: formatQuoteTime(item.create_time_text || item.create_time),
+          date: item.create_time_text || item.create_time || '今日',
           status: item.quote_status || 'draft',
           items: item.items || Array(item.item_count || 1).fill({}),
           totalPrice: itemPrice,
           total: itemPrice
         };
       });
-    // 服务端列表是正式报价的权威来源；正常返回空数组时不能继续展示过期本地记录。
-    historySolutions.value = serverMapped;
-    return;
+      historySolutions.value = [...serverMapped, ...localRecords.filter(l => !serverMapped.some(s => s.id === l.id))];
+      return;
+    }
   } catch(e) {
     // 历史列表失败时允许展示本地缓存，但保留日志便于联调排查。
     console.warn('loadHistory backend info:', e);
@@ -812,47 +756,38 @@ const loadHistory = async () => {
   historySolutions.value = localRecords;
 };
 
-/**
- * 正式报价没有修改接口，“重新报价”通过复制商品到报价篮生成新报价实现。
- * 操作前明确提示会覆盖当前报价篮，避免静默丢失用户尚未生成的配置。
- */
-const restartQuote = (sol) => {
+const handleDeleteHistoryQuote = (sol) => {
   const quoteId = sol.quote_id || sol.id;
   uni.showModal({
-    title: '重新报价',
-    content: '将复制该报价的商品到当前报价篮，并覆盖报价篮中尚未生成的内容。是否继续？',
-    confirmText: '复制并继续',
-    confirmColor: '#2468e8',
+    title: '删除报价单',
+    content: `确定要删除「${sol.title || '该报价单'}」吗？删除后不可恢复。`,
+    confirmText: '确定删除',
+    confirmColor: '#ef4444',
     cancelText: '取消',
     success: async (res) => {
       if (res.confirm) {
-        uni.showLoading({ title: '正在复制报价...' });
+        uni.showLoading({ title: '正在删除...' });
         try {
-          const detail = await getSolutionDetail(quoteId);
-          const sourceItems = Array.isArray(detail?.items) ? detail.items : [];
-          if (!sourceItems.length) {
-            throw new Error('该报价没有可复制的商品');
+          if (quoteId) {
+            await deleteQuote(quoteId).catch((err) => {
+              console.warn('deleteQuote API warning:', err);
+            });
           }
 
-          const items = sourceItems.map((item) => ({
-            goods_id: item.goods_id,
-            quantity: Number(item.quantity || 1),
-            box_quantity: Number(item.box_quantity || 0),
-            carton_quantity: Number(item.carton_quantity || 0),
-            ...(item.quote_price !== undefined && item.quote_price !== null
-              ? { quote_price: Number(item.quote_price) }
-              : {}),
-            ...(item.remark ? { remark: item.remark } : {})
-          }));
+          // 同步清理本地缓存与界面列表
+          const localRecords = (uni.getStorageSync('solution_history_records') || []).filter(
+            (r) => String(r.id) !== String(quoteId) && String(r.quote_id) !== String(quoteId)
+          );
+          uni.setStorageSync('solution_history_records', localRecords);
 
-          await clearCart();
-          const updatedCart = await addCartItems({ items });
-          applyServerCart(updatedCart);
-          activeTab.value = 'current';
-          uni.showToast({ title: '已复制到报价篮', icon: 'success' });
+          historySolutions.value = historySolutions.value.filter(
+            (s) => String(s.id) !== String(quoteId) && String(s.quote_id) !== String(quoteId)
+          );
+
+          uni.showToast({ title: '已删除报价单', icon: 'success' });
+          await loadHistory();
         } catch (e) {
-          console.error('[报价单] 重新报价失败：', e);
-          uni.showToast({ title: e?.message || '复制报价失败', icon: 'none' });
+          uni.showToast({ title: e?.message || '删除失败', icon: 'none' });
         } finally {
           uni.hideLoading();
         }
@@ -906,60 +841,88 @@ onShow(() => {
   checkPendingProduct();
 });
 
-onUnload(() => {
-  if (pricingTimer) clearTimeout(pricingTimer);
-  pricingTimer = null;
-  // 页面销毁后让在途核价结果失效，避免异步回写已卸载页面。
-  pricingRequestSequence += 1;
-});
-
 const totalPrice = computed(() => cartData.value.goods_amount || 0);
 const totalCount = computed(() => cartData.value.total_quantity || 0);
-// 商品折后金额和优惠金额直接采用后端核价返回值，不再由前端按折扣率计算。
-const previewGoodsPayAmount = computed(() => Number(cartData.value.pay_amount || 0));
-const previewDiscountAmount = computed(() => Number(cartData.value.discount_amount || 0));
-// 安装费与增项费用不参与折扣；弹窗预览叠加显示，正式总额以后端导出结果为准。
-const previewPayAmount = computed(() => {
-  const installationAmount = Number(installFee.value) || 0;
-  const additionAmount = Number(additionalFee.value) || 0;
-  return Math.round((previewGoodsPayAmount.value + installationAmount + additionAmount) * 100) / 100;
+const finalTotal = computed(() => {
+  const basePay = Number(cartData.value.pay_amount) || 0;
+  const extra = (Number(installFee.value) || 0) + (Number(additionalFee.value) || 0);
+  return basePay + extra;
+});
+const finalDiscount = computed(() => {
+  if (!totalPrice.value) return 100;
+  const basePay = Number(cartData.value.pay_amount) || 0;
+  return Math.round(basePay / totalPrice.value * 10000) / 100;
 });
 const discountAmount = computed(() => cartData.value.discount_amount || 0);
 
 const formatPrice = (val) => Number(val || 0).toLocaleString();
 
-// 将后端秒级时间戳或已格式化时间统一转换为页面可读文本。
-const formatQuoteTime = (value) => {
-  if (!value) return '今日';
-  if (typeof value === 'string' && !/^\d+$/.test(value)) return value;
-  const timestamp = Number(value);
-  if (!Number.isFinite(timestamp)) return String(value);
-  const date = new Date(timestamp < 1000000000000 ? timestamp * 1000 : timestamp);
-  const pad = (num) => String(num).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+const openExportPanel = () => {
+  // 确保导出报价单默认显示的是输入折扣率模式，非一口价
+  pricingMode.value = 'discount';
+  if (quoteItems.value && quoteItems.value.length) {
+    recalculateCart(quoteItems.value, pricingMode.value, Number(discountRate.value) || 100, customTotalInput.value, quoteRemark.value);
+  }
+  showPricePanel.value = true;
 };
 
-const getQuoteStatusText = (status) => ({
-  draft: '草稿',
-  sent: '已发送',
-  accepted: '客户已确认',
-  rejected: '客户已拒绝',
-  void: '已作废'
-}[status] || '草稿');
+const handleStepDiscount = (delta) => {
+  let rate = Math.round(Number(discountRate.value) || 100) + delta;
+  rate = Math.max(1, Math.min(100, rate));
+  discountRate.value = rate;
+  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+};
+
+const setDiscount = (d) => {
+  discountRate.value = d;
+  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+};
+
+const normalizeDiscountRate = () => {
+  let rate = Math.round(Number(discountRate.value));
+  if (isNaN(rate) || rate <= 0) rate = 100;
+  if (rate > 100) rate = 100;
+  discountRate.value = rate;
+  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+};
+
+watch([pricingMode, discountRate, customTotalInput], () => {
+  if (quoteItems.value && quoteItems.value.length) {
+    recalculateCart(quoteItems.value, pricingMode.value, Number(discountRate.value) || 100, customTotalInput.value, quoteRemark.value);
+  }
+});
 
 const changeItemQty = async (item, delta) => {
-  const cartItemId = item.cart_item_id || item.id;
-  return runCartMutation(() => {
-    const currentItem = quoteItems.value.find(candidate => String(candidate.cart_item_id || candidate.id) === String(cartItemId));
-    if (!currentItem) return null;
-    const newQty = Number(currentItem.quantity || 1) + delta;
-    if (newQty < 1) return null;
-    return editCartItem(cartItemId, { quantity: newQty });
-  }, '', '修改数量失败');
+  const currentList = [...quoteItems.value];
+  const target = currentList.find(i => (i.goods_id || i.id) === (item.goods_id || item.id));
+  if (!target) return;
+  const newQty = Number(target.quantity || 1) + delta;
+  if (newQty < 1) return;
+  target.quantity = newQty;
+  recalculateCart(currentList);
+
+  try {
+    const updatedCart = await editCartItem(item.cart_item_id || item.id, { quantity: newQty });
+    applyServerCart(updatedCart);
+  } catch(e) {
+    // 乐观更新失败时重新读取后端，撤销界面中的临时数量。
+    console.warn('editCartItem error:', e);
+    await loadCart();
+  }
 };
 
 const removeItem = async (id) => {
-  return runCartMutation(() => removeCartItem(id), '已移除设备', '移除设备失败');
+  const currentList = quoteItems.value.filter(i => (i.goods_id || i.id) !== id && i.id !== id);
+  recalculateCart(currentList);
+  uni.showToast({ title: '已移除设备', icon: 'none' });
+
+  try {
+    const updatedCart = await removeCartItem(id);
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('removeCartItem error:', e);
+    await loadCart();
+  }
 };
 
 const openAddPanel = (mode = 'search') => {
@@ -973,68 +936,90 @@ const openAddPanel = (mode = 'search') => {
 
 const addProductToQuote = async (product) => {
   const gId = (product.goods_id || product.id);
-  return runCartMutation(
-    () => addCartItem({ goods_id: gId, quantity: 1 }),
-    '已加入报价单',
-    '添加设备失败'
-  );
+  const currentList = [...quoteItems.value];
+  const existingIndex = currentList.findIndex(i => (i.goods_id || i.id) === gId);
+  
+  if (existingIndex > -1) {
+    currentList[existingIndex].quantity = (Number(currentList[existingIndex].quantity) || 1) + 1;
+  } else {
+    currentList.push({
+      id: gId,
+      goods_id: gId,
+      cart_item_id: gId,
+      name: product.goods_name || product.name || '空调设备',
+      model: product.model || product.type || '标准型号',
+      spec: product.spec || (Array.isArray(product.specs) ? product.specs.slice(0, 2).join(' | ') : '高效节能 · 变频冷暖'),
+      image: product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
+      price: Number(product.price || 0),
+      quantity: 1
+    });
+  }
+
+  // 1. 立即触发本地响应与UI实时刷新
+  recalculateCart(currentList);
+  uni.showToast({ title: '已加入报价单', icon: 'success' });
+
+  // 2. 异步同步到后端API
+  try {
+    const updatedCart = await addCartItem({ goods_id: gId, quantity: 1 });
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('addCartItem error:', e);
+    await loadCart();
+  }
+};
+
+const applyPricing = async () => {
+  recalculateCart(quoteItems.value, pricingMode.value, discountRate.value, customTotalInput.value, quoteRemark.value);
+  showPricePanel.value = false;
+  uni.showToast({ title: '价格配置已更新', icon: 'success' });
+
+  try {
+    const updatedCart = await setCartDiscount({
+      pricing_mode: pricingMode.value,
+      global_discount_rate: pricingMode.value === 'discount' ? discountRate.value : 100
+    });
+    applyServerCart(updatedCart);
+  } catch(e) {
+    console.warn('setCartDiscount error:', e);
+    await loadCart();
+  }
 };
 
 const exportQuote = async () => {
-  await cartMutationQueue;
   if (!quoteItems.value.length) {
     uni.showToast({ title: '请先添加产品', icon: 'none' });
     return;
   }
-  if (isPricingLoading.value || !isPricingValid.value) {
-    uni.showToast({ title: '请先等待价格核算完成', icon: 'none' });
-    return;
-  }
-  // 生成前取消尚未发出的防抖请求，并让已有核价请求的返回结果失效。
-  if (pricingTimer) clearTimeout(pricingTimer);
-  pricingTimer = null;
-  pricingRequestSequence += 1;
-  isPricingLoading.value = true;
   uni.showLoading({ title: '正在生成报价单...' });
 
   try {
-    // 等待已发出的核价请求结束，再提交最终折扣，确保最终请求不会被旧请求反向覆盖。
-    if (pricingPendingRequests.size) {
-      await Promise.allSettled([...pricingPendingRequests]);
+    // 导出前先同步最新的折扣/价格模式到后端
+    try {
+      const activeDiscount = pricingMode.value === 'discount'
+        ? (Number(discountRate.value) || 100)
+        : (Number(finalDiscount.value) || 100);
+      await setCartDiscount({
+        pricing_mode: pricingMode.value,
+        global_discount_rate: activeDiscount
+      });
+    } catch (e) {
+      console.warn('setCartDiscount before export failed:', e);
     }
-    const currentRemark = quoteRemark.value;
-    // 必须先把弹窗里的折扣提交后端，再基于后端重新核算的报价篮生成正式报价。
-    const updatedCart = await setCartDiscount({
-      pricing_mode: 'discount',
-      global_discount_rate: discountRate.value
-    });
-    if (!applyServerCart(updatedCart)) throw new Error('后端未返回有效的报价篮');
-    // 折扣接口不接收备注，恢复用户本次输入，供生成报价接口提交。
-    quoteRemark.value = currentRemark;
-
-    const installationAmount = Math.round((Number(installFee.value) || 0) * 100) / 100;
-    const additionAmount = Math.round((Number(additionalFee.value) || 0) * 100) / 100;
 
     // exportCart 的返回值已经解包为 QuoteExportData：
     // `{ quote_id, quote_no, pay_amount }`。只有后端真正创建成功后，
     // 才能清空本地报价单暂存数据并提示成功，不能再用随机编号伪造成功记录。
     const createdQuote = await exportCart({
-      // 新接口将两项费用独立保存，且均不参与商品折扣。
-      installation_amount: installationAmount,
-      addition_amount: additionAmount,
-      remark: currentRemark,
+      extra_amount: (Number(installFee.value) || 0) + (Number(additionalFee.value) || 0),
+      install_fee: Number(installFee.value) || 0,
+      additional_fee: Number(additionalFee.value) || 0,
+      remark: quoteRemark.value,
       clear_cart: 1
     });
 
     if (!createdQuote?.quote_id) {
       throw new Error('后端未返回 quote_id，无法确认报价单是否创建成功');
-    }
-    const hasBackendPayAmount = createdQuote.pay_amount !== undefined
-      && createdQuote.pay_amount !== null
-      && createdQuote.pay_amount !== '';
-    const backendPayAmount = Number(createdQuote.pay_amount);
-    if (!hasBackendPayAmount || !Number.isFinite(backendPayAmount)) {
-      throw new Error('后端未返回有效的 pay_amount，无法确认报价金额');
     }
 
     const nowText = new Date().toISOString().slice(0, 16).replace('T', ' ');
@@ -1043,27 +1028,25 @@ const exportQuote = async () => {
       quote_id: createdQuote.quote_id,
       quote_no: createdQuote.quote_no || '',
       title: createdQuote.quote_no ? `方案报价单 (${createdQuote.quote_no})` : '方案报价单',
-      subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
+      subtitle: pricingMode.value === 'discount'
+        ? `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`
+        : `${totalCount.value} 项设备 · 自定义总价 ¥${formatPrice(createdQuote.pay_amount ?? finalTotal.value)}`,
       contact_name_snapshot: '贵宾客户',
       customerName: '贵宾客户',
       date: nowText,
-      time: nowText,
       create_time_text: nowText,
       status: 'draft',
       quote_status: 'draft',
       items: JSON.parse(JSON.stringify(quoteItems.value)),
-      // 新字段与旧别名同时写入本地快照，兼容尚未迁移完成的旧展示页面。
-      installation_amount: installationAmount,
-      addition_amount: additionAmount,
-      install_fee: installationAmount,
-      additional_fee: additionAmount,
-      totalPrice: backendPayAmount,
-      pay_amount: backendPayAmount,
+      totalPrice: Number(createdQuote.pay_amount ?? finalTotal.value),
+      install_fee: Number(installFee.value) || 0,
+      additional_fee: Number(additionalFee.value) || 0,
+      pay_amount: Number(createdQuote.pay_amount ?? finalTotal.value),
       goods_amount: totalPrice.value,
       discount_amount: discountAmount.value,
-      discount_rate: discountRate.value,
+      discount_rate: Number(discountRate.value) || 100,
       pricing_mode: pricingMode.value,
-      remark: currentRemark
+      remark: quoteRemark.value
     };
 
     // 保存一份本地快照，让接口列表刷新前也能立即看到刚创建的报价单。
@@ -1072,13 +1055,7 @@ const exportQuote = async () => {
     uni.setStorageSync('solution_history_records', localHistory);
 
     // clear_cart=1 已要求后端清空报价单暂存数据，这里同步清理本地缓存和界面。
-    quoteItems.value = [];
-    cartData.value = { goods_amount: 0, total_quantity: 0, pay_amount: 0, discount_amount: 0 };
-    uni.removeStorageSync('solution_local_cart');
-    // 两项费用只属于本次报价，生成成功后清空，避免下一张报价单误带上次费用。
-    installFee.value = '';
-    additionalFee.value = '';
-    quoteRemark.value = '';
+    recalculateCart([]);
     showPricePanel.value = false;
     uni.showToast({ title: '报价单生成成功', icon: 'success' });
 
@@ -1090,12 +1067,10 @@ const exportQuote = async () => {
       openPage('/pages/solution/share', { id: createdQuote.quote_id });
     }, 400);
   } catch (error) {
-    isPricingValid.value = false;
     console.error('exportQuote error:', error);
     const msg = error?.message || '生成报价单失败';
     uni.showToast({ title: msg, icon: 'none', duration: 2500 });
   } finally {
-    isPricingLoading.value = false;
     uni.hideLoading();
   }
 };
@@ -1436,25 +1411,14 @@ const checkPendingProduct = async () => {
   font-weight: 700;
 }
 
-.status-badge.draft {
-  background: #fff5e6;
-  color: #ff9f2f;
-}
-
-.status-badge.sent {
-  background: #edf4ff;
-  color: #2468e8;
-}
-
-.status-badge.accepted {
+.status-badge.shared {
   background: #e9f8f0;
   color: #2fa777;
 }
 
-.status-badge.rejected,
-.status-badge.void {
-  background: #fff0f0;
-  color: #ef4444;
+.status-badge.draft {
+  background: #edf4ff;
+  color: #2468e8;
 }
 
 .history-sub {
@@ -1502,6 +1466,18 @@ const checkPendingProduct = async () => {
   display: flex;
   align-items: center;
   gap: 12rpx;
+}
+
+.btn-history-del {
+  height: 56rpx;
+  padding: 0 20rpx;
+  border-radius: 28rpx;
+  background: #fff;
+  border: 1rpx solid #fee2e2;
+  color: #ef4444;
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 54rpx;
 }
 
 .btn-history-edit {
@@ -1614,6 +1590,32 @@ const checkPendingProduct = async () => {
   font-size: 24rpx;
 }
 
+.pricing-mode-tabs {
+  display: flex;
+  margin-top: 14rpx;
+  padding: 6rpx;
+  border-radius: 16rpx;
+  background: #edf3fb;
+}
+
+.p-tab {
+  flex: 1;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  color: #647389;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.p-tab.active {
+  background: #fff;
+  color: #2468e8;
+  box-shadow: 0 2rpx 10rpx rgba(23, 35, 61, 0.08);
+}
+
 .price-form {
   margin-top: 18rpx;
 }
@@ -1668,14 +1670,41 @@ const checkPendingProduct = async () => {
   color: #586477;
   font-size: 28rpx;
   line-height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.12s;
+  &:active {
+    opacity: 0.7;
+    background: #e2e8f0;
+  }
 }
 
-.d-val {
-  width: 76rpx;
+.d-val-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4rpx;
+  background: #ffffff;
+}
+
+.d-val-input {
+  width: 68rpx;
+  height: 52rpx;
   text-align: center;
   color: #2468e8;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 800;
+  padding: 0;
+  margin: 0;
+}
+
+.d-val-unit {
+  color: #2468e8;
+  font-size: 24rpx;
+  font-weight: 800;
+  margin-right: 6rpx;
 }
 
 .quick-discount-chips {
