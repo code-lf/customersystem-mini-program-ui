@@ -1217,10 +1217,15 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 .cart-price-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .cart-tip {
+  display: block;
+  color: #fff;
   font-size: 22rpx;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .cart-right {

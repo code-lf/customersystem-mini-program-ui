@@ -167,10 +167,12 @@ const finalTotalPrice = computed(() => {
     ?? (goodsPayableAmount.value + installationAmount.value + additionAmount.value);
 });
 
+// 经销商快照属于买方，不能当作报价单顶部的卖方名称。
 const sellerName = computed(() => quoteData.value.seller?.company_name
   || quoteData.value.seller?.company_short_name
-  || quoteData.value.dealer_name_snapshot
-  || '格宏电器');
+  || quoteData.value.company_name
+  || quoteData.value.company_short_name
+  || '方案报价单');
 const isDecisionFinal = computed(() => ['accepted', 'rejected', 'void'].includes(quoteData.value.quote_status));
 const quoteStatusText = computed(() => ({
   draft: '草稿',

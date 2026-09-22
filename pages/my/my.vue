@@ -226,7 +226,7 @@
                     v-model="editForm.nickname"
                     type="nickname"
                     class="form-input"
-                    placeholder="请输入您的姓名或昵称"
+                    placeholder="请输入或填入微信昵称"
                     maxlength="20"
                   />
                   <view v-if="editForm.nickname" class="clear-btn" @click="editForm.nickname = ''">
@@ -291,7 +291,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
-import { getBalance, updateMemberInfo } from '@/api/member';
+import { getBalance, updateMemberInfo, modifyMemberField } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
@@ -400,9 +400,13 @@ const handleSaveProfile = async () => {
       position: editForm.position.trim() || '销售工程师'
     };
 
-    await updateMemberInfo(payload).catch((err) => {
-      console.warn('updateMemberInfo API warn:', err);
-    });
+    // 仅修改姓名时使用会员昵称接口；修改头像、企业或职位时使用资料更新接口。
+    const current = userStore.userInfo || {};
+    const extrasChanged = payload.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')
+      || payload.company_name !== (current.company_name || '格宏电器科技有限公司')
+      || payload.position !== (current.position || '销售工程师');
+    if (extrasChanged) await updateMemberInfo(payload);
+    else if (nickname !== (current.nickname || current.username || '')) await modifyMemberField('nickname', nickname);
 
     // 同步更新 Pinia Store 与 Storage
     const updated = {

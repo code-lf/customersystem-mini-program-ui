@@ -87,7 +87,7 @@
           <up-icon name="arrow-right" size="14" color="#94a3b8" />
         </view>
 
-        <view class="hero-quote-card__price-row">
+        <view v-if="activeQuoteDisplay.price !== null" class="hero-quote-card__price-row">
           <text class="hero-quote-symbol">¥</text>
           <text class="hero-quote-price">{{ formatMoney(activeQuoteDisplay.price) }}</text>
         </view>
@@ -100,9 +100,9 @@
       <view class="hero-quote-card__divider" />
 
       <view class="hero-quote-card__bottom" @click="handleHistoryQuoteClick">
-        <text class="hero-quote-card__history-label">历史报价单</text>
+        <text class="hero-quote-card__history-label">全部报价单</text>
         <view class="hero-quote-card__history-right">
-          <text class="hero-quote-card__history-count">{{ solutions.length ? `${solutions.length} 笔` : '暂无' }}</text>
+          <text class="hero-quote-card__history-count">{{ !userStore.isLoggedIn ? '登录后查看' : (quoteSummaryLoading ? '加载中' : (historyTotal === null ? '暂不可用' : `${historyTotal} 笔`)) }}</text>
           <up-icon name="arrow-right" size="13" color="#94a3b8" />
         </view>
       </view>
@@ -144,7 +144,7 @@ import { computed, onMounted, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
-import { getSolutionList, getCart } from '@/api/solution';
+import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -164,79 +164,70 @@ const quoteStatusText = (status) => ({
   accepted: '已确认',
   rejected: '已拒绝',
   void: '已作废'
-}[status] || '草稿');
+}[status] || '报价单');
 const keyword = ref('');
 const notices = ref([]);
-const solutions = ref([]);
-const cartInfo = ref({
-  count: 0,
-  amount: 0,
-  hasItems: false
-});
+const latestQuote = ref(null);
+const historyTotal = ref(null);
+const quoteSummaryLoading = ref(true);
+const quoteSummaryError = ref(false);
+let quoteLoadVersion = 0;
 
-const loadCartSummary = async () => {
-  // 1. 本地缓存快速渲染，避免闪烁
+/** 每次进入首页重新读取服务端数据，不再以本地缓存或演示数据充当正式报价。 */
+const loadQuoteSummary = async () => {
+  const version = ++quoteLoadVersion;
+  latestQuote.value = null;
+  historyTotal.value = null;
+  quoteSummaryError.value = false;
+  if (!userStore.isLoggedIn) {
+    quoteSummaryLoading.value = false;
+    return;
+  }
+
+  quoteSummaryLoading.value = true;
   try {
-    const localCart = uni.getStorageSync('solution_local_cart');
-    if (localCart && Array.isArray(localCart.items) && localCart.items.length) {
-      cartInfo.value = {
-        count: Number(localCart.total_quantity || localCart.items.length || 0),
-        amount: Number(localCart.pay_amount || localCart.goods_amount || 0),
-        hasItems: true
-      };
-    }
-  } catch (e) {}
-
-  // 2. 登录时向后端核实真实购物车数据
-  if (userStore.isLoggedIn) {
-    try {
-      const res = await getCart({ showError: false });
-      const serverCart = res?.data || res;
-      if (serverCart && Array.isArray(serverCart.items)) {
-        const count = Number(serverCart.total_quantity || serverCart.items.length || 0);
-        const amount = Number(serverCart.pay_amount || serverCart.goods_amount || 0);
-        cartInfo.value = {
-          count,
-          amount,
-          hasItems: count > 0
-        };
-      } else if (serverCart && Array.isArray(serverCart.items) && serverCart.items.length === 0) {
-        cartInfo.value = { count: 0, amount: 0, hasItems: false };
-      }
-    } catch (e) {}
+    // 统一请求层剥离 code/data 外层；首页只展示正式报价，不混入尚未生成的报价篮。
+    const page = await getSolutionList({ page: 1, limit: 1 }, { showError: false });
+    if (version !== quoteLoadVersion) return;
+    const records = Array.isArray(page) ? page : (Array.isArray(page?.data) ? page.data : null);
+    if (!records) throw new Error('报价列表格式不正确');
+    latestQuote.value = records[0] || null;
+    historyTotal.value = Number(page?.total ?? records.length);
+  } catch (error) {
+    if (version !== quoteLoadVersion) return;
+    quoteSummaryError.value = true;
+    console.warn('首页正式报价加载失败:', error);
+  } finally {
+    if (version === quoteLoadVersion) quoteSummaryLoading.value = false;
   }
 };
 
 const activeQuoteDisplay = computed(() => {
-  // 1. 如果当前报价篮暂存有商品，优先展示进行中的暂存清单
-  if (cartInfo.value.hasItems) {
-    return {
-      price: cartInfo.value.amount,
-      count: cartInfo.value.count,
-      statusText: '进行中',
-      desc: `${cartInfo.value.count} 件商品 · 面价合计`,
-      actionPath: '/pages/solution/index'
-    };
+  if (quoteSummaryLoading.value) {
+    return { price: null, statusText: '加载中', desc: '正在获取报价数据', actionPath: '/pages/solution/index' };
   }
-  // 2. 否则若有报价单方案，展示最新一笔方案
-  if (solutions.value.length > 0) {
-    const latest = solutions.value[0];
-    const count = latest.items ? latest.items.length : 1;
+  if (!userStore.isLoggedIn) {
+    return { price: null, statusText: '登录后查看', desc: '登录后查看您的真实报价', actionPath: '/pages/auth/login' };
+  }
+  // 首页报价卡只使用正式报价的后端应付金额，不能拿暂存报价篮面价冒充。
+  if (latestQuote.value) {
+    const quote = latestQuote.value;
+    const count = Number(quote.item_count ?? 0);
     return {
-      price: latest.totalPrice || 0,
-      count,
-      statusText: quoteStatusText(latest.status) || '进行中',
-      desc: `${count} 件商品 · 面价合计`,
+      price: quote.pay_amount == null ? null : Number(quote.pay_amount),
+      statusText: quoteStatusText(quote.quote_status),
+      desc: `${count} 款设备 · 应付总额`,
       actionPath: '/pages/solution/share',
-      actionQuery: { id: latest.id }
+      actionQuery: { id: quote.quote_id || quote.id }
     };
   }
-  // 3. 暂无设备/报价
+  if (quoteSummaryError.value || historyTotal.value === null) {
+    return { price: null, statusText: '暂不可用', desc: '报价数据获取失败，请稍后重试', actionPath: '/pages/solution/index' };
+  }
   return {
-    price: 0,
-    count: 0,
-    statusText: '进行中',
-    desc: '0 件商品 · 面价合计',
+    price: null,
+    statusText: '暂无报价单',
+    desc: '添加设备后即可生成正式报价',
     actionPath: '/pages/solution/index'
   };
 });
@@ -251,6 +242,12 @@ const handleActiveQuoteClick = () => {
 };
 
 const handleHistoryQuoteClick = () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+    return;
+  }
+  // TabBar 页面不能通过 URL 参数切换标签，使用一次性标记直达报价记录。
+  uni.setStorageSync('solution_open_tab', 'history');
   openPage('/pages/solution/index');
 };
 
@@ -310,7 +307,11 @@ const syncData = async () => {
   if (userStore.token) {
     userStore.fetchUserInfo().catch(() => {});
   }
-  loadCartSummary().catch(() => {});
+  loadQuoteSummary().catch((error) => {
+    console.warn('首页报价汇总加载失败:', error);
+    quoteSummaryError.value = true;
+    quoteSummaryLoading.value = false;
+  });
 };
 
 onShow(() => {
@@ -321,56 +322,20 @@ onShow(() => {
 
 onMounted(async () => {
   isLoading.value = true;
-  syncData();
   try {
-    const [noticeResult, solutionResult] = await Promise.allSettled([
-      getNotices({ limit: 10 }),
-      getSolutionList({ limit: 10 })
-    ]);
-    
-    if (noticeResult.status === 'fulfilled' && noticeResult.value) {
-      const resVal = noticeResult.value;
-      const rawList = Array.isArray(resVal)
-        ? resVal
-        : (Array.isArray(resVal.data) ? resVal.data : (resVal.data?.data || []));
-      
-      notices.value = rawList.map(n => ({
-        id: n.article_id || n.id,
-        title: n.article_title || n.title,
-        type: n.category_name || n.type || '通知',
-        time: n.publish_time_text || n.time || '',
-        image: n.cover_image || ''
-      }));
-    }
-    
-    if (solutionResult.status === 'fulfilled' && solutionResult.value) {
-      const resVal = solutionResult.value;
-      const rawSolutions = Array.isArray(resVal)
-        ? resVal
-        : (Array.isArray(resVal.data) ? resVal.data : (resVal.data?.data || []));
-      
-      solutions.value = rawSolutions.map(item => {
-        const quoteNo = item.quote_no || '';
-        // 优先展示有业务意义的项目标题或备注；若只有单纯单号，格式化为带业务前缀的标题
-        const displayTitle = item.title && !item.title.startsWith('BJ')
-          ? item.title
-          : (item.remark || (quoteNo ? `空调方案报价 (${quoteNo.slice(-6)})` : '暖通空调报价方案'));
-
-        return {
-          id: item.quote_id || item.id,
-          quoteNo,
-          title: item.title || quoteNo || '暖通空调方案',
-          displayTitle,
-          items: item.items || Array(item.item_count || 1).fill({}),
-          totalPrice: item.pay_amount || item.total_price || 0,
-          status: item.quote_status || 'draft',
-          customerName: item.contact_name_snapshot || '',
-          date: item.create_time_text || ''
-        };
-      });
-    }
+    const resVal = await getNotices({ limit: 10 });
+    const rawList = Array.isArray(resVal)
+      ? resVal
+      : (Array.isArray(resVal?.data) ? resVal.data : (resVal?.data?.data || []));
+    notices.value = rawList.map(n => ({
+      id: n.article_id || n.id,
+      title: n.article_title || n.title,
+      type: n.category_name || n.type || '通知',
+      time: n.publish_time_text || n.time || '',
+      image: n.cover_image || ''
+    }));
   } catch(e) {
-    console.warn('Load home error:', e);
+    console.warn('首页公告加载失败:', e);
   } finally {
     isLoading.value = false;
   }

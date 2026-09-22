@@ -143,7 +143,8 @@
             <view class="form-list">
               <view class="input-block">
                 <text class="input-label">用户昵称 / 姓名</text>
-                <input v-model="form.nickname" type="nickname" class="custom-input" placeholder="请输入您的姓名或昵称" />
+                <!-- 微信小程序原生昵称输入框自带“使用微信昵称”快捷填入，也可手动修改。 -->
+                <input v-model="form.nickname" type="nickname" class="custom-input" placeholder="请输入或填入微信昵称" />
               </view>
               <view class="input-block">
                 <text class="input-label">认证企业 / 暖通公司</text>
@@ -167,7 +168,7 @@ import { computed, reactive, ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { useUserStore } from '@/store/user';
-import { updateMemberInfo } from '@/api/member';
+import { updateMemberInfo, modifyMemberField } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
@@ -229,12 +230,17 @@ const saveProfile = async () => {
       headimg: form.avatar,
       company_name: form.company_name.trim() || '格宏电器科技有限公司'
     };
-    await updateMemberInfo(payload).catch(() => {});
-    userStore.setUserInfo({ ...userStore.userInfo, ...payload });
+    // 昵称走会员单字段修改接口；其它资料仅在实际变更时整体提交，失败不得伪装成功。
+    const current = userStore.userInfo || {};
+    const extrasChanged = payload.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')
+      || payload.company_name !== (current.company_name || '格宏电器科技有限公司');
+    if (extrasChanged) await updateMemberInfo(payload);
+    else if (name !== (current.nickname || current.username || '')) await modifyMemberField('nickname', name);
+    userStore.setUserInfo({ ...current, ...payload });
     uni.showToast({ title: '修改成功', icon: 'success' });
     showEditModal.value = false;
   } catch(e) {
-    uni.showToast({ title: '保存失败', icon: 'none' });
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' });
   } finally {
     isSaving.value = false;
   }

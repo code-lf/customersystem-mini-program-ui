@@ -68,8 +68,8 @@ export function createQuote(data) {
 }
 
 /** 我的报价列表 */
-export function getSolutionList(params = {}) {
-  return apiGet('crm/quote/lists', params);
+export function getSolutionList(params = {}, options = {}) {
+  return apiGet('crm/quote/lists', params, options);
 }
 
 /** 我的报价详情 */
@@ -77,14 +77,19 @@ export function getSolutionDetail(id) {
   return apiGet(`crm/quote/${id}`);
 }
 
+/** 更新本人草稿或已发送的正式报价；items 为完整明细，后端会重建并重新核价。 */
+export function updateQuote(id, data) {
+  return apiPut(`crm/quote/${id}`, data, { showError: false });
+}
+
 /** 发送报价 */
 export function sendQuote(id) {
   return apiPut(`crm/quote/${id}/send`);
 }
 
-/** 删除报价单 */
+/** 删除正式报价；后端需提供 DELETE /crm/quote/{quote_id}。 */
 export function deleteQuote(id) {
-  return apiDelete(`crm/quote/${id}`);
+  return apiDelete(`crm/quote/${id}`, {}, { showError: false });
 }
 
 /** 分享报价详情 */

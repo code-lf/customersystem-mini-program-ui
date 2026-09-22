@@ -16,29 +16,22 @@
         <view />
       </view>
       <text>将条码置于扫码框内，即可自动识别</text>
-      <button @click="handleQuery">模拟扫码查询</button>
+      <button :disabled="querying" @click="handleScan">扫码查询</button>
     </view>
 
     <!-- 输入条码 -->
     <view v-if="currentTab === 1" class="input-panel">
-      <input v-model="barcode" maxlength="13" placeholder="请输入13位条码" placeholder-class="placeholder" />
-      <button class="primary-btn" @click="handleQuery">查询密码</button>
+      <input v-model="barcode" maxlength="64" placeholder="请输入内机条码" placeholder-class="placeholder" />
+      <button class="primary-btn" :disabled="querying" @click="handleQuery()">查询密码</button>
     </view>
 
     <!-- 查询结果 -->
     <view v-if="showResult" class="result-card">
       <text class="result-card__title">查询结果</text>
-      <view class="product-info">
-        <image src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
-        <view>
-          <text>VK8R 多联式空调室外机</text>
-          <text>20HP | 56.0kW | R410A</text>
-        </view>
-      </view>
       <view v-for="item in codes" :key="item.label" class="code-row">
         <text>{{ item.label }}</text>
         <text>{{ item.value }}</text>
-        <button>复制</button>
+        <button @click="copyCode(item.value)">复制</button>
       </view>
     </view>
     <text class="tips">密码仅供授权人员使用，请妥善保管，切勿泄露给他人。</text>
@@ -46,34 +39,62 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import AppNavbar from '@/components/app-navbar.vue';
+import { queryBarcodePassword } from '@/api/password';
 
-const currentTab = ref(1); // Default to input based on user request focus
+const currentTab = ref(1);
 const barcode = ref('');
 const showResult = ref(false);
+const querying = ref(false);
+const result = ref({});
 
-const codes = [
-  { label: '机组条码', value: 'SN25052800012345' },
-  { label: '当前密码', value: 'A1B2C3D4' },
-  { label: '备用密码', value: 'E5F6G7H8' }
-];
+// 查询结果完全取自后端，避免继续展示演示密码和虚构的商品资料。
+const codes = computed(() => [
+  { label: '内机条码', value: result.value.inner_barcode || '' },
+  { label: '当前密码', value: result.value.password || '' },
+  { label: '备用密码', value: result.value.backup_password || '无' }
+]);
 
-const handleQuery = () => {
-  if (currentTab.value === 1 && !barcode.value) {
-    uni.showToast({ title: '请输入条码', icon: 'none' });
+const handleQuery = async (scannedBarcode = '') => {
+  const code = String(scannedBarcode || barcode.value || '').trim();
+  showResult.value = false;
+  if (!code) {
+    uni.showToast({ title: '请输入内机条码', icon: 'none' });
     return;
   }
-  
-  if (currentTab.value === 1 && barcode.value) {
-    codes[0].value = barcode.value;
-  }
-  
+  querying.value = true;
   uni.showLoading({ title: '查询中...' });
-  setTimeout(() => {
-    uni.hideLoading();
+  try {
+    const data = await queryBarcodePassword(code);
+    if (!data || !data.password) throw new Error('未查询到密码');
+    result.value = data;
+    barcode.value = code;
     showResult.value = true;
-  }, 500);
+  } catch (error) {
+    uni.showToast({ title: error?.message || '查询失败', icon: 'none' });
+  } finally {
+    querying.value = false;
+    uni.hideLoading();
+  }
+};
+
+/** 扫描内机条形码，扫码成功后直接提交真实查询接口。 */
+const handleScan = () => {
+  uni.scanCode({
+    scanType: ['barCode', 'qrCode'],
+    success: (scan) => handleQuery(scan.result),
+    fail: (error) => {
+      if (!String(error?.errMsg || '').includes('cancel')) {
+        uni.showToast({ title: '扫码失败，请手动输入条码', icon: 'none' });
+      }
+    }
+  });
+};
+
+const copyCode = (value) => {
+  if (!value || value === '无') return;
+  uni.setClipboardData({ data: String(value) });
 };
 </script>
 
@@ -270,4 +291,3 @@ const handleQuery = () => {
   text-align: center;
 }
 </style>
-

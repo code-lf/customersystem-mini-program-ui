@@ -147,7 +147,7 @@
             </view>
             <view class="history-btns">
               <button class="btn-history-del" @click.stop="handleDeleteHistoryQuote(sol)">删除</button>
-              <button class="btn-history-edit" @click.stop="openPage('/pages/solution/edit', { id: sol.id })">编辑</button>
+              <button class="btn-history-edit" :disabled="!['draft', 'sent'].includes(sol.status)" @click.stop="openPage('/pages/solution/edit', { id: sol.id })">编辑</button>
               <button class="btn-history-view" @click.stop="openPage('/pages/solution/share', { id: sol.id })">查看预览</button>
             </view>
           </view>
@@ -716,6 +716,7 @@ const loadHistory = async () => {
   historySolutions.value = localRecords;
 };
 
+/** 删除正式报价必须等待后端确认；请求失败时保留列表与本地快照。 */
 const handleDeleteHistoryQuote = (sol) => {
   const quoteId = sol.quote_id || sol.id;
   uni.showModal({
@@ -725,33 +726,24 @@ const handleDeleteHistoryQuote = (sol) => {
     confirmColor: '#ef4444',
     cancelText: '取消',
     success: async (res) => {
-      if (res.confirm) {
-        uni.showLoading({ title: '正在删除...' });
-        try {
-          if (quoteId) {
-            await deleteQuote(quoteId).catch((err) => {
-              console.warn('deleteQuote API warning:', err);
-            });
-          }
-
-          // 同步清理本地缓存与界面列表
-          const localRecords = (uni.getStorageSync('solution_history_records') || []).filter(
-            (r) => String(r.id) !== String(quoteId) && String(r.quote_id) !== String(quoteId)
-          );
-          uni.setStorageSync('solution_history_records', localRecords);
-
-          historySolutions.value = historySolutions.value.filter(
-            (s) => String(s.id) !== String(quoteId) && String(s.quote_id) !== String(quoteId)
-          );
-
-          uni.showToast({ title: '已删除报价单', icon: 'success' });
-          await loadHistory();
-        } catch (e) {
-          uni.showToast({ title: e?.message || '删除失败', icon: 'none' });
-        } finally {
-          uni.hideLoading();
-        }
+      if (!res.confirm) return;
+      uni.showLoading({ title: '正在删除...' });
+      let error = null;
+      try {
+        await deleteQuote(quoteId);
+        const localRecords = (uni.getStorageSync('solution_history_records') || []).filter(
+          (record) => String(record.id) !== String(quoteId) && String(record.quote_id) !== String(quoteId)
+        );
+        uni.setStorageSync('solution_history_records', localRecords);
+        historySolutions.value = historySolutions.value.filter(
+          (record) => String(record.id) !== String(quoteId) && String(record.quote_id) !== String(quoteId)
+        );
+      } catch (e) {
+        error = e;
+      } finally {
+        uni.hideLoading();
       }
+      uni.showToast({ title: error?.message || '删除成功', icon: error ? 'none' : 'success' });
     }
   });
 };
@@ -796,6 +788,11 @@ watch(addSearchKeyword, () => {
 
 onShow(() => {
   showMiniProgramShareMenu();
+  // 消费首页“全部报价单”的一次性跳转标记，避免之后进入时仍停留在历史标签。
+  if (uni.getStorageSync('solution_open_tab') === 'history') {
+    activeTab.value = 'history';
+    uni.removeStorageSync('solution_open_tab');
+  }
   loadCart();
   loadHistory();
   checkPendingProduct();
