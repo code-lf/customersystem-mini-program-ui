@@ -169,7 +169,8 @@
         </view>
       </view>
 
-      <scroll-view class="product-scroll" scroll-y>
+      <!-- 商品使用页面原生滚动，避免小程序 scroll-view 弹性高度失效导致列表截断。 -->
+      <view class="product-scroll">
         <view v-if="filteredProducts.length" class="product-list-container">
           <!-- Full width list view -->
           <view
@@ -203,9 +204,7 @@
             一键全选
           </view>
         </view>
-        <!-- Bottom padding for mini cart -->
-        <view style="height: 120rpx;"></view>
-      </scroll-view>
+      </view>
 
       <!-- 底部浮动购物车 -->
       <view class="mini-cart-bar">
@@ -701,20 +700,17 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 <style lang="scss" scoped>
 .category-page {
-  padding: 0;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  /* 页面整体滚动，底部只预留原有 110rpx 购物车高度。 */
+  padding: 0 0 110rpx;
+  min-height: 100vh;
+  height: auto;
+  box-sizing: border-box;
   background: #f8fafc;
 }
 
 .central-category-wrap {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  height: calc(100vh - 88rpx);
-  overflow: hidden;
-  position: relative;
+  /* 不裁切商品内容，长列表交给小程序页面本身滚动。 */
+  overflow: visible;
 }
 
 /* 顶部根分类 */
@@ -735,7 +731,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   border-radius: 36rpx;
   background: #f1f5f9;
   color: #475569;
-  font-size: 26rpx;
+  font-size: 30rpx;
   font-weight: 600;
   transition: all 0.25s ease;
 
@@ -781,7 +777,8 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
     border-radius: 28rpx;
     background: #f1f5f9;
     color: #475569;
-    font-size: 23rpx;
+    /* 二级以下筛选字号略小于一级分类，真机上也能清楚识别。 */
+    font-size: 28rpx;
     line-height: 1.4;
     transition: all 0.2s ease;
     
@@ -802,7 +799,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   }
 
   .toggle-text {
-    font-size: 22rpx;
+    font-size: 26rpx;
     color: #1d4ed8;
     font-weight: 600;
   }
@@ -842,7 +839,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   border-radius: 28rpx;
   background: #f1f5f9;
   color: #475569;
-  font-size: 24rpx;
+  font-size: 28rpx;
   white-space: nowrap;
   flex-shrink: 0;
   transition: all 0.2s ease;
@@ -868,7 +865,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 }
 
 .more-label {
-  font-size: 22rpx;
+  font-size: 26rpx;
   color: #1d4ed8;
   font-weight: 600;
   margin-right: 2rpx;
@@ -904,7 +901,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   background: #ffffff;
   border: 1.5rpx solid #cbd5e1;
   color: #64748b;
-  font-size: 24rpx;
+  font-size: 28rpx;
   line-height: 1.4;
   transition: all 0.2s ease;
 
@@ -917,7 +914,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   }
 
   .tag-check-mark {
-    font-size: 22rpx;
+    font-size: 26rpx;
     margin-right: 8rpx;
     font-weight: bold;
     color: #2563eb;
@@ -1023,12 +1020,11 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 
 /* 商品列表（整行显示型号和名称，无图片） */
 .product-scroll {
-  flex: 1;
-  overflow: hidden;
+  width: 100%;
 }
 
 .product-list-container {
-  padding: 20rpx 24rpx;
+  padding: 20rpx 24rpx 32rpx;
   display: flex;
   flex-direction: column;
   gap: 20rpx;
@@ -1144,24 +1140,27 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   box-shadow: 0 4rpx 12rpx rgba(29, 78, 216, 0.2);
 }
 
-/* 底部浮动购物车 */
+/* 购物车始终固定在屏幕底部，页面底部内边距保证末尾商品可完整滚出。 */
 .mini-cart-bar {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
   left: 0;
   right: 0;
+  bottom: 0;
+  /* 恢复原始底栏高度；不叠加安全区，避免整条按钮被拉高。 */
   height: 110rpx;
+  box-sizing: border-box;
   background: #1e293b;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0 0 32rpx;
+  align-items: stretch;
+  padding-left: 32rpx;
   z-index: 100;
 }
 
 .cart-left {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .cart-icon-box {
@@ -1203,7 +1202,10 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 }
 
 .cart-right {
-  height: 100%;
+  /* 蓝色点击区只占原有 110rpx 高度。 */
+  flex: 0 0 32%;
+  min-width: 0;
+  padding: 0 12rpx;
   background: #1d4ed8;
   color: #fff;
   font-size: 30rpx;
@@ -1211,6 +1213,6 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 48rpx;
+  box-sizing: border-box;
 }
 </style>
