@@ -74,7 +74,119 @@ const state = {
   ],
   feedbacks: [],
   cooperation: [],
-  payments: {}
+  payments: {},
+  campaigns: [
+    {
+      id: 1,
+      title: '2026年浙江格宏秋季暖通订货会',
+      type: 'order',
+      type_name: '订货会',
+      cover_image: 'http://gh.starall.cn/static/resource/aircon/central-default.png',
+      banner_image: 'http://gh.starall.cn/static/resource/aircon/central-default.png',
+      summary: '核心经销商专属闭门订货会，全系列多联机及变频单元机阶梯让利，订货享最高8%返点补贴与辅材大礼包！',
+      start_time: '2026-09-15 09:00',
+      end_time: '2026-10-31 18:00',
+      status: 'ongoing',
+      status_name: '进行中',
+      discount_desc: '订单满10万送全套安装辅材包，满20万返点8%',
+      enrollment_count: 46,
+      enrolled: false,
+      policy: '1. 本次活动仅限浙江格宏认证经销商与签约服务商参与；\n2. 报名成功后，区域销售经理将在2小时内对接专享提货价；\n3. 支持分批提货，锁定活动低价至2026年底；\n4. 订货会特批专属账期与物流直达支持。',
+      contact_person: '周经理',
+      contact_phone: '13857108899',
+      products: [
+        { id: 1, name: '格宏智享系列 160变频多联室外机', model: 'GH-VK160-INV', original_price: 18800, campaign_price: 15600, discount_text: '直降 ¥3,200', stock_limit: 80, image: 'http://gh.starall.cn/static/resource/aircon/central-default.png' },
+        { id: 2, name: '格宏全直流变频薄型风管机 36型', model: 'GH-FG36-DC', original_price: 4300, campaign_price: 3480, discount_text: '直降 ¥820', stock_limit: 150, image: 'http://gh.starall.cn/static/resource/aircon/notice-summer.png' },
+        { id: 3, name: '格宏商用多联内机 71型四面出风', model: 'GH-4W71-INV', original_price: 6800, campaign_price: 5500, discount_text: '直降 ¥1,300', stock_limit: 60, image: 'http://gh.starall.cn/static/resource/aircon/notice-cloud.png' }
+      ]
+    },
+    {
+      id: 2,
+      title: '秋季精选变频风管机限时促销',
+      type: 'promotion',
+      type_name: '限时促销',
+      cover_image: 'http://gh.starall.cn/static/resource/aircon/notice-summer.png',
+      banner_image: 'http://gh.starall.cn/static/resource/aircon/notice-summer.png',
+      summary: '针对家装改善型与工装工程，指定机型整箱下单立减，限时限量供应！',
+      start_time: '2026-09-20 00:00',
+      end_time: '2026-10-15 23:59',
+      status: 'ongoing',
+      status_name: '进行中',
+      discount_desc: '整箱采购立减15%，赠送原厂线控器',
+      enrollment_count: 29,
+      enrolled: false,
+      policy: '1. 适用于住宅家装、小型餐饮及办公场所改造采购；\n2. 活动优惠不可与常规年度折扣重复叠加；\n3. 报名后业务员协助快速出具定制报价单。',
+      contact_person: '陈主管',
+      contact_phone: '13958116677',
+      products: [
+        { id: 4, name: '格宏臻悦系列 120超低温多联机', model: 'GH-ZY120-LT', original_price: 15200, campaign_price: 12900, discount_text: '直降 ¥2,300', stock_limit: 40, image: 'http://gh.starall.cn/static/resource/aircon/central-default.png' }
+      ]
+    },
+    {
+      id: 3,
+      title: '全新VK6超低温空气源热泵新品上市品鉴会',
+      type: 'new',
+      type_name: '新品上市',
+      cover_image: 'http://gh.starall.cn/static/resource/aircon/notice-cloud.png',
+      banner_image: 'http://gh.starall.cn/static/resource/aircon/notice-cloud.png',
+      summary: '格宏2026年度旗舰新品，超低温-35℃强劲制热，首批样机订购享50%样板房补贴！',
+      start_time: '2026-10-01 09:00',
+      end_time: '2026-11-20 18:00',
+      status: 'upcoming',
+      status_name: '预热中',
+      discount_desc: '前20名报名者享工程样板补贴与免费技术培训',
+      enrollment_count: 18,
+      enrolled: false,
+      policy: '1. 针对北方采暖及长江流域严寒工况重点推广；\n2. 优先为报名的认证服务商提供技术支持与方案设计配合。',
+      contact_person: '王总工',
+      contact_phone: '13738009922',
+      products: [
+        { id: 5, name: '格宏VK6 超低温空气源两联供热泵机组', model: 'GH-HP6-30KW', original_price: 36000, campaign_price: 29800, discount_text: '首发补贴 ¥6,200', stock_limit: 20, image: 'http://gh.starall.cn/static/resource/aircon/central-default.png' }
+      ]
+    },
+    {
+      id: 4,
+      title: '2025款工程库存样机年终清仓让利',
+      type: 'clearance',
+      type_name: '清仓特惠',
+      cover_image: 'http://gh.starall.cn/static/resource/aircon/ai-robot.png',
+      banner_image: 'http://gh.starall.cn/static/resource/aircon/ai-robot.png',
+      summary: '工程结余优质原厂未开封设备与展示样机，全场低至4折，一机一验，售完即止！',
+      start_time: '2026-09-10 00:00',
+      end_time: '2026-10-20 23:59',
+      status: 'ongoing',
+      status_name: '进行中',
+      discount_desc: '低至4折，全机享原厂联保与检测报告',
+      enrollment_count: 62,
+      enrolled: false,
+      policy: '1. 清仓设备均经过原厂出厂质检合格，保修政策等同全新设备；\n2. 库存先款先得，不支持口头留货。',
+      contact_person: '周经理',
+      contact_phone: '13857108899',
+      products: [
+        { id: 6, name: '格宏商用变频天花机 50型（原厂样机）', model: 'GH-TH50-DEMO', original_price: 5200, campaign_price: 2600, discount_text: '5折特价 ¥2,600', stock_limit: 12, image: 'http://gh.starall.cn/static/resource/aircon/notice-summer.png' }
+      ]
+    }
+  ],
+  enrollments: [
+    {
+      id: 1001,
+      campaign_id: 1,
+      campaign_title: '2026年浙江格宏秋季暖通订货会',
+      campaign_type: 'order',
+      campaign_cover: 'http://gh.starall.cn/static/resource/aircon/central-default.png',
+      contact_name: '张工',
+      mobile: '13800000000',
+      company_name: '浙江格宏电器有限公司',
+      intended_amount: '10-20万元',
+      remark: '计划订购5套多联机及配套室内机，请业务经理联系确认交期。',
+      status: 'followed',
+      status_name: '已跟进',
+      create_time: '2026-09-22 10:15',
+      salesman_name: '周经理',
+      salesman_phone: '13857108899',
+      quote_info: '已出具初步选型清单'
+    }
+  ]
 };
 
 function priceOf(product) {
@@ -404,6 +516,102 @@ export default function mockRequest({ method = 'GET', url = '', data = {} } = {}
       products,
       suggestions: ['帮我找适合120㎡的中央空调', '查看VK系列参数', '帮我做一个报价单']
     });
+  }
+
+  // 营销活动系列接口
+  if (key === 'GET crm/marketing/campaigns') {
+    let list = [...state.campaigns];
+    if (data.type && data.type !== 'all') {
+      list = list.filter((item) => item.type === data.type);
+    }
+    if (data.keyword) {
+      const kw = String(data.keyword).trim().toLowerCase();
+      list = list.filter((item) => (item.title && item.title.toLowerCase().includes(kw)) || (item.summary && item.summary.toLowerCase().includes(kw)));
+    }
+    // 标记当前用户是否已报名
+    const enrolledIds = new Set(state.enrollments.filter((e) => e.status !== 'cancelled').map((e) => Number(e.campaign_id)));
+    list = list.map((item) => ({
+      ...item,
+      enrolled: enrolledIds.has(Number(item.id))
+    }));
+    return success({ data: list, total: list.length });
+  }
+
+  if (key.startsWith('GET crm/marketing/campaign/')) {
+    const rawId = key.split('?')[0].split('/').pop();
+    const campaignId = Number(rawId);
+    let campaign = state.campaigns.find(
+      (item) => Number(item.id) === campaignId || String(item.id) === String(rawId)
+    );
+    if (!campaign && state.campaigns.length > 0) {
+      campaign = state.campaigns[0];
+    }
+    if (!campaign) return fail('活动不存在或已下架');
+    const myEnrollment = state.enrollments.find(
+      (e) => (Number(e.campaign_id) === Number(campaign.id) || String(e.campaign_id) === String(campaign.id)) && e.status !== 'cancelled'
+    );
+    return success({
+      ...campaign,
+      enrolled: Boolean(myEnrollment),
+      my_enrollment: myEnrollment || null
+    });
+  }
+
+  if (key.startsWith('POST crm/marketing/campaign/') && key.endsWith('/enroll')) {
+    const parts = key.split('/');
+    const campaignId = Number(parts[3]);
+    const campaign = state.campaigns.find((item) => Number(item.id) === campaignId);
+    if (!campaign) return fail('活动不存在');
+    const existing = state.enrollments.find((e) => Number(e.campaign_id) === campaignId && e.status !== 'cancelled');
+    if (existing) return fail('您已报名该活动，无需重复提交');
+
+    const newEnrollment = {
+      id: Date.now(),
+      campaign_id: campaignId,
+      campaign_title: campaign.title,
+      campaign_type: campaign.type,
+      campaign_cover: campaign.cover_image,
+      contact_name: data.contact_name || state.user?.nickname || '客户',
+      mobile: data.mobile || state.user?.mobile || '',
+      company_name: data.company_name || state.user?.company_name || '浙江格宏电器有限公司',
+      intended_amount: data.intended_amount || '待确认',
+      remark: data.remark || '',
+      status: 'submitted',
+      status_name: '待跟进',
+      create_time: now(),
+      salesman_name: campaign.contact_person || '专属业务经理',
+      salesman_phone: campaign.contact_phone || '13857108899',
+      quote_info: ''
+    };
+    state.enrollments.unshift(newEnrollment);
+    campaign.enrollment_count = (campaign.enrollment_count || 0) + 1;
+    return success(newEnrollment);
+  }
+
+  if (key === 'GET crm/marketing/enrollments') {
+    let list = [...state.enrollments];
+    if (data.status && data.status !== 'all') {
+      list = list.filter((item) => item.status === data.status);
+    }
+    return success({ data: list, total: list.length });
+  }
+
+  if (key.startsWith('GET crm/marketing/enrollment/')) {
+    const id = Number(key.split('/').pop());
+    const enrollment = state.enrollments.find((item) => Number(item.id) === id);
+    if (!enrollment) return fail('报名记录不存在');
+    return success(enrollment);
+  }
+
+  if (key.startsWith('PUT crm/marketing/enrollment/') && key.endsWith('/cancel')) {
+    const parts = key.split('/');
+    const id = Number(parts[3]);
+    const enrollment = state.enrollments.find((item) => Number(item.id) === id);
+    if (!enrollment) return fail('报名记录不存在');
+    if (enrollment.status === 'cancelled') return fail('该报名已取消');
+    enrollment.status = 'cancelled';
+    enrollment.status_name = '已取消';
+    return success(true);
   }
 
   return fail(`Mock 未匹配接口：${key}`);

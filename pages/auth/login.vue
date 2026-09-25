@@ -16,7 +16,7 @@
         <image class="logo-img" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" mode="aspectFit" />
         <view class="logo-glow" />
       </view>
-      <text class="brand-name">格宏电器助手</text>
+      <text class="brand-name">格宏家电助手</text>
       <text class="brand-slogan">空调产品中心 · 智能选型与报价系统</text>
     </view>
 
@@ -183,7 +183,7 @@
 
     <!-- 底部版权说明 -->
     <view class="login-footer">
-      <text>格宏电器科技有限公司 · 电器选型数字化服务</text>
+      <text>格宏家电助手 浙江格宏电器有限公司</text>
     </view>
   </view>
 </template>
@@ -199,7 +199,7 @@ import { onLoad } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
 
-const activeTab = ref('account'); // 'account' | 'wechat' | 'mobile'
+const activeTab = ref('wechat'); // 默认微信一键登录：'wechat' | 'account' | 'mobile'
 const loading = ref(false);
 const showPassword = ref(false);
 const isAgreed = ref(true);

@@ -287,9 +287,9 @@ const handleGreetingClick = () => {
 const quickTools = [
   { title: '产品选型', icon: 'grid-fill', color: '#2563eb', bg: '#eff6ff', path: '/pages/product/category' },
   { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
+  { title: '营销活动', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
-  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
-  { title: '品牌资讯', icon: 'volume-fill', color: '#ec4899', bg: '#fce7f3', path: '/pages/notice/index' }
+  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' }
 ];
 
 const formatMoney = (value) => {

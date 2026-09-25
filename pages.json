@@ -39,7 +39,10 @@
     { "path": "pages/wechat/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "关注公众号" } },
     { "path": "pages/feedback/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "用户反馈" } },
     { "path": "pages/cooperation/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "合作申请" } },
-    { "path": "pages/password/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "密码查询" } }
+    { "path": "pages/password/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "密码查询" } },
+    { "path": "pages/marketing/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "营销活动" } },
+    { "path": "pages/marketing/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "活动详情" } },
+    { "path": "pages/marketing/enrollments", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的活动报名" } }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",

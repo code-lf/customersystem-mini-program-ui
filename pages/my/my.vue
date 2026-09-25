@@ -511,6 +511,8 @@ const shortcuts = [
 ];
 
 const menus = [
+  { title: '营销活动', desc: '订货会/限时促销/新品上市优惠', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
+  { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
   { title: '消息通知', desc: '价格波动与系统升级提醒', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index', badge: '3' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
