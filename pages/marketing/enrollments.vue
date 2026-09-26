@@ -28,17 +28,17 @@
       <view v-else-if="enrollmentList.length > 0" class="records-wrap">
         <view
           v-for="item in enrollmentList"
-          :key="item.id"
+          :key="item.enrollment_id"
           class="enroll-card"
         >
           <!-- 头部：活动标题与状态标签 -->
           <view class="card-head">
             <view class="head-title-wrap" @click="openCampaign(item.campaign_id)">
-              <text class="campaign-title">{{ item.campaign_title || '营销活动报名' }}</text>
+              <text class="campaign-title">{{ item.campaign_title_snapshot || '营销活动报名' }}</text>
               <up-icon name="arrow-right" size="12" color="#94a3b8" />
             </view>
-            <view class="status-pill" :class="item.status">
-              {{ formatStatusName(item.status) }}
+            <view class="status-pill" :class="item.enroll_status">
+              {{ formatStatusName(item.enroll_status) }}
             </view>
           </view>
 
@@ -46,19 +46,11 @@
           <view class="card-body">
             <view class="info-row">
               <text class="info-label">报名时间：</text>
-              <text class="info-val">{{ item.create_time }}</text>
+              <text class="info-val">{{ item.create_time_text || formatTime(item.create_time) }}</text>
             </view>
             <view class="info-row">
               <text class="info-label">联系人：</text>
-              <text class="info-val">{{ item.contact_name }} ({{ item.mobile }})</text>
-            </view>
-            <view v-if="item.company_name" class="info-row">
-              <text class="info-label">申报企业：</text>
-              <text class="info-val">{{ item.company_name }}</text>
-            </view>
-            <view v-if="item.intended_amount" class="info-row">
-              <text class="info-label">意向规模：</text>
-              <text class="info-val highlight">{{ item.intended_amount }}</text>
+              <text class="info-val">{{ item.contact_name }} ({{ item.contact_mobile }})</text>
             </view>
             <view v-if="item.remark" class="info-row">
               <text class="info-label">需求备注：</text>
@@ -66,22 +58,14 @@
             </view>
 
             <!-- 业务员对接进度卡 -->
-            <view v-if="item.status !== 'cancelled'" class="salesman-box">
+            <view v-if="item.handled_remark || item.quote_id" class="salesman-box">
               <view class="salesman-left">
                 <up-icon name="kefu-ermai" size="18" color="#2563eb" />
                 <view class="salesman-detail">
-                  <text class="sm-name">专属对接：{{ item.salesman_name || '大客户经理' }}</text>
-                  <text class="sm-tip">{{ item.quote_info || (item.status === 'followed' ? '已安排专属特惠配单' : '2小时内电话沟通方案') }}</text>
+                  <text class="sm-name">处理进度</text>
+                  <text class="sm-tip">{{ item.handled_remark || (item.quote_id ? '已生成报价' : '') }}</text>
                 </view>
               </view>
-              <button
-                v-if="item.salesman_phone"
-                class="phone-call-btn"
-                @click="callSalesman(item.salesman_phone)"
-              >
-                <up-icon name="phone-fill" size="12" color="#2563eb" />
-                <text>致电</text>
-              </button>
             </view>
           </view>
 
@@ -95,20 +79,13 @@
             </button>
 
             <button
-              v-if="item.status === 'submitted' || item.status === 'followed'"
+              v-if="item.enroll_status === 'submitted' || item.enroll_status === 'followed'"
               class="action-btn action-btn--cancel"
               @click="handleCancelEnrollment(item)"
             >
               取消报名
             </button>
 
-            <button
-              v-if="item.salesman_phone"
-              class="action-btn action-btn--primary"
-              @click="callSalesman(item.salesman_phone)"
-            >
-              联系业务经理
-            </button>
           </view>
         </view>
       </view>
@@ -162,6 +139,9 @@ const formatStatusName = (status) => {
   return map[status] || '已提交';
 };
 
+// 接口以秒级时间戳返回创建时间，作为未提供文本字段时的展示兜底。
+const formatTime = (value) => value ? new Date(Number(value) * 1000).toLocaleString() : '';
+
 const handleBack = () => {
   const pages = getCurrentPages();
   if (pages.length > 1) {
@@ -182,14 +162,6 @@ const openCampaign = (campaignId) => {
   }
 };
 
-const callSalesman = (phone) => {
-  if (!phone) return;
-  uni.makePhoneCall({
-    phoneNumber: phone,
-    fail: () => {}
-  });
-};
-
 const fetchList = async () => {
   if (!userStore.isLoggedIn) {
     enrollmentList.value = [];
@@ -198,11 +170,14 @@ const fetchList = async () => {
 
   loading.value = true;
   try {
-    const res = await getEnrollments({ status: currentStatus.value });
-    const list = Array.isArray(res) ? res : (res?.data || []);
-    enrollmentList.value = list;
+    const params = { page: 1, limit: 100 };
+    if (currentStatus.value !== 'all') params.enroll_status = currentStatus.value;
+    const res = await getEnrollments(params);
+    enrollmentList.value = Array.isArray(res?.data) ? res.data : [];
   } catch (error) {
     console.warn('获取我的报名记录失败:', error);
+    enrollmentList.value = [];
+    uni.showToast({ title: error?.message || '获取报名记录失败', icon: 'none' });
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
@@ -212,7 +187,7 @@ const fetchList = async () => {
 const handleCancelEnrollment = (item) => {
   uni.showModal({
     title: '确认取消报名？',
-    content: `取消后专属业务经理将停止活动政策锁定（活动：${item.campaign_title || ''}）。`,
+    content: `确定取消“${item.campaign_title_snapshot || '该活动'}”的报名吗？`,
     confirmText: '确定取消',
     confirmColor: '#ef4444',
     cancelText: '再想想',
@@ -220,7 +195,7 @@ const handleCancelEnrollment = (item) => {
       if (res.confirm) {
         uni.showLoading({ title: '正在取消...' });
         try {
-          await cancelEnrollment(item.id);
+          await cancelEnrollment(item.enrollment_id);
           uni.hideLoading();
           uni.showToast({ title: '已取消报名', icon: 'success' });
           fetchList();

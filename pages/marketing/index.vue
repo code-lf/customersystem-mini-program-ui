@@ -62,22 +62,6 @@
         </view>
       </view>
 
-      <!-- 顶部营销优势横幅 -->
-      <view class="promo-banner">
-        <view class="promo-banner__content">
-          <view class="promo-badge">
-            <up-icon name="gift-fill" size="13" color="#ffffff" />
-            <text>经销商专享特惠</text>
-          </view>
-          <text class="promo-title">2026 格宏暖通全系订货季</text>
-          <text class="promo-desc">在线报名享专属业务经理对接、阶梯返点及工程样机直降</text>
-        </view>
-        <view class="promo-banner__action" @click="openPage('/pages/marketing/enrollments')">
-          <text>跟进进度</text>
-          <up-icon name="arrow-right" size="12" color="#ffffff" />
-        </view>
-      </view>
-
       <!-- 加载中 -->
       <view v-if="loading" class="loading-state">
         <up-icon name="loading" size="28" color="#2563eb" />
@@ -88,7 +72,7 @@
       <view v-else-if="campaignList.length > 0" class="campaign-list">
         <view
           v-for="item in campaignList"
-          :key="item.id"
+          :key="item.campaign_id"
           class="campaign-card"
           @click="openDetail(item)"
         >
@@ -100,37 +84,32 @@
               mode="aspectFill"
             />
             <view class="cover-overlay" />
-            <view class="cover-type-tag" :class="item.type">
-              {{ item.type_name || formatTypeName(item.type) }}
+            <view class="cover-type-tag" :class="item.campaign_type">
+              {{ formatTypeName(item.campaign_type) }}
             </view>
-            <view class="cover-status-badge" :class="item.status">
-              {{ item.status_name || (item.status === 'ongoing' ? '进行中' : (item.status === 'upcoming' ? '即将开始' : '已结束')) }}
+            <view class="cover-status-badge" :class="item.campaign_status">
+              {{ formatCampaignStatus(item) }}
             </view>
           </view>
 
           <!-- 卡片信息区 -->
           <view class="card-body">
             <view class="card-title-row">
-              <text class="card-title">{{ item.title }}</text>
+              <text class="card-title">{{ item.campaign_title }}</text>
             </view>
             <text class="card-summary">{{ item.summary }}</text>
 
             <!-- 政策亮点标签 -->
-            <view v-if="item.discount_desc" class="discount-row">
-              <up-icon name="tags-fill" size="14" color="#f43f5e" />
-              <text class="discount-text">{{ item.discount_desc }}</text>
-            </view>
-
             <!-- 特惠商品简要预览 -->
-            <view v-if="item.products && item.products.length > 0" class="preview-products">
+            <view v-if="item.items && item.items.length > 0" class="preview-products">
               <view
-                v-for="p in item.products.slice(0, 2)"
-                :key="p.id"
+                v-for="p in item.items.slice(0, 2)"
+                :key="p.item_id"
                 class="preview-prod-item"
               >
-                <text class="prod-model">{{ p.model || p.name }}</text>
+                <text class="prod-model">{{ p.model_snapshot || p.goods_name_snapshot }}</text>
                 <text class="prod-price-text">
-                  特惠价 ¥<text class="price-val">{{ Number(p.campaign_price || p.price || 0).toLocaleString() }}</text>
+                  活动价 ¥<text class="price-val">{{ Number(p.campaign_price || 0).toLocaleString() }}</text>
                 </text>
               </view>
             </view>
@@ -143,7 +122,7 @@
               </view>
 
               <view class="action-btn-wrap">
-                <view v-if="item.enrolled" class="status-enrolled">
+                <view v-if="item.my_latest_enrollment && item.my_latest_enrollment.enroll_status !== 'cancelled'" class="status-enrolled">
                   <up-icon name="checkmark-circle-fill" size="14" color="#10b981" />
                   <text>已报名 · 查看</text>
                 </view>
@@ -209,6 +188,15 @@ const formatTypeName = (type) => {
   return map[type] || '专题活动';
 };
 
+// 活动发布状态与活动时间分开计算，接口没有 ongoing/upcoming 字段。
+const formatCampaignStatus = (item) => {
+  if (item.campaign_status !== 'published') return '已结束';
+  const now = Date.now();
+  if (Number(item.start_time) > 0 && now < Number(item.start_time) * 1000) return '即将开始';
+  if (Number(item.end_time) > 0 && now > Number(item.end_time) * 1000) return '已结束';
+  return '进行中';
+};
+
 // 格式化时间字符串/时间戳，防止类型错误或显示为空
 const formatDateVal = (val) => {
   if (!val) return '';
@@ -268,7 +256,7 @@ const formatTimeRange = (itemOrStart, end) => {
   if (!sStr && eStr) {
     return `截止至 ${eStr}`;
   }
-  return '长期有效 · 火热进行中';
+  return '长期有效';
 };
 
 const switchType = (key) => {
@@ -292,8 +280,7 @@ const resetFilter = () => {
 };
 
 const openDetail = (item) => {
-  const id = (item && (item.id || item.campaign_id || item.activity_id)) || 1;
-  openPage('/pages/marketing/detail', { id });
+  if (item?.campaign_id) openPage('/pages/marketing/detail', { id: item.campaign_id });
 };
 
 // 获取活动列表数据
@@ -301,21 +288,18 @@ const fetchCampaigns = async () => {
   loading.value = true;
   try {
     const params = {
-      type: currentType.value,
-      keyword: keyword.value.trim()
+      page: 1,
+      limit: 100,
+      ...(currentType.value !== 'all' ? { campaign_type: currentType.value } : {}),
+      ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {})
     };
     const res = await getCampaigns(params);
-    let list = [];
-    if (Array.isArray(res)) {
-      list = res;
-    } else if (res && Array.isArray(res.data)) {
-      list = res.data;
-    } else if (res && res.list && Array.isArray(res.list)) {
-      list = res.list;
-    }
-    campaignList.value = list;
+    // request 工具已拆掉外层 code/data，列表本身是分页对象。
+    campaignList.value = Array.isArray(res?.data) ? res.data : [];
   } catch (error) {
     console.warn('获取营销活动失败:', error);
+    campaignList.value = [];
+    uni.showToast({ title: error?.message || '获取活动失败', icon: 'none' });
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
@@ -326,9 +310,9 @@ const fetchCampaigns = async () => {
 const fetchEnrollCount = async () => {
   if (!userStore.isLoggedIn) return;
   try {
-    const res = await getEnrollments({ status: 'all' });
-    const list = Array.isArray(res) ? res : (res?.data || []);
-    enrollCount.value = list.filter((i) => i.status !== 'cancelled').length;
+    const res = await getEnrollments({ page: 1, limit: 100 });
+    const list = Array.isArray(res?.data) ? res.data : [];
+    enrollCount.value = list.filter((i) => i.enroll_status !== 'cancelled').length;
   } catch (e) {
     // 静默处理
   }

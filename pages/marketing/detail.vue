@@ -15,23 +15,23 @@
       <view class="hero-cover">
         <image
           class="hero-img"
-          :src="campaign.banner_image || campaign.cover_image || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
+          :src="campaign.cover_image || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
           mode="aspectFill"
         />
         <view class="hero-overlay" />
         <view class="hero-tag-bar">
-          <view class="type-pill" :class="campaign.type">
-            {{ campaign.type_name || formatTypeName(campaign.type) }}
+          <view class="type-pill" :class="campaign.campaign_type">
+            {{ formatTypeName(campaign.campaign_type) }}
           </view>
-          <view class="status-pill" :class="campaign.status">
-            {{ campaign.status_name || (campaign.status === 'ongoing' ? '进行中' : '未开始') }}
+          <view class="status-pill" :class="campaign.campaign_status">
+            {{ campaignStatusText }}
           </view>
         </view>
       </view>
 
       <!-- 活动主标题与倒计时 -->
       <view class="section-card title-card">
-        <text class="campaign-title">{{ campaign.title }}</text>
+        <text class="campaign-title">{{ campaign.campaign_title }}</text>
         <text class="campaign-summary">{{ campaign.summary }}</text>
 
         <!-- 倒计时 / 时间卡条 -->
@@ -48,12 +48,12 @@
         </view>
 
         <!-- 政策福利亮点 -->
-        <view v-if="campaign.discount_desc" class="benefit-box">
+        <view v-if="campaign.remark" class="benefit-box">
           <view class="benefit-head">
             <up-icon name="gift-fill" size="16" color="#dc2626" />
             <text class="benefit-head-title">专享优惠政策</text>
           </view>
-          <text class="benefit-content">{{ campaign.discount_desc }}</text>
+          <text class="benefit-content">{{ campaign.remark }}</text>
         </view>
       </view>
 
@@ -66,7 +66,7 @@
             </view>
             <view class="share-text-wrap">
               <text class="share-main-title">分享特惠活动给同行或团队</text>
-              <text class="share-sub-title">邀请暖通合作伙伴一起参与，锁定低价与阶梯返点</text>
+              <text class="share-sub-title">分享活动详情给同行或团队</text>
             </view>
           </view>
           <button class="share-card-btn" open-type="share" @click="handleNativeShare">
@@ -83,7 +83,7 @@
         </view>
         <view class="enrolled-info">
           <text class="enrolled-title">您已成功报名此活动</text>
-          <text class="enrolled-desc">专属销售经理正在准备专享报价，您可在“我的报名”中跟踪进度。</text>
+          <text class="enrolled-desc">您可在“我的报名”中查看报名状态。</text>
         </view>
         <view class="enrolled-action" @click="openPage('/pages/marketing/enrollments')">
           <text>查看进度</text>
@@ -92,52 +92,47 @@
       </view>
 
       <!-- 活动特惠机型 -->
-      <view v-if="campaign.products && campaign.products.length > 0" class="section-card">
+      <view v-if="campaign.items && campaign.items.length > 0" class="section-card">
         <view class="section-head">
           <view class="head-left">
             <view class="decor-bar" />
-            <text class="head-title">活动特惠机型 ({{ campaign.products.length }})</text>
+            <text class="head-title">活动商品 ({{ campaign.items.length }})</text>
           </view>
-          <text class="head-tip">限时活动价，先订先得</text>
         </view>
 
         <view class="product-list">
           <view
-            v-for="prod in campaign.products"
-            :key="prod.id"
+            v-for="prod in campaign.items"
+            :key="prod.item_id"
             class="prod-card"
             @click="handleProductClick(prod)"
           >
             <image
               class="prod-thumb"
-              :src="prod.image || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
+              :src="prod.image_snapshot || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
               mode="aspectFit"
             />
             <view class="prod-detail">
-              <text class="prod-name">{{ prod.name }}</text>
-              <text class="prod-model">{{ prod.model }}</text>
+              <text class="prod-name">{{ prod.goods_name_snapshot }}</text>
+              <text class="prod-model">{{ prod.model_snapshot }}</text>
 
               <view class="price-row">
                 <view class="price-current">
                   <text class="cur-symbol">¥</text>
-                  <text class="cur-val">{{ Number(prod.campaign_price || prod.price || 0).toLocaleString() }}</text>
+                  <text class="cur-val">{{ Number(prod.campaign_price || 0).toLocaleString() }}</text>
                 </view>
-                <text v-if="prod.original_price" class="price-origin">
-                  指导价 ¥{{ Number(prod.original_price).toLocaleString() }}
+                <text v-if="prod.origin_price" class="price-origin">
+                  原价 ¥{{ Number(prod.origin_price).toLocaleString() }}
                 </text>
               </view>
 
-              <view class="prod-footer">
-                <text v-if="prod.discount_text" class="prod-discount-tag">{{ prod.discount_text }}</text>
-                <text v-if="prod.stock_limit" class="prod-stock">活动限量 {{ prod.stock_limit }} 台</text>
-              </view>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 活动规则与说明 -->
-      <view class="section-card">
+      <view v-if="campaign.content" class="section-card">
         <view class="section-head">
           <view class="head-left">
             <view class="decor-bar" />
@@ -145,12 +140,12 @@
           </view>
         </view>
         <view class="policy-body">
-          <text class="policy-text">{{ campaign.policy || '1. 仅限格宏认证服务商及签约暖通经销商参与；\n2. 活动优惠不可与其他特价同时使用；\n3. 提交意向报名后，后台业务顾问将在2小时内对接确认。' }}</text>
+          <text class="policy-text">{{ campaign.content }}</text>
         </view>
       </view>
 
       <!-- 活动组织方与专属顾问 -->
-      <view class="section-card consultant-card">
+      <view v-if="campaign.owner_name" class="section-card consultant-card">
         <view class="section-head">
           <view class="head-left">
             <view class="decor-bar" />
@@ -162,13 +157,8 @@
             <up-icon name="account-fill" size="24" color="#2563eb" />
           </view>
           <view class="consultant-text">
-            <text class="c-name">{{ campaign.contact_person || '周经理（大客户销售经理）' }}</text>
-            <text class="c-phone">服务热线：{{ campaign.contact_phone || '13857108899' }}</text>
+            <text class="c-name">{{ campaign.owner_name }}</text>
           </view>
-          <button class="call-btn" @click="handleCall">
-            <up-icon name="phone-fill" size="16" color="#ffffff" />
-            <text>电话咨询</text>
-          </button>
         </view>
       </view>
     </view>
@@ -184,10 +174,6 @@
     <!-- 底部固定操作栏 -->
     <view v-if="campaign" class="bottom-action-bar">
       <view class="bar-left">
-        <view class="action-icon-btn" @click="handleCall">
-          <up-icon name="kefu-ermai" size="20" color="#475569" />
-          <text class="icon-label">咨询顾问</text>
-        </view>
         <!-- 详情页专属分享按钮 -->
         <button class="action-icon-btn action-icon-btn--share" open-type="share" @click="handleNativeShare">
           <up-icon name="share" size="20" color="#2563eb" />
@@ -207,6 +193,9 @@
         >
           <up-icon name="checkmark" size="16" color="#ffffff" />
           <text>已报名 · 查看跟进</text>
+        </button>
+        <button v-else-if="campaign.can_enroll === false" class="btn-enrolled-status" disabled>
+          <text>暂不可报名</text>
         </button>
         <button
           v-else
@@ -229,7 +218,7 @@
       <view class="enroll-form-panel">
         <view class="panel-header">
           <text class="panel-title">报名参加活动</text>
-          <text class="panel-sub">提交报名后专属业务经理将对接锁定特惠价格</text>
+          <text class="panel-sub">请填写真实联系人信息，以便后续跟进</text>
         </view>
 
         <scroll-view class="panel-scroll" scroll-y>
@@ -249,39 +238,12 @@
             <text class="field-label">联系电话 <text class="req">*</text></text>
             <view class="input-wrap">
               <input
-                v-model="enrollForm.mobile"
+                v-model="enrollForm.contact_mobile"
                 class="form-input"
                 type="number"
                 placeholder="请输入手机号"
                 maxlength="11"
               />
-            </view>
-          </view>
-
-          <view class="form-group">
-            <text class="field-label">所属公司 / 门店名称</text>
-            <view class="input-wrap">
-              <input
-                v-model="enrollForm.company_name"
-                class="form-input"
-                placeholder="请输入暖通公司或工程门店名称"
-                maxlength="40"
-              />
-            </view>
-          </view>
-
-          <view class="form-group">
-            <text class="field-label">预估采购意向规模</text>
-            <view class="budget-tags">
-              <view
-                v-for="tag in budgetOptions"
-                :key="tag"
-                class="budget-tag"
-                :class="{ active: enrollForm.intended_amount === tag }"
-                @click="enrollForm.intended_amount = tag"
-              >
-                {{ tag }}
-              </view>
             </view>
           </view>
 
@@ -316,7 +278,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
-import { getCampaignDetail, getCampaigns, enrollCampaign } from '@/api/marketing';
+import { getCampaignDetail, enrollCampaign } from '@/api/marketing';
 import { openPage } from '@/utils/pages';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
@@ -324,19 +286,15 @@ import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
 
-const campaignId = ref(1);
+const campaignId = ref(null);
 const campaign = ref(null);
 const loading = ref(true);
 const submitting = ref(false);
 const showEnrollModal = ref(false);
 
-const budgetOptions = ['5万以下', '5-10万元', '10-20万元', '20-50万元', '50万元以上'];
-
 const enrollForm = reactive({
   contact_name: '',
-  mobile: '',
-  company_name: '',
-  intended_amount: '10-20万元',
+  contact_mobile: '',
   remark: ''
 });
 
@@ -346,16 +304,16 @@ onShow(() => {
 
 onShareAppMessage(() => {
   const c = campaign.value;
-  const title = c?.title ? `【活动特惠】${c.title}` : '格宏营销活动详情';
-  const img = c?.cover_image || c?.banner_image || '';
+  const title = c?.campaign_title ? `【营销活动】${c.campaign_title}` : '格宏营销活动详情';
+  const img = c?.cover_image || '';
   const path = `/pages/marketing/detail?id=${campaignId.value}`;
   return createShareAppMessageOptions(title, img, path);
 });
 
 onShareTimeline(() => {
   const c = campaign.value;
-  const title = c?.title ? `【活动特惠】${c.title}` : '格宏营销活动详情';
-  const img = c?.cover_image || c?.banner_image || '';
+  const title = c?.campaign_title ? `【营销活动】${c.campaign_title}` : '格宏营销活动详情';
+  const img = c?.cover_image || '';
   const query = `id=${campaignId.value}`;
   return createShareTimelineOptions(title, img, query);
 });
@@ -414,36 +372,35 @@ const resolveCampaignId = (options = {}) => {
   return null;
 };
 
-onLoad(async (options) => {
+onLoad((options) => {
   const targetId = resolveCampaignId(options);
   if (targetId) {
     campaignId.value = targetId;
     fetchDetail(targetId);
   } else {
-    // 优雅容错降级：不弹出“参数错误”，而是默认拉取最新可用活动
-    try {
-      const res = await getCampaigns();
-      const list = Array.isArray(res) ? res : (res?.data || res?.list || []);
-      if (list && list.length > 0) {
-        campaignId.value = list[0].id;
-        fetchDetail(list[0].id);
-        return;
-      }
-    } catch (e) {
-      // ignore
-    }
-    campaignId.value = 1;
-    fetchDetail(1);
+    // 缺少活动 ID 时明确提示，避免误打开第一条活动。
+    loading.value = false;
+    uni.showToast({ title: '缺少活动编号', icon: 'none' });
   }
 });
 
 const isEnrolled = computed(() => {
-  return Boolean(campaign.value?.enrolled || campaign.value?.my_enrollment);
+  const record = campaign.value?.my_latest_enrollment;
+  return Boolean(record && record.enroll_status !== 'cancelled');
+});
+
+// 根据后端发布时间和起止时间展示用户可理解的活动状态。
+const campaignStatusText = computed(() => {
+  const item = campaign.value;
+  if (!item || item.campaign_status !== 'published') return '已结束';
+  if (Number(item.start_time) > 0 && Date.now() < Number(item.start_time) * 1000) return '即将开始';
+  if (Number(item.end_time) > 0 && Date.now() > Number(item.end_time) * 1000) return '已结束';
+  return '进行中';
 });
 
 const daysRemaining = computed(() => {
   if (!campaign.value?.end_time) return -1;
-  const end = new Date(String(campaign.value.end_time).replace(/-/g, '/')).getTime();
+  const end = Number(campaign.value.end_time) * 1000;
   const now = Date.now();
   const diff = end - now;
   if (diff <= 0) return 0;
@@ -495,7 +452,7 @@ const formatTimeRangeDisplay = (start, end) => {
   if (s && e) return `${s} 至 ${e}`;
   if (s) return `${s} 起`;
   if (e) return `截止至 ${e}`;
-  return '活动进行中 · 长期有效';
+  return '长期有效';
 };
 
 const handleBack = () => {
@@ -509,10 +466,10 @@ const handleBack = () => {
 
 const handleNativeShare = () => {
   // #ifndef MP-WEIXIN
-  const title = campaign.value?.title || '格宏营销活动';
+  const title = campaign.value?.campaign_title || '格宏营销活动';
   if (typeof uni.setClipboardData === 'function') {
     uni.setClipboardData({
-      data: `【格宏家电助手】${title} - 限时活动特惠进行中！`,
+      data: `【格宏家电助手】${title}`,
       success: () => uni.showToast({ title: '活动已复制，可分享好友', icon: 'none' })
     });
   } else {
@@ -521,17 +478,9 @@ const handleNativeShare = () => {
   // #endif
 };
 
-const handleCall = () => {
-  const phone = campaign.value?.contact_phone || '13857108899';
-  uni.makePhoneCall({
-    phoneNumber: phone,
-    fail: () => {}
-  });
-};
-
 const handleProductClick = (prod) => {
-  if (prod.productId || prod.id) {
-    openPage('/pages/product/detail', { id: prod.productId || prod.id });
+  if (prod.goods_id) {
+    openPage('/pages/product/detail', { id: prod.goods_id });
   }
 };
 
@@ -539,25 +488,21 @@ const fetchDetail = async (id) => {
   loading.value = true;
   try {
     const res = await getCampaignDetail(id);
-    const data = res?.data || res;
-    if (data && (data.id || data.title)) {
-      campaign.value = data;
-    } else {
-      // 降级兜底：取营销活动列表第一条
-      const allRes = await getCampaigns();
-      const list = Array.isArray(allRes) ? allRes : (allRes?.data || allRes?.list || []);
-      if (list && list.length > 0) {
-        campaign.value = list[0];
-      }
-    }
+    campaign.value = res?.campaign_id ? res : null;
   } catch (error) {
     console.warn('获取活动详情失败:', error);
+    campaign.value = null;
+    uni.showToast({ title: error?.message || '获取活动详情失败', icon: 'none' });
   } finally {
     loading.value = false;
   }
 };
 
 const openEnrollModal = () => {
+  if (!campaign.value?.campaign_id || campaign.value.can_enroll === false) {
+    uni.showToast({ title: '当前活动暂不可报名', icon: 'none' });
+    return;
+  }
   if (!userStore.isLoggedIn) {
     uni.showModal({
       title: '温馨提示',
@@ -573,8 +518,7 @@ const openEnrollModal = () => {
   // 预填充用户信息
   const u = userStore.userInfo || {};
   enrollForm.contact_name = u.nickname || u.username || '';
-  enrollForm.mobile = u.mobile || '';
-  enrollForm.company_name = u.company_name || '浙江格宏电器有限公司';
+  enrollForm.contact_mobile = u.mobile || '';
   showEnrollModal.value = true;
 };
 
@@ -582,7 +526,7 @@ const handleSubmitEnroll = async () => {
   if (!enrollForm.contact_name.trim()) {
     return uni.showToast({ title: '请填写联系人姓名', icon: 'none' });
   }
-  if (!enrollForm.mobile.trim() || !/^1\d{10}$/.test(enrollForm.mobile.trim())) {
+  if (!enrollForm.contact_mobile.trim() || !/^1\d{10}$/.test(enrollForm.contact_mobile.trim())) {
     return uni.showToast({ title: '请填写正确的11位手机号', icon: 'none' });
   }
 
@@ -591,23 +535,20 @@ const handleSubmitEnroll = async () => {
   try {
     const payload = {
       contact_name: enrollForm.contact_name.trim(),
-      mobile: enrollForm.mobile.trim(),
-      company_name: enrollForm.company_name.trim(),
-      intended_amount: enrollForm.intended_amount,
+      contact_mobile: enrollForm.contact_mobile.trim(),
       remark: enrollForm.remark.trim()
     };
-    await enrollCampaign(campaignId.value, payload);
+    const result = await enrollCampaign(campaignId.value, payload);
+    if (!result?.enrollment_id) throw new Error('报名接口未返回报名编号');
     uni.hideLoading();
     showEnrollModal.value = false;
 
-    // 更新当前页面报名状态
-    if (campaign.value) {
-      campaign.value.enrolled = true;
-    }
+    // 报名成功后重新获取后端状态，避免本地状态与实际记录不一致。
+    await fetchDetail(campaignId.value);
 
     uni.showModal({
       title: '报名提交成功',
-      content: '感谢您的参与！专属业务经理将在2小时内与您联系对接价格与交期细节。',
+      content: '报名已提交，可前往“我的报名”查看处理进度。',
       confirmText: '查看进度',
       cancelText: '留在本页',
       success: (modalRes) => {
