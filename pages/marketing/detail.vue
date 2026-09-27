@@ -15,7 +15,7 @@
       <view class="hero-cover">
         <image
           class="hero-img"
-          :src="campaign.cover_image || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
+          :src="campaign.cover_image || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
           mode="aspectFill"
         />
         <view class="hero-overlay" />
@@ -23,7 +23,7 @@
           <view class="type-pill" :class="campaign.campaign_type">
             {{ formatTypeName(campaign.campaign_type) }}
           </view>
-          <view class="status-pill" :class="campaign.campaign_status">
+          <view class="status-pill" :class="campaignStatusClass">
             {{ campaignStatusText }}
           </view>
         </view>
@@ -109,7 +109,7 @@
           >
             <image
               class="prod-thumb"
-              :src="prod.image_snapshot || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
+              :src="prod.image_snapshot || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
               mode="aspectFit"
             />
             <view class="prod-detail">
@@ -193,6 +193,13 @@
         >
           <up-icon name="checkmark" size="16" color="#ffffff" />
           <text>已报名 · 查看跟进</text>
+        </button>
+        <button
+          v-else-if="!userStore.isLoggedIn"
+          class="btn-primary-enroll"
+          @click="openEnrollModal"
+        >
+          登录后报名参与
         </button>
         <button v-else-if="campaign.can_enroll === false" class="btn-enrolled-status" disabled>
           <text>暂不可报名</text>
@@ -398,6 +405,13 @@ const campaignStatusText = computed(() => {
   return '进行中';
 });
 
+const campaignStatusClass = computed(() => {
+  const text = campaignStatusText.value;
+  if (text === '已结束') return 'ended';
+  if (text === '即将开始') return 'upcoming';
+  return 'ongoing';
+});
+
 const daysRemaining = computed(() => {
   if (!campaign.value?.end_time) return -1;
   const end = Number(campaign.value.end_time) * 1000;
@@ -539,7 +553,8 @@ const handleSubmitEnroll = async () => {
       remark: enrollForm.remark.trim()
     };
     const result = await enrollCampaign(campaignId.value, payload);
-    if (!result?.enrollment_id) throw new Error('报名接口未返回报名编号');
+    const enrollId = result?.enrollment_id || result?.id || (typeof result === 'number' ? result : null);
+    if (!enrollId && !result) throw new Error('报名接口未返回有效结果');
     uni.hideLoading();
     showEnrollModal.value = false;
 
@@ -690,6 +705,10 @@ const handleSubmitEnroll = async () => {
       }
       &.upcoming {
         color: #2563eb;
+      }
+      &.ended {
+        color: #94a3b8;
+        background: rgba(241, 245, 249, 0.95);
       }
     }
   }

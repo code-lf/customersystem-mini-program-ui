@@ -19,7 +19,14 @@ process.env.UNI_OUTPUT_DIR = resolveProjectPath(process.env.UNI_OUTPUT_DIR, 'dis
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    uni()
+    uni(),
+    {
+      name: 'remove-aliyun-cloudauth',
+      enforce: 'post',
+      transformIndexHtml(html) {
+        return html.replace(/<script[^>]*cn-shanghai-aliyun-cloudauth[^>]*><\/script>/g, '');
+      }
+    }
   ],
   resolve: {
     alias: {
@@ -38,6 +45,14 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     strictPort: true,
+    hmr: false,
+    proxy: {
+      '/api': {
+        target: 'https://gh.starall.cn',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 });
 

@@ -111,11 +111,11 @@
         <image class="list-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
         <view class="list-product__body">
           <view class="list-product__title-row">
-            <text class="list-product__model">{{ product.model || '标准型号' }}</text>
+            <text class="list-product__name-sub">{{ product.goods_name }}</text>
             <text v-if="product.comment" class="red-tag">{{ product.comment }}</text>
             <text v-if="product.greenTag" class="green-tag">{{ product.greenTag }}</text>
           </view>
-          <text class="list-product__name-sub">{{ product.goods_name }}</text>
+          <text class="list-product__model">型号：{{ product.model || '标准型号' }}</text>
           <text class="list-product__spec">{{ (product.spec ? product.spec.split(" ") : [product.category_name || '空调设备']).slice(0, 2).join(' | ') }}</text>
           <view class="list-product__bottom">
             <view class="price-box">
@@ -614,12 +614,6 @@ const addToSolution = (product) => {
   align-items: center;
 }
 
-.list-product__model {
-  color: #17233d;
-  font-size: 32rpx;
-  font-weight: 900;
-}
-
 .red-tag,
 .green-tag {
   margin-left: 12rpx;
@@ -627,6 +621,7 @@ const addToSolution = (product) => {
   border-radius: 8rpx;
   font-size: 20rpx;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .red-tag {
@@ -641,12 +636,21 @@ const addToSolution = (product) => {
 
 .list-product__name-sub {
   display: block;
-  margin-top: 4rpx;
-  color: #647389;
-  font-size: 24rpx;
+  color: #17233d;
+  font-size: 30rpx;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+
+.list-product__model {
+  display: block;
+  margin-top: 4rpx;
+  color: #647389;
+  font-size: 24rpx;
+  font-weight: 400;
 }
 
 .list-product__spec {

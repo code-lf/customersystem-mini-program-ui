@@ -101,25 +101,29 @@ const copyCode = (value) => {
 <style lang="scss" scoped>
 .function-page {
   min-height: 100vh;
-  padding: 0 24rpx 36rpx;
+  padding: 60rpx 28rpx 50rpx;
   background: #f3f7fd;
+  box-sizing: border-box;
 }
 
 .top-tabs {
   display: flex;
-  height: 72rpx;
-  border-radius: 12rpx;
+  height: 88rpx;
+  border-radius: 16rpx;
   background: #fff;
-  margin-bottom: 18rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
 }
 
 .top-tabs text {
   flex: 1;
   text-align: center;
-  color: #667286;
-  font-size: 25rpx;
-  line-height: 72rpx;
+  color: #64748b;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 88rpx;
   border-bottom: 4rpx solid transparent;
+  transition: all 0.2s ease;
 }
 
 .top-tabs text.active {
@@ -133,24 +137,25 @@ const copyCode = (value) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 292rpx;
-  border-radius: 16rpx;
-  background: linear-gradient(135deg, #314c76, #172b4d);
+  height: 420rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
   color: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(30, 58, 138, 0.2);
 }
 
 .scan-frame {
   position: relative;
-  width: 155rpx;
-  height: 112rpx;
-  border-top: 4rpx solid #5aa7ff;
-  border-bottom: 4rpx solid #5aa7ff;
+  width: 190rpx;
+  height: 140rpx;
+  border-top: 4rpx solid #60a5fa;
+  border-bottom: 4rpx solid #60a5fa;
 }
 
 .scan-frame view {
   position: absolute;
-  width: 28rpx;
-  height: 28rpx;
+  width: 32rpx;
+  height: 32rpx;
   border-color: #fff;
 }
 
@@ -160,64 +165,92 @@ const copyCode = (value) => {
 .scan-frame view:nth-child(4) { right: -4rpx; bottom: -4rpx; border-right: 4rpx solid; border-bottom: 4rpx solid; }
 
 .scan-panel > text {
-  margin-top: 34rpx;
+  margin-top: 36rpx;
   color: rgba(255,255,255,.9);
-  font-size: 23rpx;
+  font-size: 28rpx;
 }
 
 .scan-panel button {
-  height: 40rpx;
-  margin: 18rpx 0 0;
-  padding: 0 22rpx;
-  border-radius: 20rpx;
-  background: rgba(255,255,255,.14);
+  height: 88rpx;
+  margin: 28rpx 0 0;
+  padding: 0 68rpx;
+  border-radius: 44rpx;
+  background: rgba(255,255,255,0.22);
   color: #fff;
-  font-size: 20rpx;
-  line-height: 40rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  border: 1rpx solid rgba(255,255,255,0.35);
+  box-shadow: 0 6rpx 18rpx rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.85;
+    transform: scale(0.97);
+  }
 }
 
 .input-panel {
-  padding: 24rpx;
-  border-radius: 16rpx;
+  padding: 40rpx 30rpx;
+  border-radius: 24rpx;
   background: #fff;
+  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
 }
 
 .input-panel input {
-  height: 80rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #edf0f5;
-  border-radius: 12rpx;
-  font-size: 26rpx;
-  color: #17233d;
+  height: 104rpx;
+  padding: 0 30rpx;
+  border: 2rpx solid #e2e8f0;
+  border-radius: 18rpx;
+  font-size: 32rpx;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    border-color: #3b82f6;
+    background: #fff;
+  }
 }
 
 .placeholder {
-  color: #b0bac7;
+  color: #94a3b8;
+  font-size: 30rpx;
 }
 
 .primary-btn {
-  height: 78rpx;
-  margin: 24rpx 0 0;
+  height: 98rpx;
+  margin: 36rpx 0 0;
   padding: 0;
-  border-radius: 12rpx;
-  background: #2468e8;
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
   color: #fff;
-  font-size: 27rpx;
-  line-height: 78rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 98rpx;
+  box-shadow: 0 8rpx 22rpx rgba(37, 99, 235, 0.3);
+  transition: all 0.2s ease;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
 }
 
 .result-card {
-  margin-top: 18rpx;
-  padding: 24rpx;
-  border-radius: 16rpx;
+  margin-top: 28rpx;
+  padding: 30rpx 28rpx;
+  border-radius: 20rpx;
   background: #fff;
+  box-shadow: 0 4rpx 20rpx rgba(15, 23, 42, 0.05);
 }
 
 .result-card__title {
   display: block;
-  color: #17233d;
-  font-size: 27rpx;
-  font-weight: 900;
+  color: #1e293b;
+  font-size: 30rpx;
+  font-weight: 800;
+  margin-bottom: 16rpx;
 }
 
 .product-info {

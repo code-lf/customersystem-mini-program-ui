@@ -20,7 +20,7 @@
           
           <view class="summary-details">
             <view class="detail-row">
-              <view class="dot green"></view>
+              <view class="dot blue-dark"></view>
               <text class="detail-label">设备折后</text>
               <text class="detail-val">{{ money(goodsPayableAmount) }}</text>
             </view>
@@ -360,16 +360,32 @@ const confirmQuote = (status) => {
 }
 
 .quote-summary {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 30rpx;
+  position: relative;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 50%, #ffffff 100%);
+  border-radius: 24rpx;
+  padding: 34rpx 30rpx;
   margin-bottom: 24rpx;
+  box-shadow: 0 8rpx 30rpx rgba(37, 99, 235, 0.08);
+  border: 1rpx solid rgba(191, 219, 254, 0.6);
+  overflow: hidden;
+}
+
+.quote-summary::after {
+  content: '';
+  position: absolute;
+  top: -40rpx;
+  right: -40rpx;
+  width: 220rpx;
+  height: 220rpx;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .summary-title {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: #1e3a8a;
   margin-bottom: 30rpx;
   display: block;
 }
@@ -385,11 +401,13 @@ const confirmQuote = (status) => {
   width: 240rpx;
   height: 240rpx;
   border-radius: 50%;
-  border: 16rpx solid #10b981;
+  border: 16rpx solid #2563eb;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 60rpx;
+  margin-right: 50rpx;
+  box-shadow: 0 8rpx 28rpx rgba(37, 99, 235, 0.22);
 }
 
 .circle-inner {
@@ -399,14 +417,14 @@ const confirmQuote = (status) => {
 }
 
 .circle-num {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #1e40af;
 }
 
 .circle-unit {
   font-size: 24rpx;
-  color: #666;
+  color: #64748b;
 }
 
 .summary-details {
@@ -421,12 +439,12 @@ const confirmQuote = (status) => {
 }
 
 .dot {
-  width: 12rpx;
-  height: 12rpx;
+  width: 14rpx;
+  height: 14rpx;
   border-radius: 50%;
   margin-right: 12rpx;
   
-  &.green { background: #10b981; }
+  &.blue-dark { background: #1e40af; }
   &.blue { background: #3b82f6; }
   &.orange { background: #f59e0b; }
 }
@@ -467,8 +485,8 @@ const confirmQuote = (status) => {
 }
 
 .quote-status.accepted {
-  background: #e9f8f0;
-  color: #10a06a;
+  background: #edf4ff;
+  color: #2563eb;
 }
 
 .quote-status.rejected,
@@ -485,9 +503,10 @@ const confirmQuote = (status) => {
 }
 
 .brand-header {
-  background: #10b981;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
   padding: 24rpx 30rpx;
   color: #fff;
+  box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, 0.2);
 }
 
 .brand-head-top {
@@ -604,26 +623,30 @@ const confirmQuote = (status) => {
   flex: 1;
   height: 80rpx;
   border-radius: 40rpx;
-  background: #10b981;
+  background: #2563eb;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 30rpx;
+  font-weight: 700;
   margin-right: 20rpx;
+  box-shadow: 0 4rpx 14rpx rgba(37, 99, 235, 0.28);
 }
 
 .btn-share {
   flex: 1;
   height: 80rpx;
   border-radius: 40rpx;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 30rpx;
+  font-weight: 700;
   margin-left: 20rpx;
+  box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, 0.28);
 }
 
 .btn-reject,
@@ -644,7 +667,8 @@ const confirmQuote = (status) => {
 }
 
 .btn-confirm {
-  background: #10b981;
+  background: #2563eb;
+  box-shadow: 0 4rpx 14rpx rgba(37, 99, 235, 0.28);
 }
 
 .bottom-actions button[disabled] {

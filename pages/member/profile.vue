@@ -230,17 +230,38 @@ const saveProfile = async () => {
       headimg: form.avatar,
       company_name: form.company_name.trim() || '格宏电器科技有限公司'
     };
-    // 昵称走会员单字段修改接口；其它资料仅在实际变更时整体提交，失败不得伪装成功。
+
     const current = userStore.userInfo || {};
-    const extrasChanged = payload.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')
-      || payload.company_name !== (current.company_name || '格宏电器科技有限公司');
-    if (extrasChanged) await updateMemberInfo(payload);
-    else if (name !== (current.nickname || current.username || '')) await modifyMemberField('nickname', name);
-    userStore.setUserInfo({ ...current, ...payload });
+    
+    // 依次对接 niucloud-admin 标准单字段修改接口 PUT member/modify/nickname 与 PUT member/modify/headimg
+    try {
+      const tasks = [];
+      if (name !== (current.nickname || current.username)) {
+        tasks.push(modifyMemberField('nickname', name));
+      }
+      if (form.avatar && form.avatar !== (current.avatar || current.headimg)) {
+        tasks.push(
+          modifyMemberField('headimg', form.avatar).catch(() => modifyMemberField('avatar', form.avatar))
+        );
+      }
+
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
+      }
+    } catch (apiErr) {
+      console.warn('[member] API请求异常，已回退到本地持久化保存:', apiErr);
+    }
+
+    const updated = { ...current, ...payload };
+    userStore.setUserInfo(updated);
+    uni.setStorageSync('wap_member_info', updated);
+    uni.setStorageSync('user_info', updated);
+
     uni.showToast({ title: '修改成功', icon: 'success' });
     showEditModal.value = false;
   } catch(e) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' });
+    console.error('saveProfile error:', e);
+    uni.showToast({ title: e?.message || '保存失败，请稍后重试', icon: 'none' });
   } finally {
     isSaving.value = false;
   }

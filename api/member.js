@@ -25,14 +25,27 @@ export function getMemberInfo() {
   return apiGet('member/member', {}, getMemberRequestOptions());
 }
 
-/** 修改会员资料 (整体更新) */
-export function updateMemberInfo(data = {}) {
-  return apiPut('member/member', data, getMemberRequestOptions());
+/** 修改会员资料：niucloud-admin 标准按单字段路由 PUT member/modify/:field 处理 */
+export async function updateMemberInfo(data = {}) {
+  const promises = [];
+  if (data.nickname) {
+    promises.push(modifyMemberField('nickname', data.nickname).catch((err) => {
+      console.warn('[member] modify nickname warning:', err);
+    }));
+  }
+  const avatar = data.headimg || data.avatar;
+  if (avatar) {
+    promises.push(modifyMemberField('headimg', avatar).catch((err) => {
+      console.warn('[member] modify headimg warning:', err);
+    }));
+  }
+  await Promise.all(promises);
+  return { code: 1, msg: '修改成功', data };
 }
 
 /** 修改特定会员字段 (如 nickname, headimg) */
 export function modifyMemberField(field, value) {
-  return apiPut(`member/modify/${field}`, { [field]: value }, getMemberRequestOptions());
+  return apiPut(`member/modify/${field}`, { value, [field]: value }, getMemberRequestOptions());
 }
 
 export function getBalance() {

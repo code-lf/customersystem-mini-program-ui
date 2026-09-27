@@ -2,8 +2,21 @@
   <view class="detail-page">
     <AppNavbar title="产品详情" bg-color="transparent" />
 
-    <view class="hero" v-if="product">
-      <image :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
+    <view class="hero-carousel" v-if="product">
+      <swiper
+        class="hero-swiper"
+        circular
+        autoplay
+        :interval="3500"
+        :duration="400"
+        indicator-dots
+        indicator-color="rgba(0, 0, 0, 0.16)"
+        indicator-active-color="#2468e8"
+      >
+        <swiper-item v-for="(img, idx) in productGallery" :key="idx" class="swiper-item-box">
+          <image :src="img" class="swiper-product-img" mode="aspectFit" />
+        </swiper-item>
+      </swiper>
     </view>
 
     <view class="title-card" v-if="product">
@@ -186,13 +199,42 @@ onLoad((query = {}) => {
   loadDetail(goodsId);
 });
 
-// 固定三大核心模块：参数、图文、资料
+// 轮播图列表
+const productGallery = computed(() => {
+  if (!product.value) return ['https://gh.starall.cn/static/resource/aircon/outdoor-unit.png'];
+  const p = product.value;
+  const list = [];
+  if (Array.isArray(p.images) && p.images.length > 0) {
+    list.push(...p.images);
+  } else if (Array.isArray(p.gallery) && p.gallery.length > 0) {
+    list.push(...p.gallery);
+  } else if (p.image) {
+    list.push(p.image);
+  }
+  // 补全商品视角图片，确保轮播图展示丰富
+  if (list.length <= 1) {
+    const isCentral = (p.category_name || '').includes('中央') || (p.goods_name || '').includes('多联');
+    if (isCentral) {
+      list.push(
+        'https://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
+        'https://gh.starall.cn/static/resource/aircon/central-default.png'
+      );
+    } else {
+      list.push(
+        'https://gh.starall.cn/static/resource/aircon/home-green.png',
+        'https://gh.starall.cn/static/resource/aircon/home-default.png'
+      );
+    }
+  }
+  return [...new Set(list.filter(Boolean))];
+});
+
+// 模块标签：按用户需求图文模块暂时隐藏，保留参数与资料模块
 const tabs = computed(() => {
   return [
-    { label: '参数', value: 'params' },
-    { label: '图文', value: 'rich' },
+    { label: '规格参数', value: 'params' },
     { 
-      label: '资料', 
+      label: '工程资料', 
       value: 'materials',
       badge: displayMaterials.value.length > 0 ? String(displayMaterials.value.length) : ''
     }
@@ -418,6 +460,36 @@ onShareTimeline(() => {
   min-height: 100vh;
   padding: 0 24rpx 220rpx;
   background: linear-gradient(180deg, #eaf2ff 0%, #f4f7fc 260rpx, #f4f7fc 100%);
+}
+
+.hero-carousel {
+  position: relative;
+  height: 420rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
+  overflow: hidden;
+}
+
+.hero-swiper {
+  width: 100%;
+  height: 420rpx;
+}
+
+.swiper-item-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.swiper-product-img {
+  width: 520rpx;
+  height: 340rpx;
 }
 
 .hero {

@@ -15,9 +15,12 @@ const config = {
 
   // 正式业务接口前缀。所有 api/*.js 中的相对路径都会自动拼接在该地址后面，
   // 例如 `crm/quote/lists` 最终请求为：
-  // https://gh.starall.cn/api/crm/quote/lists
+  // H5 预览环境下使用 /api 同源反向代理，彻底解决浏览器跨域拦截；
+  // 小程序生产环境直连 https://gh.starall.cn/api
   env: 'production',
-  baseUrl: 'https://gh.starall.cn/api',
+  baseUrl: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
+    ? import.meta.env.VITE_API_BASE_URL
+    : (typeof window !== 'undefined' ? '/api' : 'https://gh.starall.cn/api'),
   timeout: 60000,
 
   // 阿里云百炼 AI 助手配置。

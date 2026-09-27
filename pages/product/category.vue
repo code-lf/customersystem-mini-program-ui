@@ -3,191 +3,118 @@
     <AppNavbar :title="currentRootName ? `${currentRootName}选型` : '产品选型'" />
 
     <view class="central-category-wrap">
-      <!-- Top Level 1 -->
-      <view class="root-category-tabs">
-        <view
-          v-for="root in rootCategories"
-          :key="root.id"
-          class="root-tab-item"
-          :class="{'active': currentRootId === root.id}"
-          @click="selectRootCategory(root.id)"
-        >
-          <text class="root-tab-title">{{ root.category_name }}</text>
-        </view>
-      </view>
-
-      <!-- 分类筛选区：全部平铺展开显示，字号与上方大分类一致，易于点按 -->
-      <!-- 模式 1：中央空调（层级联动单选，全部平铺全展开） -->
-      <view class="category-filters-container central-filters-box" v-if="isCentralAC">
-        <view class="filter-rows-wrapper">
-          <view class="filter-rows-inner">
-            <!-- Level 2: 品牌 -->
-            <view class="filter-level-row" v-if="currentL2List.length > 0">
+      <!-- 置顶吸附筛选区：包含一级大类与各级子分类横向滑动 -->
+      <view class="sticky-filter-header">
+        <!-- 顶部一级分类：横向滑动，动态获取不写死 -->
+        <view class="root-category-bar">
+          <scroll-view class="root-scroll-view" scroll-x :show-scrollbar="false">
+            <view class="root-scroll-inner">
               <view
-                class="filter-tag"
-                :class="{ active: activeL2 === '全部' }"
-                @click="selectL2('全部')"
+                v-for="root in rootCategories"
+                :key="root.id"
+                class="root-tab-item"
+                :class="{'active': currentRootId === root.id}"
+                @click="selectRootCategory(root.id)"
               >
-                全部
+                <text class="root-tab-title">{{ root.category_name }}</text>
               </view>
-              <view
-                v-for="item in currentL2List"
-                :key="item.id"
-                class="filter-tag"
-                :class="{ active: activeL2 === item.id }"
-                @click="selectL2(item.id)"
-              >
-                {{ item.category_name }}
-              </view>
-            </view>
-
-            <!-- Level 3: 类型 -->
-            <view class="filter-level-row" v-if="currentL3List.length > 0">
-              <view
-                class="filter-tag"
-                :class="{ active: activeL3 === '全部' }"
-                @click="selectL3('全部')"
-              >
-                全部
-              </view>
-              <view
-                v-for="sub in currentL3List"
-                :key="sub.id"
-                class="filter-tag"
-                :class="{ active: activeL3 === sub.id }"
-                @click="selectL3(sub.id)"
-              >
-                {{ sub.category_name }}
-              </view>
-            </view>
-
-            <!-- Level 4: 系列 -->
-            <view class="filter-level-row" v-if="currentL4List.length > 0">
-              <view
-                class="filter-tag"
-                :class="{ active: activeL4 === '全部' }"
-                @click="selectL4('全部')"
-              >
-                全部
-              </view>
-              <view
-                v-for="sub in currentL4List"
-                :key="sub.id"
-                class="filter-tag"
-                :class="{ active: activeL4 === sub.id }"
-                @click="selectL4(sub.id)"
-              >
-                {{ sub.category_name }}
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 模式 2：非中央空调：二级分类横向滚动，右侧固定“更多”入口。 -->
-      <view class="category-filters-container non-central-filters-box" v-else>
-        <view class="l2-scroll-wrapper" v-if="currentL2List.length > 0">
-          <scroll-view
-            class="l2-scroll-view"
-            scroll-x
-            :show-scrollbar="false"
-            :scroll-into-view="currentL2ScrollInto"
-            scroll-with-animation
-          >
-            <view class="l2-scroll-inner">
-              <view
-                id="l2-tag-all"
-                class="l2-pill-tag"
-                :class="{ active: activeL2 === '全部' }"
-                @click="selectL2('全部')"
-              >全部</view>
-              <view
-                v-for="item in currentL2List"
-                :key="item.id"
-                :id="'l2-tag-' + item.id"
-                class="l2-pill-tag"
-                :class="{ active: activeL2 === item.id }"
-                @click="selectL2(item.id)"
-              >{{ item.category_name }}</view>
-            </view>
-          </scroll-view>
-          <view class="l2-more-fixed-btn" @click="showCategoryModal = true">
-            <text class="more-label">更多</text>
-            <up-icon name="arrow-down" size="11" color="#1d4ed8" />
-          </view>
-        </view>
-
-        <!-- 三级子分类多选模式（默认全部勾选，全展开） -->
-        <view class="subcat-multi-container" v-if="currentL3List.length > 0">
-          <view class="subcat-multi-inner">
-            <view
-              v-for="sub in currentL3List"
-              :key="sub.id"
-              class="filter-tag multi-tag"
-              :class="{ 'is-selected': selectedSubCatIds.includes(sub.id) }"
-              @click="toggleSubCat(sub.id)"
-            >
-              <text class="tag-check-mark" v-if="selectedSubCatIds.includes(sub.id)">✓</text>
-              <text class="tag-title">{{ sub.category_name }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- “更多”分类弹窗：保留完整分类选择，避免横向列表影响主页面高度。 -->
-      <up-popup
-        :show="showCategoryModal"
-        mode="bottom"
-        round="24"
-        close-on-click-overlay
-        safe-area-inset-bottom
-        @close="showCategoryModal = false"
-      >
-        <view class="cat-modal-content">
-          <view class="cat-modal-header">
-            <text class="cat-modal-title">全部分类</text>
-            <view class="cat-modal-close" @click="showCategoryModal = false">
-              <up-icon name="close" size="18" color="#64748b" />
-            </view>
-          </view>
-          <scroll-view class="cat-modal-scroll" scroll-y>
-            <view class="cat-modal-grid">
-              <view class="cat-modal-item" :class="{ active: activeL2 === '全部' }" @click="selectL2FromModal('全部')">全部</view>
-              <view
-                v-for="item in currentL2List"
-                :key="item.id"
-                class="cat-modal-item"
-                :class="{ active: activeL2 === item.id }"
-                @click="selectL2FromModal(item.id)"
-              >{{ item.category_name }}</view>
             </view>
           </scroll-view>
         </view>
-      </up-popup>
 
-      <!-- 搜索栏 -->
-      <view class="category-search-box">
-        <view class="design-search">
-          <up-icon name="search" size="18" color="#9aa5b5" />
-          <input
-            v-model="searchKeyword"
-            placeholder="搜索当前分类下的型号或产品名称..."
-            placeholder-class="placeholder"
-          />
-          <up-icon
-            v-if="searchKeyword"
-            name="close-circle-fill"
-            size="16"
-            color="#9aa5b5"
-            @click="searchKeyword = ''"
-          />
+        <!-- 分类筛选区：全部分类横向滑动，去掉“全部”选项，默认选中第一个 -->
+        <view class="category-filters-container">
+          <!-- Level 2 横向滑动（品牌/主分类） -->
+          <view class="filter-scroll-row" v-if="currentL2List.length > 0">
+            <scroll-view class="filter-scroll-view" scroll-x :show-scrollbar="false">
+              <view class="filter-scroll-inner">
+                <view
+                  v-for="item in currentL2List"
+                  :key="item.id"
+                  class="filter-tag"
+                  :class="{ active: activeL2 === item.id }"
+                  @click="selectL2(item.id)"
+                >
+                  <text>{{ item.category_name }}</text>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
+
+          <!-- Level 3 横向滑动：中央空调为单选；非中央空调为格力/美的/海信等多选，但默认选中第一个 -->
+          <view class="filter-scroll-row" v-if="currentL3List.length > 0">
+            <scroll-view class="filter-scroll-view" scroll-x :show-scrollbar="false">
+              <view class="filter-scroll-inner">
+                <!-- 中央空调模式：单选（默认选中第一个） -->
+                <template v-if="isCentralAC">
+                  <view
+                    v-for="sub in currentL3List"
+                    :key="sub.id"
+                    class="filter-tag"
+                    :class="{ active: activeL3 === sub.id }"
+                    @click="selectL3(sub.id)"
+                  >
+                    <text>{{ sub.category_name }}</text>
+                  </view>
+                </template>
+                <!-- 非中央空调模式：支持多选（默认选中第一个） -->
+                <template v-else>
+                  <view
+                    v-for="sub in currentL3List"
+                    :key="sub.id"
+                    class="filter-tag multi-tag"
+                    :class="{ 'is-selected': selectedSubCatIds.includes(sub.id) }"
+                    @click="toggleSubCat(sub.id)"
+                  >
+                    <text class="tag-check-mark" v-if="selectedSubCatIds.includes(sub.id)">✓</text>
+                    <text class="tag-title">{{ sub.category_name }}</text>
+                  </view>
+                </template>
+              </view>
+            </scroll-view>
+          </view>
+
+          <!-- Level 4 系列横向滑动（中央空调，默认选中第一个） -->
+          <view class="filter-scroll-row" v-if="isCentralAC && currentL4List.length > 0">
+            <scroll-view class="filter-scroll-view" scroll-x :show-scrollbar="false">
+              <view class="filter-scroll-inner">
+                <view
+                  v-for="sub in currentL4List"
+                  :key="sub.id"
+                  class="filter-tag"
+                  :class="{ active: activeL4 === sub.id }"
+                  @click="selectL4(sub.id)"
+                >
+                  <text>{{ sub.category_name }}</text>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
+        </view>
+
+        <!-- 搜索栏 -->
+        <view class="category-search-box">
+          <view class="design-search">
+            <up-icon name="search" size="18" color="#9aa5b5" />
+            <input
+              v-model="searchKeyword"
+              placeholder="搜索当前分类下的型号或产品名称..."
+              placeholder-class="placeholder"
+            />
+            <up-icon
+              v-if="searchKeyword"
+              name="close-circle-fill"
+              size="16"
+              color="#9aa5b5"
+              @click="searchKeyword = ''"
+            />
+          </view>
         </view>
       </view>
 
-      <!-- 商品使用页面原生滚动，避免小程序 scroll-view 弹性高度失效导致列表截断。 -->
+      <!-- 商品列表：型号不加粗，名字加粗 -->
       <view class="product-scroll">
         <view v-if="filteredProducts.length" class="product-list-container">
-          <!-- Full width list view -->
           <view
             v-for="product in filteredProducts"
             :key="product.goods_id"
@@ -195,8 +122,8 @@
             @click="openPage('/pages/product/detail', { id: product.goods_id })"
           >
             <view class="product-info-col">
-              <text class="model-name">{{ product.model }}</text>
               <text class="product-name">{{ product.goods_name }}</text>
+              <text class="model-name">型号：{{ product.model }}</text>
               <text class="price-num">¥{{ formatPrice(product.price) }}</text>
             </view>
             <view class="product-action-col">
@@ -213,11 +140,8 @@
         </view>
         <view v-else class="empty-state">
           <up-icon name="info-circle" size="48" color="#b7c5d8" />
-          <text class="empty-title">{{ !isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0 ? '已取消所有子分类筛选' : '暂无产品' }}</text>
-          <text v-if="!isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0" class="empty-hint">点击上方分类标签或下方按钮重新选中</text>
-          <view v-if="!isCentralAC && currentL3List.length > 0 && selectedSubCatIds.length === 0" class="select-all-btn" @click="selectAllSubCats">
-            一键全选
-          </view>
+          <text class="empty-title">暂无匹配产品</text>
+          <text class="empty-hint">可尝试清除搜索词或切换上方分类</text>
         </view>
       </view>
 
@@ -252,14 +176,12 @@ import { getCart, addCartItem, editCartItem, removeCartItem } from '@/api/soluti
 // 分类数据
 const allTree = ref([]);
 const currentRootId = ref(null);
-const activeL2 = ref('全部');
-const activeL3 = ref('全部');
-const activeL4 = ref('全部');
+const activeL2 = ref(null);
+const activeL3 = ref(null);
+const activeL4 = ref(null);
 
-// 非中央空调子分类多选状态（默认全选）
+// 非中央空调子分类多选状态（默认选中第一个）
 const selectedSubCatIds = ref([]);
-// 非中央空调二级分类采用横向滚动，完整分类通过“更多”弹窗选择。
-const showCategoryModal = ref(false);
 
 const searchKeyword = ref('');
 const products = ref([]);
@@ -445,8 +367,8 @@ const currentL2List = computed(() => {
 });
 
 const currentL2Object = computed(() => {
-  if (activeL2.value === '全部') return null;
-  return currentL2List.value.find(c => c.id === activeL2.value) || null;
+  if (!activeL2.value) return currentL2List.value[0] || null;
+  return currentL2List.value.find(c => c.id === activeL2.value) || currentL2List.value[0] || null;
 });
 
 const currentL3List = computed(() => {
@@ -455,8 +377,8 @@ const currentL3List = computed(() => {
 });
 
 const currentL3Object = computed(() => {
-  if (activeL3.value === '全部') return null;
-  return currentL3List.value.find(c => c.id === activeL3.value) || null;
+  if (!activeL3.value) return currentL3List.value[0] || null;
+  return currentL3List.value.find(c => c.id === activeL3.value) || currentL3List.value[0] || null;
 });
 
 const currentL4List = computed(() => {
@@ -464,19 +386,10 @@ const currentL4List = computed(() => {
   return currentL3Object.value.children || [];
 });
 
-const currentL2ScrollInto = computed(() => (
-  activeL2.value === '全部' ? 'l2-tag-all' : `l2-tag-${activeL2.value}`
-));
-
-const selectL2FromModal = (id) => {
-  selectL2(id);
-  showCategoryModal.value = false;
-};
-
-// 多选子分类初始化与操作（非中央空调模式下，去掉“全部”，默认全选）
+// 多选子分类初始化与操作（非中央空调模式下，去掉“全部”，默认选中第一个）
 const initSelectedSubCats = () => {
   if (!isCentralAC.value && currentL3List.value.length > 0) {
-    selectedSubCatIds.value = currentL3List.value.map(c => c.id);
+    selectedSubCatIds.value = [currentL3List.value[0].id];
   } else {
     selectedSubCatIds.value = [];
   }
@@ -485,7 +398,11 @@ const initSelectedSubCats = () => {
 const toggleSubCat = (id) => {
   const index = selectedSubCatIds.value.indexOf(id);
   if (index > -1) {
-    selectedSubCatIds.value = selectedSubCatIds.value.filter(item => item !== id);
+    if (selectedSubCatIds.value.length > 1) {
+      selectedSubCatIds.value = selectedSubCatIds.value.filter(item => item !== id);
+    } else {
+      uni.showToast({ title: '至少保留一个选中分类', icon: 'none' });
+    }
   } else {
     selectedSubCatIds.value = [...selectedSubCatIds.value, id];
   }
@@ -493,6 +410,36 @@ const toggleSubCat = (id) => {
 
 const selectAllSubCats = () => {
   selectedSubCatIds.value = currentL3List.value.map(c => c.id);
+};
+
+const initDefaultSelections = () => {
+  if (currentL2List.value.length > 0) {
+    if (!currentL2List.value.some(c => c.id === activeL2.value)) {
+      activeL2.value = currentL2List.value[0].id;
+    }
+  } else {
+    activeL2.value = null;
+  }
+
+  const l3s = currentL2Object.value?.children || [];
+  if (l3s.length > 0) {
+    if (!l3s.some(c => c.id === activeL3.value)) {
+      activeL3.value = l3s[0].id;
+    }
+    selectedSubCatIds.value = [l3s[0].id];
+  } else {
+    activeL3.value = null;
+    selectedSubCatIds.value = [];
+  }
+
+  const l4s = (l3s.find(c => c.id === activeL3.value) || l3s[0])?.children || [];
+  if (l4s.length > 0) {
+    if (!l4s.some(c => c.id === activeL4.value)) {
+      activeL4.value = l4s[0].id;
+    }
+  } else {
+    activeL4.value = null;
+  }
 };
 
 const loadCategories = async (pageOptions = {}) => {
@@ -512,13 +459,13 @@ const loadCategories = async (pageOptions = {}) => {
       if (queryCategoryId && queryCategoryId !== queryRootId) {
         locateAnyCategory(queryCategoryId);
       } else {
-        initSelectedSubCats();
+        initDefaultSelections();
       }
     } else if (queryCategoryId && locateAnyCategory(queryCategoryId)) {
       // category_id 可能是任意层级，定位成功后由 locateAnyCategory 同步完整选中路径。
     } else if (allTree.value.length > 0) {
       currentRootId.value = allTree.value[0].id;
-      initSelectedSubCats();
+      initDefaultSelections();
       if (queryRootId || queryCategoryId) {
         console.warn('[产品分类] 未找到路由指定分类，已回退第一项：', pageOptions);
       }
@@ -531,24 +478,39 @@ const loadCategories = async (pageOptions = {}) => {
 const locateAnyCategory = (targetId) => {
   for (const root of allTree.value) {
     if (String(root.id) === String(targetId)) {
-      currentRootId.value = root.id; activeL2.value = '全部'; activeL3.value = '全部'; activeL4.value = '全部'; initSelectedSubCats(); return true;
+      currentRootId.value = root.id;
+      initDefaultSelections();
+      return true;
     }
     for (const l2 of (root.children || [])) {
       if (String(l2.id) === String(targetId)) {
-        currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = '全部'; activeL4.value = '全部'; initSelectedSubCats(); return true;
+        currentRootId.value = root.id;
+        activeL2.value = l2.id;
+        const l3s = l2.children || [];
+        activeL3.value = l3s[0]?.id || null;
+        const l4s = l3s[0]?.children || [];
+        activeL4.value = l4s[0]?.id || null;
+        selectedSubCatIds.value = l3s.length > 0 ? [l3s[0].id] : [];
+        return true;
       }
       for (const l3 of (l2.children || [])) {
         if (String(l3.id) === String(targetId)) {
-          currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = '全部';
-          if (String(root.id) !== '120' && !root.category_name?.includes('中央空调')) {
-            selectedSubCatIds.value = [l3.id];
-          }
+          currentRootId.value = root.id;
+          activeL2.value = l2.id;
+          activeL3.value = l3.id;
+          const l4s = l3.children || [];
+          activeL4.value = l4s[0]?.id || null;
+          selectedSubCatIds.value = [l3.id];
           return true;
         }
         for (const l4 of (l3.children || [])) {
-           if (String(l4.id) === String(targetId)) {
-             currentRootId.value = root.id; activeL2.value = l2.id; activeL3.value = l3.id; activeL4.value = l4.id; return true;
-           }
+          if (String(l4.id) === String(targetId)) {
+            currentRootId.value = root.id;
+            activeL2.value = l2.id;
+            activeL3.value = l3.id;
+            activeL4.value = l4.id;
+            return true;
+          }
         }
       }
     }
@@ -559,23 +521,32 @@ const locateAnyCategory = (targetId) => {
 const selectRootCategory = (rootId) => {
   if (currentRootId.value === rootId) return;
   currentRootId.value = rootId;
-  activeL2.value = '全部';
-  activeL3.value = '全部';
-  activeL4.value = '全部';
   searchKeyword.value = '';
-  initSelectedSubCats();
+  const root = allTree.value.find(c => c.id === rootId);
+  const l2s = root?.children || [];
+  activeL2.value = l2s[0]?.id || null;
+  const l3s = l2s[0]?.children || [];
+  activeL3.value = l3s[0]?.id || null;
+  const l4s = l3s[0]?.children || [];
+  activeL4.value = l4s[0]?.id || null;
+  selectedSubCatIds.value = l3s.length > 0 ? [l3s[0].id] : [];
 };
 
 const selectL2 = (l2Id) => {
   activeL2.value = l2Id;
-  activeL3.value = '全部';
-  activeL4.value = '全部';
-  initSelectedSubCats();
+  const l2 = currentL2List.value.find(c => c.id === l2Id);
+  const l3s = l2?.children || [];
+  activeL3.value = l3s[0]?.id || null;
+  const l4s = l3s[0]?.children || [];
+  activeL4.value = l4s[0]?.id || null;
+  selectedSubCatIds.value = l3s.length > 0 ? [l3s[0].id] : [];
 };
 
 const selectL3 = (l3Id) => {
   activeL3.value = l3Id;
-  activeL4.value = '全部';
+  const l3 = currentL3List.value.find(c => c.id === l3Id);
+  const l4s = l3?.children || [];
+  activeL4.value = l4s[0]?.id || null;
 };
 
 const selectL4 = (l4Id) => {
@@ -587,12 +558,12 @@ const loadProducts = async () => {
   try {
     const params = { limit: 100 };
     if (isCentralAC.value) {
-      if (activeL4.value !== '全部') params.category_id = activeL4.value;
-      else if (activeL3.value !== '全部') params.category_id = activeL3.value;
-      else if (activeL2.value !== '全部') params.category_id = activeL2.value;
+      if (activeL4.value) params.category_id = activeL4.value;
+      else if (activeL3.value) params.category_id = activeL3.value;
+      else if (activeL2.value) params.category_id = activeL2.value;
       else if (currentRootId.value) params.category_id = currentRootId.value;
     } else {
-      if (activeL2.value !== '全部') {
+      if (activeL2.value) {
         params.category_id = activeL2.value;
       } else if (currentRootId.value) {
         params.category_id = currentRootId.value;
@@ -748,43 +719,140 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   overflow: visible;
 }
 
-/* 顶部根分类 */
-.root-category-tabs {
-  display: flex;
+.sticky-filter-header {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  background: #ffffff;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.06);
+}
+
+/* 顶部根分类：横向滑动，动态获取 */
+.root-category-bar {
+  background: #ffffff;
+  border-bottom: 1rpx solid #f1f5f9;
+}
+
+.root-scroll-view {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.root-scroll-inner {
+  display: inline-flex;
   align-items: center;
   gap: 16rpx;
   padding: 16rpx 24rpx;
-  background: #ffffff;
 }
 
 .root-tab-item {
-  flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 74rpx;
-  border-radius: 37rpx;
+  flex-shrink: 0;
+  height: 68rpx;
+  padding: 0 32rpx;
+  border-radius: 12rpx;
   background: #f1f5f9;
   color: #475569;
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 600;
   transition: all 0.25s ease;
 
   &.active {
     color: #ffffff;
     background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-    box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, 0.28);
+    box-shadow: 0 4rpx 14rpx rgba(29, 78, 216, 0.25);
   }
 }
 
-/* 分类筛选区：全展开平铺显示，字号与上方大分类一致（28rpx），便于指尖点按 */
+/* 统一分类筛选区：横向滑动，弧度调小（12rpx），字号26rpx */
 .category-filters-container {
   background: #ffffff;
   border-bottom: 1rpx solid #e2e8f0;
-  padding: 14rpx 24rpx;
+  padding: 12rpx 0;
   display: flex;
   flex-direction: column;
+  gap: 12rpx;
+}
+
+.filter-scroll-row {
+  width: 100%;
+}
+
+.filter-scroll-view {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.filter-scroll-inner {
+  display: inline-flex;
+  align-items: center;
   gap: 14rpx;
+  padding: 4rpx 24rpx;
+}
+
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 12rpx 26rpx;
+  min-height: 56rpx;
+  border-radius: 12rpx;
+  background: #f1f5f9;
+  border: 1.5rpx solid transparent;
+  color: #475569;
+  font-size: 26rpx;
+  line-height: 1.35;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 700;
+    box-shadow: 0 2rpx 8rpx rgba(29, 78, 216, 0.12);
+  }
+}
+
+.multi-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 12rpx 26rpx;
+  min-height: 56rpx;
+  border-radius: 12rpx;
+  background: #ffffff;
+  border: 1.5rpx solid #cbd5e1;
+  color: #64748b;
+  font-size: 26rpx;
+  line-height: 1.35;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &.is-selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 700;
+    box-shadow: 0 2rpx 8rpx rgba(59, 130, 246, 0.14);
+  }
+
+  .tag-check-mark {
+    font-size: 24rpx;
+    margin-right: 6rpx;
+    font-weight: 800;
+    color: #1d4ed8;
+  }
+
+  .tag-title {
+    font-size: 26rpx;
+  }
 }
 
 .central-filters-box {
@@ -1053,18 +1121,20 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   margin-right: 20rpx;
 }
 
-.model-name {
-  font-size: 30rpx;
+.product-name {
+  font-size: 28rpx;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 8rpx;
-  word-break: break-all;
+  line-height: 1.4;
 }
 
-.product-name {
+.model-name {
   font-size: 24rpx;
+  font-weight: 400;
   color: #64748b;
   margin-bottom: 12rpx;
+  word-break: break-all;
 }
 
 .price-num {

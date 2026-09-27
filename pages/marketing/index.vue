@@ -80,14 +80,14 @@
           <view class="card-cover-box">
             <image
               class="card-cover-img"
-              :src="item.cover_image || 'http://gh.starall.cn/static/resource/aircon/central-default.png'"
+              :src="item.cover_image || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
               mode="aspectFill"
             />
             <view class="cover-overlay" />
             <view class="cover-type-tag" :class="item.campaign_type">
               {{ formatTypeName(item.campaign_type) }}
             </view>
-            <view class="cover-status-badge" :class="item.campaign_status">
+            <view class="cover-status-badge" :class="getCampaignStatusClass(item)">
               {{ formatCampaignStatus(item) }}
             </view>
           </view>
@@ -195,6 +195,13 @@ const formatCampaignStatus = (item) => {
   if (Number(item.start_time) > 0 && now < Number(item.start_time) * 1000) return '即将开始';
   if (Number(item.end_time) > 0 && now > Number(item.end_time) * 1000) return '已结束';
   return '进行中';
+};
+
+const getCampaignStatusClass = (item) => {
+  const status = formatCampaignStatus(item);
+  if (status === '已结束') return 'ended';
+  if (status === '即将开始') return 'upcoming';
+  return 'ongoing';
 };
 
 // 格式化时间字符串/时间戳，防止类型错误或显示为空

@@ -194,7 +194,7 @@
             <text class="val">¥{{ formatPrice(totalPrice) }}</text>
           </view>
 
-          <!-- 输入折扣率调节（支持直接输入数字、步进加减与快捷标签） -->
+          <!-- 输入折扣率调节（支持直接输入数字、步进加减、常用80折/77折标签与滑动条） -->
           <view v-if="pricingMode === 'discount'" class="form-section">
             <view class="setting-item">
               <text class="label">整单折扣率</text>
@@ -213,19 +213,42 @@
                 <button class="d-btn" @click="handleStepDiscount(1)">+</button>
               </view>
             </view>
-            <!-- 快捷折扣标签 -->
+            
+            <!-- 常用折扣快捷标签：常用的80折、77折 -->
             <view class="quick-discount-chips">
               <view
-                v-for="d in [95, 90, 88, 85, 80]"
+                v-for="d in [80, 77, 85, 90]"
                 :key="d"
                 class="d-chip"
-                :class="{ active: Number(discountRate) === d }"
+                :class="{ active: Number(discountRate) === d, 'chip-highlight': d === 80 || d === 77 }"
                 @click="setDiscount(d)"
               >
                 <text>{{ d }}折 ({{ d }}%)</text>
               </view>
             </view>
-            <view class="setting-item">
+
+            <!-- 折扣滑动条：方便用户自由拉动调节 -->
+            <view class="discount-slider-wrap">
+              <view class="slider-info-bar">
+                <text class="slider-label">拉动微调折扣</text>
+                <text class="slider-badge">{{ discountRate }}% ({{ discountRate }}折)</text>
+              </view>
+              <slider
+                class="discount-slider"
+                :value="Number(discountRate) || 100"
+                :min="50"
+                :max="100"
+                :step="1"
+                activeColor="#2468e8"
+                backgroundColor="#e2e8f0"
+                block-size="22"
+                block-color="#2468e8"
+                @change="handleSliderChange"
+                @changing="handleSliderChanging"
+              />
+            </view>
+
+            <view class="setting-item discount-deduct-item">
               <text class="label">优惠减免金额</text>
               <text class="discount-val-text">- ¥{{ formatPrice(discountAmount) }}</text>
             </view>
@@ -841,6 +864,22 @@ const setDiscount = (d) => {
   discountRate.value = d;
   recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
   syncDiscountPricing();
+};
+
+const handleSliderChange = (e) => {
+  const val = Math.round(Number(e?.detail?.value));
+  if (!isNaN(val) && val >= 50 && val <= 100) {
+    discountRate.value = val;
+    recalculateCart(quoteItems.value, 'discount', discountRate.value, quoteRemark.value);
+    syncDiscountPricing();
+  }
+};
+
+const handleSliderChanging = (e) => {
+  const val = Math.round(Number(e?.detail?.value));
+  if (!isNaN(val)) {
+    discountRate.value = val;
+  }
 };
 
 const normalizeDiscountRate = () => {
@@ -1622,20 +1661,21 @@ const checkPendingProduct = async () => {
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   overflow: hidden;
-  border: 1rpx solid #dce4f0;
+  border: 2rpx solid #dce4f0;
 }
 
 .d-btn {
-  width: 58rpx;
-  height: 52rpx;
+  width: 72rpx;
+  height: 68rpx;
   margin: 0;
   padding: 0;
-  background: #f5f8fd;
-  color: #586477;
-  font-size: 28rpx;
-  line-height: 52rpx;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 68rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1651,16 +1691,16 @@ const checkPendingProduct = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 4rpx;
+  padding: 0 10rpx;
   background: #ffffff;
 }
 
 .d-val-input {
-  width: 68rpx;
-  height: 52rpx;
+  width: 80rpx;
+  height: 68rpx;
   text-align: center;
   color: #2468e8;
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 800;
   padding: 0;
   margin: 0;
@@ -1668,7 +1708,7 @@ const checkPendingProduct = async () => {
 
 .d-val-unit {
   color: #2468e8;
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 800;
   margin-right: 6rpx;
 }
@@ -1676,48 +1716,100 @@ const checkPendingProduct = async () => {
 .quick-discount-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
-  margin: 14rpx 0 10rpx;
+  gap: 14rpx;
+  margin: 18rpx 0 12rpx;
 }
 
 .d-chip {
-  padding: 0 16rpx;
+  padding: 0 24rpx;
   white-space: nowrap;
-  height: 50rpx;
+  height: 62rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10rpx;
+  border-radius: 14rpx;
   background: #fff;
-  color: #647389;
-  font-size: 22rpx;
-  border: 1rpx solid #e1e7f0;
+  color: #475569;
+  font-size: 26rpx;
+  font-weight: 600;
+  border: 1.5rpx solid #cbd5e1;
+  transition: all 0.2s ease;
+
+  &.chip-highlight {
+    border-color: #93c5fd;
+    background: #f8fbff;
+    color: #1e40af;
+  }
+
+  &.active {
+    background: #eff6ff;
+    color: #2468e8;
+    font-weight: 800;
+    border-color: #2468e8;
+    box-shadow: 0 2rpx 10rpx rgba(36, 104, 232, 0.18);
+  }
 }
 
-.d-chip.active {
-  background: #edf4ff;
+/* 折扣滑动条 */
+.discount-slider-wrap {
+  margin: 16rpx 0 12rpx;
+  padding: 18rpx 20rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  border: 1rpx solid #e2e8f0;
+}
+
+.slider-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.slider-label {
+  font-size: 26rpx;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.slider-badge {
+  font-size: 26rpx;
+  font-weight: 800;
   color: #2468e8;
-  font-weight: 700;
-  border-color: #2468e8;
+  background: #eff6ff;
+  padding: 2rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.discount-slider {
+  margin: 10rpx 0 6rpx;
+}
+
+.discount-deduct-item {
+  margin-top: 10rpx;
 }
 
 .discount-val-text {
   color: #ef543f;
-  font-size: 26rpx;
+  font-size: 30rpx;
   font-weight: 800;
 }
 
 .price-custom-input {
-  width: 280rpx;
-  height: 60rpx;
-  padding: 0 16rpx;
+  width: 320rpx;
+  height: 76rpx;
+  padding: 0 20rpx;
   text-align: right;
-  border-radius: 10rpx;
+  border-radius: 14rpx;
   background: #fff;
   color: #17233d;
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 800;
-  border: 1rpx solid #dce4f0;
+  border: 1.5rpx solid #dce4f0;
+
+  &:focus {
+    border-color: #2468e8;
+  }
 }
 
 .val-bold {
@@ -1732,58 +1824,68 @@ const checkPendingProduct = async () => {
 }
 
 .remark-box {
-  margin-top: 12rpx;
+  margin-top: 16rpx;
 }
 
 .remark-box .label {
   display: block;
   color: #586477;
-  font-size: 24rpx;
-  margin-bottom: 8rpx;
+  font-size: 26rpx;
+  margin-bottom: 10rpx;
 }
 
 .remark-input {
-  height: 64rpx;
-  padding: 0 18rpx;
-  border-radius: 12rpx;
+  height: 76rpx;
+  padding: 0 20rpx;
+  border-radius: 14rpx;
   background: #fff;
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #17233d;
-  border: 1rpx solid #dce4f0;
+  border: 1.5rpx solid #dce4f0;
+
+  &:focus {
+    border-color: #2468e8;
+  }
 }
 
 .final-price-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 20rpx;
-  padding: 20rpx 24rpx;
-  border-radius: 16rpx;
-  background: #fff0ed;
+  margin-top: 24rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, #fff0ed 0%, #ffeae5 100%);
+  border: 1rpx solid rgba(239, 84, 63, 0.2);
 }
 
 .f-label {
   color: #ef543f;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 700;
 }
 
 .f-price {
   color: #ef543f;
-  font-size: 40rpx;
+  font-size: 44rpx;
   font-weight: 900;
 }
 
 .confirm-export-btn {
-  height: 84rpx;
+  height: 92rpx;
   margin-top: 28rpx;
-  border-radius: 42rpx;
-  background: #2468e8;
+  border-radius: 46rpx;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
   color: #fff;
-  font-size: 28rpx;
+  font-size: 32rpx;
   font-weight: 800;
-  line-height: 84rpx;
+  line-height: 92rpx;
   box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.35);
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.985);
+  }
 }
 
 /* 弹窗添加设备 */

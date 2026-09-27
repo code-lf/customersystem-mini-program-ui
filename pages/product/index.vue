@@ -222,11 +222,12 @@ const search = () => {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 250rpx;
-  padding: 34rpx 32rpx;
-  border-radius: 28rpx;
+  min-height: 160rpx;
+  padding: 22rpx 28rpx;
+  border-radius: 20rpx;
   overflow: hidden;
   box-sizing: border-box;
+  margin-bottom: 20rpx;
   transition: transform 0.2s ease;
 
   &:active {
@@ -236,10 +237,10 @@ const search = () => {
 
 .card-glass-glow {
   position: absolute;
-  right: -50rpx;
-  top: -50rpx;
-  width: 280rpx;
-  height: 280rpx;
+  right: -40rpx;
+  top: -40rpx;
+  width: 220rpx;
+  height: 220rpx;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
   pointer-events: none;
@@ -249,7 +250,7 @@ const search = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22rpx;
+  margin-bottom: 14rpx;
   gap: 12rpx;
   width: 100%;
 }
@@ -257,17 +258,17 @@ const search = () => {
 .card-title-group {
   display: flex;
   align-items: center;
-  gap: 14rpx;
+  gap: 12rpx;
   flex-shrink: 0;
   min-width: 0;
 }
 
 .hero-card__title {
   color: #fff;
-  font-size: 36rpx;
-  font-weight: 900;
-  line-height: 46rpx;
-  letter-spacing: 1rpx;
+  font-size: 32rpx;
+  font-weight: 800;
+  line-height: 40rpx;
+  letter-spacing: 0.5rpx;
   text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
   white-space: nowrap;
   flex-shrink: 0;
@@ -276,14 +277,14 @@ const search = () => {
 .hero-card__badge {
   display: inline-flex;
   align-items: center;
-  padding: 4rpx 14rpx;
+  padding: 2rpx 12rpx;
   background: rgba(255, 255, 255, 0.22);
   border: 1rpx solid rgba(255, 255, 255, 0.35);
-  border-radius: 12rpx;
+  border-radius: 10rpx;
   color: #ffffff;
   font-size: 20rpx;
   font-weight: 600;
-  line-height: 28rpx;
+  line-height: 26rpx;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -304,17 +305,17 @@ const search = () => {
 .card-tags-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 14rpx;
-  margin-bottom: 26rpx;
+  gap: 10rpx;
+  margin-bottom: 16rpx;
 }
 
 .card-tag {
-  padding: 8rpx 20rpx;
+  padding: 4rpx 16rpx;
   background: rgba(255, 255, 255, 0.16);
   border: 1rpx solid rgba(255, 255, 255, 0.25);
-  border-radius: 24rpx;
+  border-radius: 18rpx;
   color: #ffffff;
-  font-size: 23rpx;
+  font-size: 22rpx;
   font-weight: 500;
 }
 
@@ -323,7 +324,7 @@ const search = () => {
   align-items: center;
   justify-content: space-between;
   border-top: 1rpx solid rgba(255, 255, 255, 0.18);
-  padding-top: 22rpx;
+  padding-top: 14rpx;
 }
 
 .footer-tip {
@@ -335,14 +336,14 @@ const search = () => {
 .white-pill {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  height: 54rpx;
-  padding: 0 24rpx;
-  border-radius: 27rpx;
+  gap: 6rpx;
+  height: 48rpx;
+  padding: 0 20rpx;
+  border-radius: 24rpx;
   background: #ffffff;
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 700;
-  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 }
 
 .hero-card--central {
