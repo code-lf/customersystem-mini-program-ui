@@ -1,10 +1,9 @@
 <template>
   <view class="design-page category-page">
-    <AppNavbar :title="currentRootName ? `${currentRootName}选型` : '产品选型'" />
-
     <view class="central-category-wrap">
-      <!-- 置顶吸附筛选区：包含一级大类与各级子分类横向滑动 -->
+      <!-- 导航栏与筛选区一起吸顶：导航栏负责状态栏和微信胶囊占位，分类不会进入刘海区域。 -->
       <view class="sticky-filter-header">
+        <AppNavbar :title="currentRootName ? `${currentRootName}选型` : '产品选型'" />
         <!-- 顶部一级分类：横向滑动，动态获取不写死 -->
         <view class="root-category-bar">
           <scroll-view class="root-scroll-view" scroll-x :show-scrollbar="false">
@@ -720,6 +719,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 }
 
 .sticky-filter-header {
+  /* 整个导航与筛选区作为一个吸顶单元，避免筛选标签单独贴到屏幕最上沿。 */
   position: sticky;
   top: 0;
   z-index: 99;

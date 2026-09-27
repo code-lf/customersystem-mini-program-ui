@@ -139,41 +139,57 @@
       <text class="unlogin-tip-btn">立即登录 ›</text>
     </view>
 
-    <!-- 底部输入框与发送按钮 -->
-    <view class="input-bar">
-      <button
-        class="voice-btn"
-        :class="{ recording: isRecording }"
-        :disabled="isThinking"
-        @click="toggleVoiceRecord"
-      >
-        <up-icon name="mic" size="19" :color="isRecording ? '#fff' : '#2468e8'" />
-      </button>
-      <view class="input-field-wrap">
-        <input
-          v-model="inputContent"
-          :placeholder="isRecording ? '正在听，请说出问题，再点麦克风结束' : '向百炼 AI 助手提问 (如: 120㎡办公室、VK8R参数)...'"
-          placeholder-class="placeholder"
-          confirm-type="send"
-          :disabled="isRecording"
-          @confirm="sendMessage(inputContent)"
-        />
-        <up-icon
-          v-if="inputContent"
-          name="close-circle-fill"
-          size="16"
-          color="#a0aec0"
-          @click="inputContent = ''"
-        />
+    <!-- 录音草稿期间保留输入区和操作区；语音必须经用户确认才会发送给 AI。 -->
+    <view class="input-bar" :class="{ 'voice-mode': hasVoiceDraft }">
+      <view class="composer-main">
+        <button
+          class="voice-btn"
+          :class="{ recording: isRecording }"
+          :disabled="isThinking || isVoiceStopping"
+          @click="toggleVoiceRecord"
+        >
+          <up-icon name="mic" size="25" :color="isRecording ? '#fff' : '#2468e8'" />
+        </button>
+        <view class="input-field-wrap" :class="{ 'wave-field': isRecording }">
+          <!-- 波形纯 CSS 绘制，不依赖额外组件；只在麦克风实际录音时播放。 -->
+          <template v-if="isRecording">
+            <view class="voice-wave" aria-hidden="true">
+              <view v-for="index in 15" :key="index" class="wave-bar" :style="{ animationDelay: `${(index % 5) * -0.16}s` }" />
+            </view>
+            <text class="voice-transcript">{{ recognizedText || '正在聆听，请说出您的问题…' }}</text>
+          </template>
+          <template v-else>
+            <input
+              v-model="inputContent"
+              placeholder="向 AI 助手提问，例如 120㎡ 办公室方案"
+              placeholder-class="placeholder"
+              confirm-type="send"
+              @confirm="hasVoiceDraft ? sendVoiceDraft() : sendMessage(inputContent)"
+            />
+            <up-icon
+              v-if="inputContent"
+              name="close-circle-fill"
+              size="18"
+              color="#a0aec0"
+              @click="inputContent = ''"
+            />
+          </template>
+        </view>
+        <button
+          v-if="!hasVoiceDraft"
+          class="send-btn"
+          :class="{ active: inputContent.trim() }"
+          :disabled="!inputContent.trim() || isThinking"
+          @click="sendMessage(inputContent)"
+        >
+          <up-icon name="arrow-up" size="22" color="#fff" />
+        </button>
       </view>
-      <button
-        class="send-btn"
-        :class="{ active: inputContent.trim() && !isRecording }"
-        :disabled="isRecording"
-        @click="sendMessage(inputContent)"
-      >
-        <up-icon name="arrow-up" size="18" color="#fff" />
-      </button>
+      <!-- 录音时“发送”先停止识别并等待最终结果；“取消”丢弃语音草稿。 -->
+      <view v-if="hasVoiceDraft" class="voice-actions">
+        <button class="voice-cancel-btn" :disabled="isVoiceStopping" @click="cancelVoiceDraft">取消</button>
+        <button class="voice-send-btn" :disabled="isVoiceStopping || (!isRecording && !inputContent.trim())" @click="sendVoiceDraft">发送</button>
+      </view>
     </view>
   </view>
 </template>
@@ -193,6 +209,9 @@ const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/
 const inputContent = ref('');
 const isThinking = ref(false);
 const isRecording = ref(false);
+// hasVoiceDraft 表示用户仍在确认本次语音，停止录音后也保留识别结果供编辑/发送。
+const hasVoiceDraft = ref(false);
+const isVoiceStopping = ref(false);
 const recognizedText = ref('');
 const scrollTop = ref(0);
 // sessionId 由后端返回，用于维持连续会话上下文
@@ -210,6 +229,8 @@ const messages = ref([]);
 
 // 微信同声传译录音识别管理器，仅在微信小程序平台初始化。
 let recognitionManager = null;
+// stop 是异步的：用意图区分“仅停止”“发送”和“取消”，避免 onStop 擅自发消息。
+let pendingVoiceAction = '';
 let isPageLeaving = false;
 let activeAiRequest = null;
 let scrollTimer = null;
@@ -223,6 +244,7 @@ const initVoiceRecognition = () => {
 
     // 实时识别结果同步到输入框，让用户在录音过程中看到识别进度。
     recognitionManager.onRecognize = (result = {}) => {
+      if (!hasVoiceDraft.value || pendingVoiceAction === 'cancel') return;
       const text = String(result.result || '').trim();
       if (text) {
         recognizedText.value = text;
@@ -232,6 +254,9 @@ const initVoiceRecognition = () => {
 
     recognitionManager.onStop = (result = {}) => {
       isRecording.value = false;
+      isVoiceStopping.value = false;
+      const action = pendingVoiceAction;
+      pendingVoiceAction = '';
       const text = String(result.result || recognizedText.value || '').trim();
       console.info('[AI语音输入] 录音识别结束：', {
         hasText: Boolean(text),
@@ -239,24 +264,30 @@ const initVoiceRecognition = () => {
       });
 
       // 页面退出触发的停止只负责释放麦克风，不应把半段识别结果继续发送。
-      if (isPageLeaving) return;
+      if (isPageLeaving || action === 'cancel' || !hasVoiceDraft.value) return;
 
-      if (!text) {
-        inputContent.value = '';
+      // 最终识别结果可能比实时结果更完整；只在明确点“发送”后提交。
+      if (text) inputContent.value = text;
+      if (action === 'send') {
+        if (inputContent.value.trim()) {
+          hasVoiceDraft.value = false;
+          sendMessage(inputContent.value);
+        } else {
+          uni.showToast({ title: '没有识别到文字，请重试', icon: 'none' });
+        }
+      } else if (!text) {
         uni.showToast({ title: '没有识别到文字，请重试', icon: 'none' });
-        return;
       }
-
-      // 用户结束录音后直接发送识别文字，不再要求二次点击发送按钮。
-      inputContent.value = '';
-      sendMessage(text);
     };
 
     recognitionManager.onError = (error = {}) => {
       isRecording.value = false;
+      isVoiceStopping.value = false;
+      const wasCancelled = pendingVoiceAction === 'cancel';
+      pendingVoiceAction = '';
       console.error('[AI语音输入] 录音或识别失败：', error);
       // 插件停止录音时偶尔会返回这两个正常终止码，不重复弹出错误提示。
-      if (error.retcode === -30001 || error.retcode === -30011) return;
+      if (wasCancelled || isPageLeaving || error.retcode === -30001 || error.retcode === -30011) return;
       uni.showToast({
         title: error.msg ? `语音识别失败：${error.msg}` : '语音识别失败，请重试',
         icon: 'none'
@@ -277,6 +308,13 @@ const initVoiceRecognition = () => {
 };
 
 const toggleVoiceRecord = () => {
+  // 再点麦克风只结束录音，不自动发送；操作区会继续显示识别出的草稿。
+  if (isRecording.value) {
+    pendingVoiceAction = 'stop';
+    isVoiceStopping.value = true;
+    recognitionManager.stop();
+    return;
+  }
   if (!userStore.isLoggedIn) {
     uni.showToast({ title: '请先登录后使用语音提问', icon: 'none' });
     return;
@@ -288,11 +326,7 @@ const toggleVoiceRecord = () => {
   if (!initVoiceRecognition()) return;
 
   // #ifdef MP-WEIXIN
-  if (isRecording.value) {
-    recognitionManager.stop();
-    return;
-  }
-
+  pendingVoiceAction = '';
   recognizedText.value = '';
   inputContent.value = '';
   try {
@@ -301,12 +335,41 @@ const toggleVoiceRecord = () => {
       duration: 60000,
       lang: 'zh_CN'
     });
+    hasVoiceDraft.value = true;
     isRecording.value = true;
   } catch (error) {
     console.error('[AI语音输入] 启动录音失败：', error);
     uni.showToast({ title: '无法启动录音，请检查麦克风权限', icon: 'none' });
   }
   // #endif
+};
+
+const sendVoiceDraft = () => {
+  if (isVoiceStopping.value) return;
+  if (isRecording.value) {
+    // 等待 onStop 的最终识别文本，避免用户刚说完时发送不完整的实时结果。
+    pendingVoiceAction = 'send';
+    isVoiceStopping.value = true;
+    recognitionManager.stop();
+    return;
+  }
+  if (!inputContent.value.trim()) return;
+  hasVoiceDraft.value = false;
+  sendMessage(inputContent.value);
+};
+
+const cancelVoiceDraft = () => {
+  if (isVoiceStopping.value) return;
+  pendingVoiceAction = 'cancel';
+  hasVoiceDraft.value = false;
+  recognizedText.value = '';
+  inputContent.value = '';
+  if (isRecording.value) {
+    isVoiceStopping.value = true;
+    recognitionManager.stop();
+  } else {
+    pendingVoiceAction = '';
+  }
 };
 
 const goToLogin = () => {
@@ -488,6 +551,8 @@ onUnload(() => {
   }
   if (isRecording.value && recognitionManager) {
     try {
+      pendingVoiceAction = 'cancel';
+      hasVoiceDraft.value = false;
       recognitionManager.stop();
     } catch (error) {
       console.warn('[AI语音输入] 页面退出停止录音失败：', error);
@@ -764,19 +829,27 @@ onUnload(() => {
 
 .input-bar {
   display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  flex-direction: column;
+  gap: 14rpx;
+  padding: 18rpx 20rpx calc(18rpx + env(safe-area-inset-bottom));
   background: #fff;
   box-shadow: 0 -4rpx 20rpx rgba(23, 35, 61, 0.03);
+}
+
+/* 输入栏采用两层布局：普通状态单排发送，语音草稿状态下方出现操作按钮。 */
+.composer-main {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  width: 100%;
 }
 
 .voice-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
   padding: 0;
   border: 2rpx solid #bfd3fb;
   border-radius: 50%;
@@ -803,18 +876,55 @@ onUnload(() => {
 
 .input-field-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  height: 76rpx;
-  padding: 0 24rpx;
-  border-radius: 38rpx;
+  gap: 12rpx;
+  height: 96rpx;
+  padding: 0 28rpx;
+  border-radius: 48rpx;
   background: #f4f7fc;
 }
 
 .input-field-wrap input {
   flex: 1;
-  font-size: 26rpx;
+  min-width: 0;
+  height: 100%;
+  font-size: 28rpx;
   color: #17233d;
+}
+
+/* 录音波形通过错开的 CSS 动画模拟音量起伏，避免为小程序额外引入动画库。 */
+.voice-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5rpx;
+  height: 58rpx;
+  flex-shrink: 0;
+}
+
+.wave-bar {
+  width: 5rpx;
+  height: 16rpx;
+  border-radius: 5rpx;
+  background: #2468e8;
+  animation: wave-dance 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes wave-dance {
+  from { height: 10rpx; opacity: 0.55; }
+  to { height: 48rpx; opacity: 1; }
+}
+
+.voice-transcript {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #586477;
+  font-size: 25rpx;
 }
 
 .placeholder {
@@ -825,11 +935,51 @@ onUnload(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
+  padding: 0;
+  flex-shrink: 0;
   border-radius: 50%;
   background: #b0bac7;
   transition: all 0.2s ease;
+}
+
+.send-btn::after,
+.voice-cancel-btn::after,
+.voice-send-btn::after {
+  display: none;
+}
+
+.voice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+}
+
+.voice-cancel-btn,
+.voice-send-btn {
+  margin: 0;
+  min-width: 132rpx;
+  height: 64rpx;
+  padding: 0 24rpx;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 64rpx;
+}
+
+.voice-cancel-btn {
+  color: #586477;
+  background: #f1f4f9;
+}
+
+.voice-send-btn {
+  color: #fff;
+  background: #2468e8;
+}
+
+.voice-send-btn[disabled] {
+  opacity: 0.55;
 }
 
 .send-btn.active {

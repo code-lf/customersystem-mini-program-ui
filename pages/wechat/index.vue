@@ -3,15 +3,13 @@
     <AppNavbar title="关注公众号" />
 
     <view class="qr-card">
-      <text>关注「格宏助手」公众号</text>
+      <text>关注「格宏助手」服务号</text>
       <text>获取最新产品资讯与专属服务</text>
       <view class="qr-box">
-        <view class="fake-qr">
-          <view v-for="item in 64" :key="item" :class="{ dark: item % 2 === 0 || item % 7 === 0 || item % 11 === 0 }" />
-        </view>
-        <view class="qr-logo"><up-icon name="weixin-fill" size="28" color="#2468e8" /></view>
+        <!-- 服务号二维码直接读取 OSS 链接，不再占用小程序包体积。 -->
+        <image class="qr-image" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/27/179050600978c2d5798e29674397fd0010309a1114_aliyun.jpg?x-oss-process=image/resize,h_200,w_200" mode="aspectFit" show-menu />
       </view>
-      <text>微信扫一扫，关注公众号</text>
+      <text>微信扫一扫，关注服务号</text>
     </view>
 
     <view class="service-card">
@@ -75,43 +73,20 @@ const services = [
 }
 
 .qr-box {
-  position: relative;
-  width: 280rpx;
-  height: 280rpx;
+  width: 360rpx;
+  height: 360rpx;
   margin: 30rpx auto 0;
-  padding: 22rpx;
+  padding: 12rpx;
+  box-sizing: border-box;
   border-radius: 14rpx;
   background: #fff;
 }
 
-.fake-qr {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 5rpx;
-}
-
-.fake-qr view {
-  width: 24rpx;
-  height: 24rpx;
-  background: #fff;
-}
-
-.fake-qr view.dark {
-  background: #111827;
-}
-
-.qr-logo {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 54rpx;
-  height: 54rpx;
-  transform: translate(-50%, -50%);
-  background: #fff;
-  border-radius: 50%;
+.qr-image {
+  /* 二维码保留原图比例，避免拉伸后影响识别。 */
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .service-card {

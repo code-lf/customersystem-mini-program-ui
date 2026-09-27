@@ -135,6 +135,7 @@
       mode="bottom"
       round="28"
       :closeable="false"
+      :safe-area-inset-bottom="false"
       @close="showEditProfileModal = false"
     >
       <view class="edit-profile-panel">
@@ -914,10 +915,14 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 /* 个人资料修改设置弹窗 */
 .edit-profile-panel {
   background: #ffffff;
-  padding: 32rpx 32rpx calc(env(safe-area-inset-bottom) + 32rpx);
+  /* 弹窗组件的底部安全区已关闭，这里只保留按钮下方的正常间距。 */
+  padding: 24rpx 32rpx 20rpx;
   border-top-left-radius: 36rpx;
   border-top-right-radius: 36rpx;
-  max-height: 88vh;
+  /* 固定抽屉高度才能让微信小程序正确计算 scroll-view 的剩余空间。 */
+  height: 82vh;
+  max-height: 82vh;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
@@ -959,8 +964,11 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 }
 
 .edit-panel-scroll {
-  max-height: 62vh;
+  /* 高度由父级扣除标题和操作栏后分配，表单末尾也能滚动到可见区域。 */
+  height: 0;
   flex: 1;
+  min-height: 0;
+  width: 100%;
 }
 
 .edit-panel-body {
@@ -1208,7 +1216,8 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 .edit-panel-footer {
   display: flex;
   gap: 20rpx;
-  margin-top: 36rpx;
+  flex-shrink: 0;
+  margin-top: 12rpx;
 }
 
 .btn-cancel {

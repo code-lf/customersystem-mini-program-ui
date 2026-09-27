@@ -13,10 +13,11 @@
     >
       <view class="brand">
         <view class="brand__icon-wrap">
-          <image class="brand__logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232468e8' /%3E%3Cstop offset='100%25' stop-color='%2306b6d4' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M85,60 H60 V75 H70 C66,85 58,90 50,90 C35,90 25,78 25,60 C25,42 35,30 50,30 C58,30 65,34 69,40 L82,30 C74,18 64,12 50,12 C24,12 8,30 8,60 C8,90 24,108 50,108 C75,108 85,90 85,75 Z' fill='url(%23grad1)' /%3E%3Ccircle cx='85' cy='45' r='10' fill='%2310b981' /%3E%3C/svg%3E" mode="aspectFit" />
+          <!-- 使用 OSS 图片链接；服务端转换为 JPEG，避免微信开发者工具只渲染原 PNG 的上半部分。 -->
+          <image class="brand__logo" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/27/1790506275fe56a54fe0b2633b37f9addd4206c684_aliyun.png?x-oss-process=image/format,jpg" mode="aspectFit" />
         </view>
         <view class="brand__text-box">
-          <text class="brand__name">格宏电器</text>
+          <text class="brand__name">格宏助手</text>
           <text class="brand__sub">智能选型与报价平台</text>
         </view>
       </view>
@@ -375,17 +376,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 60rpx;
-  height: 60rpx;
-  border-radius: 18rpx;
-  background: #fff;
-  box-shadow: 0 4rpx 14rpx rgba(36, 104, 232, 0.12);
+  width: 90rpx;
+  height: 90rpx;
+  /* 原图已包含完整圆形图案，容器不再裁切，以免品牌文字被截掉。 */
+  background: transparent;
   flex-shrink: 0;
 }
 
 .brand__logo {
-  width: 40rpx;
-  height: 40rpx;
+  /* 保留原图比例，放大到能看清下方“格宏助手”字样的尺寸。 */
+  display: block;
+  width: 90rpx;
+  height: 90rpx;
+  flex-shrink: 0;
 }
 
 .brand__text-box {
