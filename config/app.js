@@ -4,6 +4,15 @@
  * 新项目通常只需要修改这里的应用名称、接口地址和登录页地址，
  * 其他工具类和业务 API 不需要跟着项目复制多份配置。
  */
+// 小程序运行时没有 Node.js 的 url 模块。若在通用配置中直接读取 import.meta.env，
+// 当前 uni-app 编译器会把它转换成 require('url')，导致微信小程序启动时报模块缺失。
+// 因此先给所有非 H5 平台设置可直接使用的正式接口地址。
+let apiBaseUrl = 'https://gh.starall.cn/api';
+// #ifdef H5
+// H5 开发时通过 Vite 环境变量覆盖接口；未配置时交给 vite.config.js 的 /api 代理。
+apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+// #endif
+
 const config = {
   // 应用的基础信息，可用于页面标题、日志和埋点。
   appName: '格宏助手',
@@ -18,9 +27,7 @@ const config = {
   // H5 预览环境下使用 /api 同源反向代理，彻底解决浏览器跨域拦截；
   // 小程序生产环境直连 https://gh.starall.cn/api
   env: 'production',
-  baseUrl: (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
-    ? import.meta.env.VITE_API_BASE_URL
-    : (typeof window !== 'undefined' ? '/api' : 'https://gh.starall.cn/api'),
+  baseUrl: apiBaseUrl,
   timeout: 60000,
 
   // 阿里云百炼 AI 助手配置。
