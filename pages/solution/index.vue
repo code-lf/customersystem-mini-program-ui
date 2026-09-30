@@ -177,7 +177,7 @@
       safe-area-inset-bottom
       @close="showPricePanel = false"
     >
-      <view class="price-panel">
+      <view class="price-panel" :style="{ maxHeight: `calc(100vh - ${metrics.statusBarHeight + metrics.navBarHeight + 20}px)` }">
         <view class="price-panel__head">
           <view>
             <text class="popup-main-title">导出方案报价单</text>
@@ -188,7 +188,7 @@
           </view>
         </view>
 
-        <view class="price-form">
+        <scroll-view class="price-form" scroll-y>
           <view class="form-row-summary">
             <text>设备面价总额</text>
             <text class="val">¥{{ formatPrice(totalPrice) }}</text>
@@ -289,7 +289,7 @@
             <text class="f-label">预计应付总额</text>
             <text class="f-price">¥{{ formatPrice(finalTotal) }}</text>
           </view>
-        </view>
+        </scroll-view>
 
         <button class="confirm-export-btn" @click="exportQuote">生成客户预览报价单</button>
       </view>
@@ -444,7 +444,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShareTimeline, onShow, onUnload } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
 import { getProductList, getProductCategories } from '@/api/product';
@@ -462,6 +462,20 @@ const isLoading = ref(false);
 
 const showAddPanel = ref(false);
 const showPricePanel = ref(false);
+
+// 报价设置弹窗打开时隐藏原生底部导航，避免按钮下方留下导航栏高度的空白。
+watch(showPricePanel, (visible) => {
+  if (visible) {
+    uni.hideTabBar({ animation: false });
+  } else {
+    uni.showTabBar({ animation: false });
+  }
+});
+
+// 页面被关闭时也恢复原生导航，避免弹窗尚未关闭便返回后导航持续隐藏。
+onUnload(() => {
+  if (showPricePanel.value) uni.showTabBar({ animation: false });
+});
 const addSearchKeyword = ref('');
 const selectedScope = ref('all'); // 'all' | 'central' | 'home' | 'accessory'
 const selectedSubCategory = ref('all');
@@ -1570,7 +1584,11 @@ const checkPendingProduct = async () => {
 
 /* 导出价格配置弹窗 */
 .price-panel {
-  padding: 24rpx 28rpx 36rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 20rpx 28rpx 16rpx;
   background: #fff;
 }
 
@@ -1578,7 +1596,25 @@ const checkPendingProduct = async () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-bottom: 20rpx;
+  gap: 20rpx;
+  padding-bottom: 12rpx;
+}
+
+.price-panel__head > view:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.price-panel__head .panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  margin-top: -4rpx;
+  border-radius: 50%;
+  background: #f3f6fa;
 }
 
 .popup-main-title {
@@ -1622,7 +1658,9 @@ const checkPendingProduct = async () => {
 }
 
 .price-form {
-  margin-top: 18rpx;
+  flex: 1;
+  min-height: 0;
+  margin-top: 8rpx;
 }
 
 .form-row-summary {
@@ -1873,7 +1911,8 @@ const checkPendingProduct = async () => {
 
 .confirm-export-btn {
   height: 92rpx;
-  margin-top: 28rpx;
+  flex-shrink: 0;
+  margin-top: 14rpx;
   border-radius: 46rpx;
   background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
   color: #fff;

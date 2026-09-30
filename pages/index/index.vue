@@ -13,12 +13,12 @@
     >
       <view class="brand">
         <view class="brand__icon-wrap">
-          <!-- 使用 OSS 图片链接；服务端转换为 JPEG，避免微信开发者工具只渲染原 PNG 的上半部分。 -->
-          <image class="brand__logo" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/27/1790506275fe56a54fe0b2633b37f9addd4206c684_aliyun.png?x-oss-process=image/format,jpg" mode="aspectFit" />
+          <!-- 首页品牌图片：使用指定 OSS 链接及 200×200 缩放参数，保持原图比例。 -->
+          <image class="brand__logo" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/28/1790566432f2c3d369e02b6b091ca5a409e3a20e3e_aliyun.png?x-oss-process=image/resize,h_200,w_200" mode="aspectFit" />
         </view>
         <view class="brand__text-box">
           <text class="brand__name">格宏助手</text>
-          <text class="brand__sub">智能选型与报价平台</text>
+          <text class="brand__sub">一个懂得你的数字搭档</text>
         </view>
       </view>
       <view class="home-header__status" @click="openPage('/pages/ai/index')">
