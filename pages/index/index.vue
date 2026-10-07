@@ -109,7 +109,7 @@
       </view>
     </view>
 
-    <!-- 快捷工作台 -->
+    <!-- 快捷工作台固定为四列两行；入口均指向已注册页面，不放无效占位按钮。 -->
     <view class="section-head section-head--compact">
       <text>快捷工作台</text>
     </view>
@@ -290,7 +290,11 @@ const quickTools = [
   { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
   { title: '营销活动', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
-  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' }
+  // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
+  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
+  { title: '消息通知', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
+  { title: '意见反馈', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' }
 ];
 
 const formatMoney = (value) => {
@@ -598,9 +602,11 @@ onMounted(async () => {
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0;
-  padding: 26rpx 12rpx 22rpx;
+  /* 四等分列宽，八个真实入口自然排成两行；行距单独设置便于日后微调。 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 8rpx;
+  row-gap: 24rpx;
+  padding: 26rpx 12rpx 26rpx;
   border-radius: 20rpx;
   background: #fff;
   box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);

@@ -742,7 +742,8 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: inline-flex;
   align-items: center;
   gap: 16rpx;
-  padding: 16rpx 24rpx;
+  /* 第一排分类减少上下留白，和下方筛选标签形成更紧凑的整体。 */
+  padding: 10rpx 24rpx;
 }
 
 .root-tab-item {
@@ -750,7 +751,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  height: 68rpx;
+  height: 64rpx;
   padding: 0 32rpx;
   border-radius: 12rpx;
   background: #f1f5f9;
@@ -770,10 +771,11 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
 .category-filters-container {
   background: #ffffff;
   border-bottom: 1rpx solid #e2e8f0;
-  padding: 12rpx 0;
+  /* 三排筛选仍各自保持可点击高度，只压缩排与排之间的空隙。 */
+  padding: 8rpx 0;
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 6rpx;
 }
 
 .filter-scroll-row {
@@ -789,7 +791,7 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: inline-flex;
   align-items: center;
   gap: 14rpx;
-  padding: 4rpx 24rpx;
+  padding: 2rpx 24rpx;
 }
 
 .filter-tag {
@@ -1007,8 +1009,9 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 28rpx;
-  min-height: 64rpx;
+  /* 只微调高度，不缩小字号，避免分类名称变得难读。 */
+  padding: 9rpx 28rpx;
+  min-height: 58rpx;
   border-radius: 34rpx;
   background: #f1f5f9;
   color: #475569;
@@ -1041,8 +1044,8 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 26rpx;
-  min-height: 64rpx;
+  padding: 9rpx 26rpx;
+  min-height: 58rpx;
   border-radius: 34rpx;
   background: #ffffff;
   border: 2rpx solid #cbd5e1;

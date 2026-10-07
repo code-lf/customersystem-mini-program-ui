@@ -4,35 +4,48 @@
 
     <view v-if="loading" class="loading-state">正在加载报价详情...</view>
     <view v-else class="preview-container">
-      <view class="company-head">
-        {{ sellerName }}
-      </view>
-
       <view class="quote-summary">
         <text class="summary-title">报价总计</text>
         <view class="summary-main">
-          <view class="circle-total">
-            <view class="circle-inner">
-              <text class="circle-num">{{ money(finalTotalPrice) }}</text>
-              <text class="circle-unit">元</text>
-            </view>
+          <!-- 使用秋云 uCharts 的饼图组件：图形按三项金额占比生成，零金额不参与扇区。 -->
+          <view class="pie-chart-wrap">
+            <qiun-data-charts
+              v-if="pieTotal > 0"
+              class="pie-chart"
+              type="pie"
+              :chartData="pieChartData"
+              :opts="pieChartOptions"
+              :animation="false"
+              :ontouch="false"
+            />
+            <view v-else class="pie-chart pie-empty">暂无金额</view>
+            <text class="pie-total">合计 ¥{{ money(finalTotalPrice) }}</text>
           </view>
           
           <view class="summary-details">
             <view class="detail-row">
               <view class="dot blue-dark"></view>
               <text class="detail-label">设备折后</text>
-              <text class="detail-val">{{ money(goodsPayableAmount) }}</text>
+              <view class="detail-amount">
+                <text class="detail-val">{{ money(goodsPayableAmount) }}</text>
+                <text class="detail-percent">{{ piePercentages[0] }}%</text>
+              </view>
             </view>
             <view class="detail-row">
               <view class="dot blue"></view>
               <text class="detail-label">安装</text>
-              <text class="detail-val">{{ money(installationAmount) }}</text>
+              <view class="detail-amount">
+                <text class="detail-val">{{ money(installationAmount) }}</text>
+                <text class="detail-percent">{{ piePercentages[1] }}%</text>
+              </view>
             </view>
             <view class="detail-row">
               <view class="dot orange"></view>
               <text class="detail-label">增项</text>
-              <text class="detail-val">{{ money(additionAmount) }}</text>
+              <view class="detail-amount">
+                <text class="detail-val">{{ money(additionAmount) }}</text>
+                <text class="detail-percent">{{ piePercentages[2] }}%</text>
+              </view>
             </view>
           </view>
         </view>
@@ -116,6 +129,7 @@
 import { computed, ref } from 'vue';
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import QiunDataCharts from '@/components/qiun-data-charts/qiun-data-charts.vue';
 import {
   getSolutionDetail,
   getShareQuote,
@@ -167,12 +181,35 @@ const finalTotalPrice = computed(() => {
     ?? (goodsPayableAmount.value + installationAmount.value + additionAmount.value);
 });
 
-// 经销商快照属于买方，不能当作报价单顶部的卖方名称。
-const sellerName = computed(() => quoteData.value.seller?.company_name
-  || quoteData.value.seller?.company_short_name
-  || quoteData.value.company_name
-  || quoteData.value.company_short_name
-  || '方案报价单');
+// 饼图的分母是三个分项之和；正式应付金额仍单独展示后端 pay_amount，不混用两种口径。
+const pieAmounts = computed(() => [
+  goodsPayableAmount.value,
+  installationAmount.value,
+  additionAmount.value
+].map((amount) => Math.max(0, Number(amount) || 0)));
+const pieTotal = computed(() => pieAmounts.value.reduce((total, amount) => total + amount, 0));
+const piePercentages = computed(() => {
+  return pieAmounts.value.map((amount) => pieTotal.value ? (amount / pieTotal.value * 100).toFixed(1) : '0.0');
+});
+
+// uCharts 的 pie 数据格式是 series: [{ name, data, color }]；为每项明确指定颜色，
+// 避免过滤零金额后，图中扇区顺序变化导致右侧手写图例颜色对不上。
+const pieChartData = computed(() => ({
+  series: [
+    { name: '设备折后', data: pieAmounts.value[0], color: '#1e40af' },
+    { name: '安装', data: pieAmounts.value[1], color: '#3b82f6' },
+    { name: '增项', data: pieAmounts.value[2], color: '#f59e0b' }
+  ].filter((item) => item.data > 0)
+}));
+
+// 右侧已有金额图例，因此关闭组件内置图例和扇区文字；border:false 防止单项 100% 出现白色切线。
+const pieChartOptions = {
+  color: ['#1e40af', '#3b82f6', '#f59e0b'],
+  padding: [0, 0, 0, 0],
+  legend: { show: false },
+  dataLabel: false,
+  extra: { pie: { border: false, activeRadius: 0, activeOpacity: 1 } }
+};
 const isDecisionFinal = computed(() => ['accepted', 'rejected', 'void'].includes(quoteData.value.quote_status));
 const quoteStatusText = computed(() => ({
   draft: '草稿',
@@ -352,13 +389,6 @@ const confirmQuote = (status) => {
   padding: 24rpx;
 }
 
-.company-head {
-  text-align: center;
-  font-size: 32rpx;
-  color: #333;
-  margin-bottom: 30rpx;
-}
-
 .quote-summary {
   position: relative;
   background: linear-gradient(135deg, #f0f7ff 0%, #e0effe 50%, #ffffff 100%);
@@ -397,45 +427,58 @@ const confirmQuote = (status) => {
   margin-bottom: 40rpx;
 }
 
-.circle-total {
-  width: 240rpx;
-  height: 240rpx;
-  border-radius: 50%;
-  border: 16rpx solid #2563eb;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 50rpx;
-  box-shadow: 0 8rpx 28rpx rgba(37, 99, 235, 0.22);
-}
-
-.circle-inner {
+.pie-chart-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  width: 250rpx;
+  margin-right: 30rpx;
+  flex-shrink: 0;
 }
 
-.circle-num {
-  font-size: 38rpx;
-  font-weight: 800;
-  color: #1e40af;
+.pie-chart {
+  width: 220rpx;
+  height: 220rpx;
 }
 
-.circle-unit {
-  font-size: 24rpx;
+.pie-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e2e8f0;
   color: #64748b;
+  font-size: 24rpx;
+}
+
+.pie-total {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #1e40af;
+  white-space: nowrap;
 }
 
 .summary-details {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 14rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .detail-row {
   display: flex;
   align-items: center;
+}
+
+.detail-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: 1;
+  min-width: 0;
 }
 
 .dot {
@@ -450,15 +493,20 @@ const confirmQuote = (status) => {
 }
 
 .detail-label {
-  font-size: 28rpx;
+  font-size: 25rpx;
   color: #666;
-  width: 80rpx;
+  white-space: nowrap;
 }
 
 .detail-val {
-  font-size: 32rpx;
+  font-size: 27rpx;
   font-weight: bold;
   color: #333;
+}
+
+.detail-percent {
+  color: #64748b;
+  font-size: 21rpx;
 }
 
 .summary-tip {
