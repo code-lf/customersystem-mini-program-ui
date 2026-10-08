@@ -1,4 +1,4 @@
-import { apiGet } from '../utils/api';
+import { apiDelete, apiGet, apiPost } from '../utils/api';
 
 /**
  * 后台定死的三大核心商品分类及子分类 ID
@@ -64,4 +64,19 @@ export function getProductDetail(goodsId) {
     return Promise.reject(new Error(`商品ID无效：${goodsId ?? '未传入'}`));
   }
   return apiGet(`crm/quote/product/goods/${normalizedGoodsId}`);
+}
+
+/** 商品收藏列表：后端按 page、limit 分页，返回的 data 为商品数组。 */
+export function getFavoriteProducts(params = {}) {
+  return apiGet('crm/quote/favorites', params);
+}
+
+/** 收藏商品；必须使用商品 goods_id，不能传分类或收藏记录 ID。 */
+export function addFavoriteProduct(goodsId) {
+  return apiPost('crm/quote/favorite', { goods_id: Number(goodsId) });
+}
+
+/** 取消收藏；接口路径参数同样是商品 goods_id。 */
+export function removeFavoriteProduct(goodsId) {
+  return apiDelete(`crm/quote/favorite/${Number(goodsId)}`);
 }

@@ -27,7 +27,7 @@
           <text class="avatar-name">{{ userStore.userInfo.nickname || userStore.userInfo.username || '格宏用户' }}</text>
           <up-icon name="edit-pen" size="16" color="#2468e8" />
         </view>
-        <text class="avatar-role">{{ userStore.userInfo.role_name || userStore.userInfo.member_level_name || '认证会员' }}</text>
+        <text class="avatar-role">{{ userStore.displayRole }}</text>
         <button class="btn-quick-edit" @click="openEditModal">修改名称与头像资料</button>
       </view>
 
@@ -52,11 +52,15 @@
           <text class="value">{{ userStore.userInfo.mobile || '--' }}</text>
         </view>
         <view class="info-row" @click="openEditModal">
-          <text class="label">认证公司</text>
+          <text class="label">企业 / 门店名称</text>
           <view class="value-with-arrow">
-            <text class="value">{{ userStore.userInfo.company_name || '格宏电器科技有限公司' }}</text>
+            <text class="value">{{ userStore.userInfo.company_name || '未填写' }}</text>
             <up-icon name="arrow-right" size="14" color="#94a3b8" />
           </view>
+        </view>
+        <view class="info-row">
+          <text class="label">门店职位 / 身份</text>
+          <text class="value">{{ userStore.userInfo.job_title || '未填写' }}</text>
         </view>
         <view class="info-row">
           <text class="label">注册渠道</text>
@@ -147,8 +151,12 @@
                 <input v-model="form.nickname" type="nickname" class="custom-input" placeholder="请输入或填入微信昵称" />
               </view>
               <view class="input-block">
-                <text class="input-label">认证企业 / 暖通公司</text>
-                <input v-model="form.company_name" class="custom-input" placeholder="请输入所属暖通公司名称" />
+                <text class="input-label">企业 / 门店名称</text>
+                <input v-model="form.company_name" class="custom-input" maxlength="150" placeholder="请输入企业或门店名称" />
+              </view>
+              <view class="input-block">
+                <text class="input-label">门店职位 / 身份</text>
+                <input v-model="form.job_title" class="custom-input" maxlength="50" placeholder="例如：销售工程师" />
               </view>
             </view>
           </view>
@@ -168,7 +176,7 @@ import { computed, reactive, ref, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { useUserStore } from '@/store/user';
-import { updateMemberInfo, modifyMemberField } from '@/api/member';
+import { updateMemberInfo } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
@@ -186,14 +194,16 @@ const currentPresetList = computed(() => {
 const form = reactive({
   nickname: '',
   avatar: '',
-  company_name: ''
+  company_name: '',
+  job_title: ''
 });
 
 const openEditModal = () => {
   const u = userStore.userInfo || {};
   form.nickname = u.nickname || u.username || '';
   form.avatar = u.avatar || u.headimg || '/static/avatars/avatar-demo.png';
-  form.company_name = u.company_name || '格宏电器科技有限公司';
+  form.company_name = u.company_name || '';
+  form.job_title = u.job_title || '';
   showEditModal.value = true;
 };
 
@@ -224,35 +234,16 @@ const saveProfile = async () => {
   }
   isSaving.value = true;
   try {
-    const payload = {
-      nickname: name,
-      avatar: form.avatar,
-      headimg: form.avatar,
-      company_name: form.company_name.trim() || '格宏电器科技有限公司'
-    };
-
+    // 与个人中心抽屉保持同一字段协议，接口失败时不写入本地假成功资料。
     const current = userStore.userInfo || {};
-    
-    // 依次对接 niucloud-admin 标准单字段修改接口 PUT member/modify/nickname 与 PUT member/modify/headimg
-    try {
-      const tasks = [];
-      if (name !== (current.nickname || current.username)) {
-        tasks.push(modifyMemberField('nickname', name));
-      }
-      if (form.avatar && form.avatar !== (current.avatar || current.headimg)) {
-        tasks.push(
-          modifyMemberField('headimg', form.avatar).catch(() => modifyMemberField('avatar', form.avatar))
-        );
-      }
+    const payload = {};
+    if (name !== (current.nickname || current.username || '')) payload.nickname = name;
+    if (form.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = form.avatar;
+    if (form.company_name.trim() !== (current.company_name || '')) payload.company_name = form.company_name.trim();
+    if (form.job_title.trim() !== (current.job_title || '')) payload.job_title = form.job_title.trim();
+    if (Object.keys(payload).length) await updateMemberInfo(payload);
 
-      if (tasks.length > 0) {
-        await Promise.all(tasks);
-      }
-    } catch (apiErr) {
-      console.warn('[member] API请求异常，已回退到本地持久化保存:', apiErr);
-    }
-
-    const updated = { ...current, ...payload };
+    const updated = { ...current, ...payload, ...(payload.headimg ? { avatar: payload.headimg } : {}) };
     userStore.setUserInfo(updated);
     uni.setStorageSync('wap_member_info', updated);
     uni.setStorageSync('user_info', updated);

@@ -286,6 +286,7 @@
 import { computed, reactive, ref } from 'vue';
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { getCampaignDetail, enrollCampaign } from '@/api/marketing';
+import { requireDealerAccess } from '@/utils/dealer-access';
 import { openPage } from '@/utils/pages';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
@@ -379,7 +380,12 @@ const resolveCampaignId = (options = {}) => {
   return null;
 };
 
-onLoad((options) => {
+onLoad(async (options) => {
+  // 分享的活动详情也必须由已绑定经销商查看，不能仅靠列表入口限制。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) {
+    loading.value = false;
+    return;
+  }
   const targetId = resolveCampaignId(options);
   if (targetId) {
     campaignId.value = targetId;

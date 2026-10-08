@@ -35,3 +35,13 @@ export function resumeMonitor(id) {
 export function cancelMonitor(id) {
   return apiPut(`crm/price-monitor/watch/${id}/cancel`);
 }
+
+/** 我关注商品的近期降价，供个人中心的降价监控通知使用。 */
+export function getRecentPriceDrops(params = {}) {
+  return apiGet('crm/price-monitor/recent-drops', params);
+}
+
+/** 我关注商品的全部价格波动，包含上涨和下降。 */
+export function getPriceFluctuations(params = {}) {
+  return apiGet('crm/price-monitor/fluctuations', params);
+}

@@ -103,7 +103,7 @@
       <view class="hero-quote-card__bottom" @click="handleHistoryQuoteClick">
         <text class="hero-quote-card__history-label">全部报价单</text>
         <view class="hero-quote-card__history-right">
-          <text class="hero-quote-card__history-count">{{ !userStore.isLoggedIn ? '登录后查看' : (quoteSummaryLoading ? '加载中' : (historyTotal === null ? '暂不可用' : `${historyTotal} 笔`)) }}</text>
+          <text class="hero-quote-card__history-count">{{ !userStore.isLoggedIn ? '登录后查看' : (!userStore.isDealer ? '经销商专享' : (quoteSummaryLoading ? '加载中' : (historyTotal === null ? '暂不可用' : `${historyTotal} 笔`))) }}</text>
           <up-icon name="arrow-right" size="13" color="#94a3b8" />
         </view>
       </view>
@@ -114,7 +114,7 @@
       <text>快捷工作台</text>
     </view>
     <view class="tool-grid">
-      <view v-for="item in quickTools" :key="item.title" class="tool-item" @click="openPage(item.path)">
+      <view v-for="item in quickTools" :key="item.title" class="tool-item" @click="handleQuickToolClick(item)">
         <view class="tool-item__icon" :style="{ backgroundColor: item.bg }">
           <up-icon :name="item.icon" size="24" :color="item.color" />
         </view>
@@ -147,6 +147,7 @@ import { useUserStore } from '@/store/user';
 import { getNotices } from '@/api/content';
 import { getSolutionList } from '@/api/solution';
 import { openPage } from '@/utils/pages';
+import { openDealerPage, requireDealerAccess } from '@/utils/dealer-access';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppWatermark from '@/components/app-watermark.vue';
@@ -180,7 +181,7 @@ const loadQuoteSummary = async () => {
   latestQuote.value = null;
   historyTotal.value = null;
   quoteSummaryError.value = false;
-  if (!userStore.isLoggedIn) {
+  if (!userStore.isDealer) {
     quoteSummaryLoading.value = false;
     return;
   }
@@ -210,6 +211,9 @@ const activeQuoteDisplay = computed(() => {
   if (!userStore.isLoggedIn) {
     return { price: null, statusText: '登录后查看', desc: '登录后查看您的真实报价', actionPath: '/pages/auth/login' };
   }
+  if (!userStore.isDealer) {
+    return { price: null, statusText: '经销商专享', desc: '绑定经销商账号后查看报价', actionPath: '/pages/solution/index' };
+  }
   // 首页报价卡只使用正式报价的后端应付金额，不能拿暂存报价篮面价冒充。
   if (latestQuote.value) {
     const quote = latestQuote.value;
@@ -233,7 +237,8 @@ const activeQuoteDisplay = computed(() => {
   };
 });
 
-const handleActiveQuoteClick = () => {
+const handleActiveQuoteClick = async () => {
+  if (!(await requireDealerAccess(userStore))) return;
   const active = activeQuoteDisplay.value;
   if (active.actionQuery) {
     openPage(active.actionPath, active.actionQuery);
@@ -242,11 +247,8 @@ const handleActiveQuoteClick = () => {
   }
 };
 
-const handleHistoryQuoteClick = () => {
-  if (!userStore.isLoggedIn) {
-    openPage('/pages/auth/login');
-    return;
-  }
+const handleHistoryQuoteClick = async () => {
+  if (!(await requireDealerAccess(userStore))) return;
   // TabBar 页面不能通过 URL 参数切换标签，使用一次性标记直达报价记录。
   uni.setStorageSync('solution_open_tab', 'history');
   openPage('/pages/solution/index');
@@ -269,7 +271,7 @@ const currentDisplayName = computed(() => {
 
 const currentDisplayRole = computed(() => {
   if (!userStore.isLoggedIn) return '点击登录';
-  return userStore.userInfo.member_level_name || userStore.userInfo.role_name || '认证服务商';
+  return userStore.displayRole;
 });
 
 const currentDisplayCompany = computed(() => {
@@ -293,9 +295,12 @@ const quickTools = [
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
   { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
-  { title: '消息通知', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
+  { title: '降价通知', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
   { title: '意见反馈', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' }
 ];
+
+// 三个经销商专享入口点击时先读取会员最新绑定状态，其余入口保持原跳转行为。
+const handleQuickToolClick = (item) => openDealerPage(userStore, item.path);
 
 const formatMoney = (value) => {
   const num = Number(value || 0);
@@ -310,7 +315,7 @@ const handleSearch = () => {
 
 const syncData = async () => {
   if (userStore.token) {
-    userStore.fetchUserInfo().catch(() => {});
+    await userStore.fetchUserInfo().catch(() => {});
   }
   loadQuoteSummary().catch((error) => {
     console.warn('首页报价汇总加载失败:', error);

@@ -148,10 +148,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { onPullDownRefresh, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { getCampaigns, getEnrollments } from '@/api/marketing';
 import { openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import { useUserStore } from '@/store/user';
@@ -330,13 +331,10 @@ onPullDownRefresh(() => {
   fetchEnrollCount();
 });
 
-onShow(() => {
+onShow(async () => {
   showMiniProgramShareMenu();
-  fetchCampaigns();
-  fetchEnrollCount();
-});
-
-onMounted(() => {
+  // 分享链接也可能直接打开活动列表，页面级校验与首页入口保持一致。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   fetchCampaigns();
   fetchEnrollCount();
 });

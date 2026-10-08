@@ -36,13 +36,13 @@
       <view class="profile-info" @click="handleProfileClick">
         <view class="name-line">
           <text class="user-name">{{ userStore.isLoggedIn ? (userStore.userInfo.nickname || userStore.userInfo.username || '格宏用户') : '点击登录/注册' }}</text>
-          <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn }">
-            <text>{{ userStore.isLoggedIn ? (userStore.userInfo.role_name || userStore.userInfo.member_level_name || '认证会员') : '未登录' }}</text>
+          <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn, 'role-badge--normal': userStore.isLoggedIn && !userStore.isDealer }">
+            <text>{{ userStore.displayRole }}</text>
           </view>
         </view>
         <view class="meta-row">
           <up-icon :name="userStore.isLoggedIn ? 'home' : 'lock'" size="13" color="#7a8b9e" />
-          <text class="company-name">{{ userStore.isLoggedIn ? (userStore.userInfo.company_name || '格宏电器科技有限公司') : '登录后查看专属经销商政策与报价' }}</text>
+          <text class="company-name">{{ userStore.isLoggedIn ? (userStore.userInfo.company_name || '未填写企业/门店名称') : '登录后查看专属经销商政策与报价' }}</text>
         </view>
         <view class="meta-row">
           <up-icon :name="userStore.isLoggedIn ? 'phone' : 'info-circle'" size="13" color="#9aa7b8" />
@@ -85,7 +85,7 @@
         v-for="item in shortcuts"
         :key="item.title"
         class="shortcut-item"
-        @click="openPage(item.path)"
+        @click="handleMenuNavigation(item.path)"
       >
         <view class="shortcut-icon-box" :style="{ background: item.bg }">
           <up-icon :name="item.icon" size="26" :color="item.color" />
@@ -101,7 +101,7 @@
         :key="item.title"
         class="menu-row"
         :class="{ 'border-none': index === menus.length - 1 }"
-        @click="openPage(item.path)"
+        @click="handleMenuNavigation(item.path)"
       >
         <view class="menu-icon-box" :style="{ background: item.bg }">
           <up-icon :name="item.icon" size="22" :color="item.color" />
@@ -238,14 +238,14 @@
 
               <view class="form-item">
                 <view class="form-item-label-row">
-                  <text class="form-label">认证企业 / 经销商名称</text>
+                  <text class="form-label">企业 / 门店名称</text>
                 </view>
                 <view class="form-input-wrap">
                   <input
                     v-model="editForm.company_name"
                     class="form-input"
                     placeholder="请输入所属暖通公司或门店名称"
-                    maxlength="30"
+                    maxlength="150"
                   />
                   <view v-if="editForm.company_name" class="clear-btn" @click="editForm.company_name = ''">
                     <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
@@ -255,16 +255,16 @@
 
               <view class="form-item">
                 <view class="form-item-label-row">
-                  <text class="form-label">服务职位 / 身份</text>
+                  <text class="form-label">门店职位 / 身份</text>
                 </view>
                 <view class="form-input-wrap">
                   <input
-                    v-model="editForm.position"
+                    v-model="editForm.job_title"
                     class="form-input"
                     placeholder="如：暖通工程师、销售总监、专属顾问"
-                    maxlength="20"
+                    maxlength="50"
                   />
-                  <view v-if="editForm.position" class="clear-btn" @click="editForm.position = ''">
+                  <view v-if="editForm.job_title" class="clear-btn" @click="editForm.job_title = ''">
                     <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
                   </view>
                 </view>
@@ -292,9 +292,10 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
-import { getBalance, updateMemberInfo, modifyMemberField } from '@/api/member';
+import { getBalance, updateMemberInfo } from '@/api/member';
 import { uploadFile } from '@/api/common';
 import { openPage, replacePage } from '@/utils/pages';
+import { openDealerPage } from '@/utils/dealer-access';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -307,6 +308,9 @@ onShareTimeline(() => createShareTimelineOptions());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
+
+// 个人中心里重复出现的报价、营销与价格监控入口使用同一经销商校验。
+const handleMenuNavigation = (path) => openDealerPage(userStore, path);
 const balance = reactive({ money: 0, balance: 0 });
 
 const showEditProfileModal = ref(false);
@@ -321,7 +325,7 @@ const editForm = reactive({
   nickname: '',
   avatar: '',
   company_name: '',
-  position: ''
+  job_title: ''
 });
 
 const handleAvatarOrEditClick = () => {
@@ -340,8 +344,8 @@ const openEditProfileModal = () => {
   const u = userStore.userInfo || {};
   editForm.nickname = u.nickname || u.username || '张工';
   editForm.avatar = u.avatar || u.headimg || '/static/avatars/avatar-demo.png';
-  editForm.company_name = u.company_name || '格宏电器科技有限公司';
-  editForm.position = u.position || '销售工程师';
+  editForm.company_name = u.company_name || '';
+  editForm.job_title = u.job_title || '';
   showEditProfileModal.value = true;
 };
 
@@ -393,26 +397,20 @@ const handleSaveProfile = async () => {
   isSaving.value = true;
   uni.showLoading({ title: '正在保存资料...' });
   try {
-    const payload = {
-      nickname: nickname,
-      headimg: editForm.avatar,
-      avatar: editForm.avatar,
-      company_name: editForm.company_name.trim() || '格宏电器科技有限公司',
-      position: editForm.position.trim() || '销售工程师'
-    };
-
-    // 仅修改姓名时使用会员昵称接口；修改头像、企业或职位时使用资料更新接口。
+    // 只提交发生变化的字段；空字符串允许清空自填企业/门店与职位。
     const current = userStore.userInfo || {};
-    const extrasChanged = payload.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')
-      || payload.company_name !== (current.company_name || '格宏电器科技有限公司')
-      || payload.position !== (current.position || '销售工程师');
-    if (extrasChanged) await updateMemberInfo(payload);
-    else if (nickname !== (current.nickname || current.username || '')) await modifyMemberField('nickname', nickname);
+    const payload = {};
+    if (nickname !== (current.nickname || current.username || '')) payload.nickname = nickname;
+    if (editForm.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = editForm.avatar;
+    if (editForm.company_name.trim() !== (current.company_name || '')) payload.company_name = editForm.company_name.trim();
+    if (editForm.job_title.trim() !== (current.job_title || '')) payload.job_title = editForm.job_title.trim();
+    if (Object.keys(payload).length) await updateMemberInfo(payload);
 
     // 同步更新 Pinia Store 与 Storage
     const updated = {
       ...userStore.userInfo,
-      ...payload
+      ...payload,
+      ...(payload.headimg ? { avatar: payload.headimg } : {})
     };
     userStore.setUserInfo(updated);
 
@@ -507,7 +505,7 @@ const handleLogout = () => {
 const shortcuts = [
   { title: '我的报价单', icon: 'file-text-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/solution/index' },
   { title: '价格监控', icon: 'eye-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/monitor/index' },
-  { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/index' },
+  { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
   { title: '调阅资料', icon: 'folder', color: '#10b981', bg: '#e6fcf5', path: '/pages/product/index' }
 ];
 
@@ -515,7 +513,7 @@ const menus = [
   { title: '营销活动', desc: '订货会/限时促销/新品上市优惠', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
-  { title: '消息通知', desc: '价格波动与系统升级提醒', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index', badge: '3' },
+  { title: '降价监控通知', desc: '查看关注商品的降价与价格波动', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
   { title: '合作申请', desc: '申请成为认证服务商', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   { title: '意见与反馈', desc: '产品选型与功能建议', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' },

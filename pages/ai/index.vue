@@ -37,6 +37,13 @@
       <text class="hello-desc">我是您的空调方案专家，为您提供中央空调与家用空调选型推荐、参数比对、价格测算及选型支持。</text>
     </view>
 
+    <!-- 后端会话列表入口，历史消息可在详情页恢复并继续提问。 -->
+    <view class="session-history-entry" @click="openPage('/pages/ai/history')">
+      <up-icon name="clock" size="18" color="#2468e8" />
+      <text>我的 AI 会话记录</text>
+      <up-icon name="arrow-right" size="14" color="#8b95a7" />
+    </view>
+
     <!-- AI 机器人视觉形象 -->
     <view class="robot-wrap" @click="openChat('你好，请介绍一下你能帮我做什么')">
       <view class="robot-glow" />
@@ -192,6 +199,20 @@ const openChat = (question) => openPage('/pages/ai/chat', { question });
   padding: 0 28rpx;
   background: #f4f7fc;
 }
+
+.session-history-entry {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin: 18rpx 0;
+  padding: 20rpx 24rpx;
+  border-radius: 18rpx;
+  background: #fff;
+  color: #17233d;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+.session-history-entry text { flex: 1; }
 
 .ai-safe-top {
   width: 100%;

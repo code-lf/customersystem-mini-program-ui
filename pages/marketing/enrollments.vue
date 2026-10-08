@@ -104,10 +104,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { onPullDownRefresh, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { getEnrollments, cancelEnrollment } from '@/api/marketing';
 import { openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import { useUserStore } from '@/store/user';
@@ -212,12 +213,10 @@ onPullDownRefresh(() => {
   fetchList();
 });
 
-onShow(() => {
+onShow(async () => {
   showMiniProgramShareMenu();
-  fetchList();
-});
-
-onMounted(() => {
+  // 报名记录属于营销活动功能，直接打开该页面时仍需验证经销商身份。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   fetchList();
 });
 </script>

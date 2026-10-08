@@ -20,11 +20,12 @@
     </view>
 
     <view class="title-card" v-if="product">
+      <!-- 商品名称作为主标题，型号作为次级信息；规格说明继续放在型号下方。 -->
       <view class="title-card__row">
-        <text class="title-card__model">{{ product.model }}</text>
+        <text class="title-card__name">{{ product.goods_name }}</text>
         <text v-if="product.comment" class="tag-hot">{{ product.comment }}</text>
       </view>
-      <text class="title-card__name">{{ product.goods_name }}</text>
+      <text class="title-card__model">{{ product.model }}</text>
       <text class="title-card__spec">{{ product.spec }}</text>
       
       <view class="price-row">
@@ -143,6 +144,10 @@
 
     <!-- 底部悬浮操作栏 -->
     <view class="bottom-action-bar">
+      <button class="btn-sub-action" :disabled="favoriteBusy" @click="toggleFavorite">
+        <up-icon :name="isFav ? 'star-fill' : 'star'" size="18" :color="isFav ? '#ef543f' : '#586477'" />
+        <text>{{ isFav ? '已收藏' : '收藏' }}</text>
+      </button>
       <button class="btn-sub-action" @click="followPrice">
         <up-icon name="eye" size="18" color="#586477" />
         <text>降价提醒</text>
@@ -157,15 +162,19 @@
 </template>
 <script setup>
 import { computed, ref } from 'vue';
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getProductDetail } from '@/api/product';
+import { addFavoriteProduct, getFavoriteProducts, getProductDetail, removeFavoriteProduct } from '@/api/product';
 import appConfig from '@/config/app';
+import { useUserStore } from '@/store/user';
+import { openPage } from '@/utils/pages';
 
 const product = ref(null);
 // 保存 onLoad 中解析出的商品 ID，供详情请求和分享路径共同使用。
 const productId = ref('');
 const isFav = ref(false);
+const favoriteBusy = ref(false);
+const userStore = useUserStore();
 const activeTab = ref('params'); // 默认展示参数模块
 const isLoading = ref(true);
 
@@ -181,12 +190,57 @@ const loadDetail = async (goodsId) => {
   try {
     const res = await getProductDetail(goodsId);
     product.value = res;
+    if (res?.is_favorite !== undefined) isFav.value = Number(res.is_favorite) === 1;
+    else if (userStore.isLoggedIn) await loadFavoriteState(goodsId, res);
   } catch (e) {
     console.error('[商品详情] 加载失败：', e);
   } finally {
     isLoading.value = false;
   }
 };
+
+/** 详情未返回 is_favorite 时，按名称检索收藏列表并逐页核对 goods_id。 */
+const loadFavoriteState = async (goodsId, detail) => {
+  try {
+    let currentPage = 1;
+    let found = false;
+    let lastPage = 1;
+    do {
+      const result = await getFavoriteProducts({ keyword: detail?.goods_name || detail?.sku || '', page: currentPage, limit: 100 });
+      const rows = Array.isArray(result) ? result : (result?.data || []);
+      found = rows.some((item) => Number(item.goods_id) === Number(goodsId));
+      lastPage = Number(result?.last_page || 1);
+      currentPage += 1;
+    } while (!found && currentPage <= lastPage);
+    isFav.value = found;
+  } catch (error) {
+    console.warn('[商品收藏] 查询收藏状态失败：', error);
+  }
+};
+
+/** 用户操作成功后再更新按钮状态，失败时保留原状态。 */
+const toggleFavorite = async () => {
+  if (!userStore.isLoggedIn) {
+    openPage('/pages/auth/login');
+    return;
+  }
+  if (!productId.value || favoriteBusy.value) return;
+  favoriteBusy.value = true;
+  try {
+    if (isFav.value) await removeFavoriteProduct(productId.value);
+    else await addFavoriteProduct(productId.value);
+    isFav.value = !isFav.value;
+    uni.showToast({ title: isFav.value ? '收藏成功' : '已取消收藏', icon: 'success' });
+  } catch (error) {
+    uni.showToast({ title: error?.message || '收藏操作失败', icon: 'none' });
+  } finally {
+    favoriteBusy.value = false;
+  }
+};
+
+onShow(() => {
+  if (product.value && userStore.isLoggedIn) loadFavoriteState(productId.value, product.value);
+});
 
 onLoad((query = {}) => {
   // 微信小程序应从 onLoad 回调读取路由参数；setup 阶段读取 getCurrentPages 可能拿到上一页。
@@ -519,14 +573,18 @@ onShareTimeline(() => {
 
 .title-card__row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16rpx;
 }
 
 .title-card__model {
-  color: #17233d;
-  font-size: 38rpx;
-  font-weight: 900;
+  display: block;
+  margin-top: 8rpx;
+  color: #4b5563;
+  font-size: 27rpx;
+  font-weight: 400;
+  line-height: 38rpx;
 }
 
 .tag-hot {
@@ -540,10 +598,12 @@ onShareTimeline(() => {
 
 .title-card__name {
   display: block;
-  margin-top: 8rpx;
-  color: #4b5563;
-  font-size: 27rpx;
-  line-height: 38rpx;
+  flex: 1;
+  min-width: 0;
+  color: #17233d;
+  font-size: 36rpx;
+  font-weight: 800;
+  line-height: 46rpx;
 }
 
 .title-card__spec {
@@ -925,8 +985,8 @@ onShareTimeline(() => {
   z-index: 25;
   display: flex;
   align-items: center;
-  gap: 20rpx;
-  padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom));
+  gap: 10rpx;
+  padding: 16rpx 18rpx calc(16rpx + env(safe-area-inset-bottom));
   background: #fff;
   box-shadow: 0 -6rpx 24rpx rgba(23, 35, 61, 0.06);
 }
@@ -937,11 +997,11 @@ onShareTimeline(() => {
   justify-content: center;
   gap: 8rpx;
   height: 80rpx;
-  padding: 0 28rpx;
+  padding: 0 14rpx;
   border-radius: 40rpx;
   background: #f1f4f9;
   color: #586477;
-  font-size: 26rpx;
+  font-size: 22rpx;
   font-weight: 700;
   border: none;
 }
@@ -951,11 +1011,12 @@ onShareTimeline(() => {
 
 .btn-main-add {
   flex: 1;
+  min-width: 0;
   height: 80rpx;
   border-radius: 40rpx;
   background: #2468e8;
   color: #fff;
-  font-size: 28rpx;
+  font-size: 23rpx;
   font-weight: 800;
   line-height: 80rpx;
   box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.35);

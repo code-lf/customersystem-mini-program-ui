@@ -130,6 +130,9 @@ import { computed, ref } from 'vue';
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import QiunDataCharts from '@/components/qiun-data-charts/qiun-data-charts.vue';
+import { openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
+import { useUserStore } from '@/store/user';
 import {
   getSolutionDetail,
   getShareQuote,
@@ -145,6 +148,7 @@ const seriesExpanded = ref(true);
 const quoteId = ref('');
 const shareToken = ref('');
 const isPublicShare = ref(false);
+const userStore = useUserStore();
 
 const toggleSeries = () => {
   seriesExpanded.value = !seriesExpanded.value;
@@ -265,7 +269,13 @@ const loadQuote = async (options = {}) => {
   }
 };
 
-onLoad((options) => {
+onLoad(async (options) => {
+  // 客户持 share_token 打开的公开分享保持可用；内部报价预览仅经销商能查看。
+  if (!options?.token && !options?.share_token
+    && !(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) {
+    loading.value = false;
+    return;
+  }
   loadQuote(options);
 });
 

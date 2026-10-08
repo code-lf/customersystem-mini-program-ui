@@ -446,6 +446,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow, onUnload } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
+import { useUserStore } from '@/store/user';
 import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
 import { getProductList, getProductCategories } from '@/api/product';
 import { getNavMetrics } from '@/utils/system';
@@ -453,6 +455,7 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
+const userStore = useUserStore();
 // 不分享当前用户的报价单数据，只分享小程序公共首页入口。
 const SHARE_TITLE = '格宏助手｜专业空调选型与报价';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
@@ -823,8 +826,10 @@ watch(addSearchKeyword, () => {
   loadCandidates();
 });
 
-onShow(() => {
+onShow(async () => {
   showMiniProgramShareMenu();
+  // TabBar 可以直接进入报价页；在此再次核验经销商身份，避免绕过首页快捷入口。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   // 消费首页“全部报价单”的一次性跳转标记，避免之后进入时仍停留在历史标签。
   if (uni.getStorageSync('solution_open_tab') === 'history') {
     activeTab.value = 'history';

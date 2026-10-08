@@ -2,8 +2,9 @@
   <view class="chat-page">
     <AppNavbar title="AI 智能电器助手">
       <template #right>
-        <view class="clear-history-btn" @click="clearChat">
-          <up-icon name="trash" size="18" color="#586477" />
+        <view class="history-entry-btn" @click="openPage('/pages/ai/history')">
+          <up-icon name="clock" size="18" color="#586477" />
+          <text>记录</text>
         </view>
       </template>
     </AppNavbar>
@@ -16,6 +17,8 @@
       scroll-with-animation
     >
       <view class="chat-inner">
+        <view v-if="sessionLoading" class="session-state">正在加载会话消息...</view>
+        <view v-if="sessionError" class="session-state session-error" @click="restoreSession(requestedSessionId)">{{ sessionError }}，点击重试</view>
         <!-- 欢迎气泡 -->
         <view class="message-row ai-row">
           <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
@@ -73,7 +76,7 @@
               <view
                 v-if="msg.quoteId"
                 class="quote-link-card"
-                @click="openPage('/pages/solution/detail', { id: msg.quoteId })"
+                @click="openPage('/pages/solution/share', { id: msg.quoteId })"
               >
                 <view class="quote-link-left">
                   <up-icon name="order" size="18" color="#2468e8" />
@@ -120,6 +123,7 @@
 
     <!-- 快捷预设提问标签 -->
     <view class="quick-questions-scroll">
+      <view class="quick-chip new-session-chip" @click="startNewChat"><text>＋ 新对话</text></view>
       <view
         v-for="item in quickChips"
         :key="item"
@@ -196,13 +200,13 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { onUnload } from '@dcloudio/uni-app';
+import { onLoad, onUnload } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
+import { openPage } from '@/utils/pages';
 import { askAiStream } from '@/api/ai-assistant';
+import { createAiSession, getAiSessionDetail } from '@/api/ai-session';
 import { useUserStore } from '@/store/user';
 
-const pageOptions = getPageOptions();
 const userStore = useUserStore();
 const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/wode.png');
 
@@ -216,6 +220,9 @@ const recognizedText = ref('');
 const scrollTop = ref(0);
 // sessionId 由后端返回，用于维持连续会话上下文
 const sessionId = ref('');
+const requestedSessionId = ref('');
+const sessionLoading = ref(false);
+const sessionError = ref('');
 
 const quickChips = [
   '120㎡ 办公室中央空调方案',
@@ -406,26 +413,57 @@ const addQuote = (product) => {
   uni.showToast({ title: '已加入待选，可在报价单中添加', icon: 'success' });
 };
 
-const clearChat = () => {
-  uni.showModal({
-    title: '提示',
-    content: '确定要清空当前对话记录吗？',
-    success: (res) => {
-      if (res.confirm) {
-        // 清空对话时同步中止正在进行的流式请求，避免旧回答继续写回页面。
-        activeAiRequest?.abort?.();
-        activeAiRequest = null;
-        isThinking.value = false;
-        messages.value = [];
-        sessionId.value = '';
-        uni.showToast({ title: '已清空', icon: 'none' });
-      }
-    }
-  });
+/** 从后端取回完整消息，恢复展示和后续提问所用的 session_id。 */
+const restoreSession = async (id) => {
+  if (!id || sessionLoading.value) return;
+  sessionLoading.value = true;
+  sessionError.value = '';
+  try {
+    const detail = await getAiSessionDetail(id);
+    messages.value = (detail?.messages || [])
+      .filter((item) => item.role === 'user' || item.role === 'assistant')
+      .map((item, index) => ({
+        id: item.message_id || `${id}_${index}`,
+        role: item.role === 'assistant' ? 'ai' : 'user',
+        text: item.content || '',
+        quoteId: item.quote_id || null,
+        isError: item.status === 'failed'
+      }));
+    sessionId.value = detail?.session_id || id;
+    scrollToBottom();
+  } catch (error) {
+    sessionError.value = error?.message || '会话加载失败';
+  } finally {
+    sessionLoading.value = false;
+  }
+};
+
+/** 新建独立会话；后端成功后再清空当前消息，原会话仍留在历史记录中。 */
+const startNewChat = async () => {
+  if (!userStore.isLoggedIn) return goToLogin();
+  if (sessionLoading.value) return;
+  sessionLoading.value = true;
+  try {
+    const created = await createAiSession();
+    if (!created?.session_id) throw new Error('创建会话未返回 session_id');
+    activeAiRequest?.abort?.();
+    activeAiRequest = null;
+    isThinking.value = false;
+    messages.value = [];
+    inputContent.value = '';
+    sessionId.value = created.session_id;
+    requestedSessionId.value = '';
+    sessionError.value = '';
+    uni.showToast({ title: '已创建新会话', icon: 'success' });
+  } catch (error) {
+    uni.showToast({ title: error?.message || '创建会话失败', icon: 'none' });
+  } finally {
+    sessionLoading.value = false;
+  }
 };
 
 const sendMessage = async (text) => {
-  if (!text || !text.trim() || isThinking.value) return;
+  if (!text || !text.trim() || isThinking.value || sessionLoading.value || sessionError.value) return;
 
   const userText = text.trim();
   inputContent.value = '';
@@ -535,7 +573,14 @@ onMounted(() => {
   // #ifdef MP-WEIXIN
   initVoiceRecognition();
   // #endif
-  if (pageOptions.question) {
+});
+
+onLoad((pageOptions = {}) => {
+  // 必须用 onLoad 的实参读取路由，setup 阶段 getCurrentPages 可能仍是上一页。
+  requestedSessionId.value = pageOptions.session_id || '';
+  if (requestedSessionId.value) {
+    restoreSession(requestedSessionId.value);
+  } else if (pageOptions.question) {
     sendMessage(pageOptions.question);
   }
 });
@@ -569,9 +614,18 @@ onUnload(() => {
   background: #f4f7fc;
 }
 
-.clear-history-btn {
+.history-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   padding: 8rpx;
+  color: #586477;
+  font-size: 22rpx;
 }
+
+.session-state { text-align: center; color: #8b95a7; font-size: 24rpx; }
+.session-error { color: #ef543f; }
+.new-session-chip { color: #2468e8; font-weight: 700; }
 
 .quote-link-card {
   display: flex;

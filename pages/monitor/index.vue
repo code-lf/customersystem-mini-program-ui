@@ -96,12 +96,16 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
+import { useUserStore } from '@/store/user';
 import { getMonitorList } from '@/api/monitor';
 
 const active = ref('all');
+const userStore = useUserStore();
 const isLoading = ref(true);
 const watches = ref([]);
 
@@ -114,7 +118,9 @@ const loadWatches = async () => {
   isLoading.value = false;
 };
 
-onMounted(() => {
+onShow(async () => {
+  // 价格监控页面本身也校验，阻止从收藏链接或历史页面绕过入口。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   loadWatches();
 });
 
@@ -414,4 +420,3 @@ const money = (value) => Number(value || 0).toLocaleString();
   100% { background-position: 0 50%; }
 }
 </style>
-

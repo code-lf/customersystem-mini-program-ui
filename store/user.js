@@ -20,14 +20,21 @@ const demoUser = {
   commission: '12850.00'
 };
 
+// 后端的 is_dealer 可能由不同序列化方式返回布尔值、数字或字符串。
+export const isDealerFlag = (value) => value === true || value === 1 || value === '1' || value === 'true';
+
+// 会员等级以当前经销商分组为准，不再使用旧的 role_name / member_level_name 冒充价格等级。
+export const resolveDealerLevel = (user = {}) => {
+  if (!isDealerFlag(user.is_dealer)) return '普通用户';
+  return String(user.dealer_level || '').trim() || '经销商';
+};
+
 const normalizeUserData = (user = {}) => {
   const data = { ...user };
   if (!data.avatar && data.headimg) {
     data.avatar = data.headimg;
   }
-  if (!data.company_name || String(data.company_name).includes('云境') || String(data.company_name).includes('暖通')) {
-    data.company_name = '格宏电器科技有限公司';
-  }
+  // 企业/门店名是后端会员自填字段；空值也可能是用户主动清空，不覆盖为示例公司。
   if (!data.nickname) {
     data.nickname = data.username || (data.mobile ? ('用户_' + String(data.mobile).slice(-4)) : '格宏用户');
   }
@@ -55,9 +62,10 @@ export const useUserStore = defineStore('user', {
   getters: {
     // 页面可以直接使用 userStore.isLoggedIn 判断登录状态。
     isLoggedIn: (state) => Boolean(state.token),
+    isDealer: (state) => Boolean(state.token) && isDealerFlag(state.userInfo.is_dealer),
     displayName: (state) => Boolean(state.token) ? (state.userInfo.nickname || state.userInfo.username || '格宏用户') : '请登录',
     displayCompany: (state) => Boolean(state.token) ? (state.userInfo.company_name || '格宏电器科技有限公司') : '未登录',
-    displayRole: (state) => Boolean(state.token) ? (state.userInfo.role_name || state.userInfo.member_level_name || '认证会员') : '未登录'
+    displayRole: (state) => Boolean(state.token) ? resolveDealerLevel(state.userInfo) : '未登录'
   },
   actions: {
     setToken(token) {

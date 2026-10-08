@@ -1,11 +1,17 @@
 <template><view class="crm-page"><app-navbar title="价格变化" /><view v-if="item" class="crm-card"><view class="product"><image :src="item.product.image" mode="aspectFit" /><view><text>{{ item.product.name }}</text><text>{{ item.product.model }}</text></view></view><view class="current"><text>当前价格</text><text>¥{{ Number(item.currentPrice).toLocaleString() }}</text></view><view class="history-title">价格变化记录</view><view v-for="row in item.history" :key="row.date" class="history-row"><text>{{ row.date }}</text><text>¥{{ Number(row.price).toLocaleString() }}</text></view></view><empty-state v-else text="暂无价格记录" /></view></template>
 <script setup>
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { getMonitorList } from '@/api/monitor';
-import { getPageOptions } from '@/utils/pages';
+import { getPageOptions, openPage } from '@/utils/pages';
+import { requireDealerAccess } from '@/utils/dealer-access';
+import { useUserStore } from '@/store/user';
 
 const item = ref(null);
-onMounted(async () => {
+const userStore = useUserStore();
+onShow(async () => {
+  // 机型价格详情可被直接打开，进入前再次校验当前经销商绑定状态。
+  if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   try {
     const options = getPageOptions();
     const result = await getMonitorList();
