@@ -7,19 +7,14 @@
       <view class="quote-summary">
         <text class="summary-title">报价总计</text>
         <view class="summary-main">
-          <!-- 使用秋云 uCharts 的饼图组件：图形按三项金额占比生成，零金额不参与扇区。 -->
+          <!-- 原生 Canvas 绘制环形图，避免图表插件在微信小程序启动时缺失模块。 -->
           <view class="pie-chart-wrap">
-            <qiun-data-charts
+            <canvas
               v-if="pieTotal > 0"
               class="pie-chart"
-              type="pie"
-              :chartData="pieChartData"
-              :opts="pieChartOptions"
-              :animation="false"
-              :ontouch="false"
+              canvas-id="quoteRingCanvas"
             />
             <view v-else class="pie-chart pie-empty">暂无金额</view>
-            <text class="pie-total">合计 ¥{{ money(finalTotalPrice) }}</text>
           </view>
           
           <view class="summary-details">
@@ -126,10 +121,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import QiunDataCharts from '@/components/qiun-data-charts/qiun-data-charts.vue';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { useUserStore } from '@/store/user';
@@ -196,24 +190,52 @@ const piePercentages = computed(() => {
   return pieAmounts.value.map((amount) => pieTotal.value ? (amount / pieTotal.value * 100).toFixed(1) : '0.0');
 });
 
-// uCharts 的 pie 数据格式是 series: [{ name, data, color }]；为每项明确指定颜色，
-// 避免过滤零金额后，图中扇区顺序变化导致右侧手写图例颜色对不上。
-const pieChartData = computed(() => ({
-  series: [
-    { name: '设备折后', data: pieAmounts.value[0], color: '#1e40af' },
-    { name: '安装', data: pieAmounts.value[1], color: '#3b82f6' },
-    { name: '增项', data: pieAmounts.value[2], color: '#f59e0b' }
-  ].filter((item) => item.data > 0)
-}));
+// 图例和圆环共用这组三色；零金额跳过，单项 100% 时自然绘制完整圆环。
+const ringColors = ['#1e40af', '#3b82f6', '#f59e0b'];
 
-// 右侧已有金额图例，因此关闭组件内置图例和扇区文字；border:false 防止单项 100% 出现白色切线。
-const pieChartOptions = {
-  color: ['#1e40af', '#3b82f6', '#f59e0b'],
-  padding: [0, 0, 0, 0],
-  legend: { show: false },
-  dataLabel: false,
-  extra: { pie: { border: false, activeRadius: 0, activeOpacity: 1 } }
+/** 使用微信小程序原生 Canvas 绘制圆环和总额，不依赖 uCharts 的模块加载。 */
+const drawQuoteRing = async () => {
+  if (loading.value || pieTotal.value <= 0) return;
+  await nextTick();
+  const size = uni.upx2px(240);
+  const center = size / 2;
+  const lineWidth = uni.upx2px(34);
+  const radius = center - lineWidth / 2 - 2;
+  const context = uni.createCanvasContext('quoteRingCanvas');
+  context.clearRect(0, 0, size, size);
+  context.setLineWidth(lineWidth);
+  context.setLineCap('butt');
+  let angle = -Math.PI / 2;
+  pieAmounts.value.forEach((amount, index) => {
+    if (amount <= 0) return;
+    const nextAngle = angle + amount / pieTotal.value * Math.PI * 2;
+    context.beginPath();
+    context.setStrokeStyle(ringColors[index]);
+    context.arc(center, center, radius, angle, nextAngle);
+    context.stroke();
+    angle = nextAngle;
+  });
+  context.setTextAlign('center');
+  context.setTextBaseline('middle');
+  context.setFillStyle('#64748b');
+  context.setFontSize(uni.upx2px(20));
+  context.fillText('合计', center, center - uni.upx2px(16));
+  context.setFillStyle('#1e3a8a');
+  // 金额默认放大到 30rpx；位数较多时按圆心可用宽度缩小，避免文字压住蓝色圆环。
+  const amountText = `¥${money(finalTotalPrice.value)}`;
+  const amountFontSize = uni.upx2px(30);
+  const centerTextWidth = (radius - lineWidth / 2) * 2 - uni.upx2px(8);
+  context.setFontSize(amountFontSize);
+  const measuredWidth = context.measureText?.(amountText)?.width || amountText.length * amountFontSize * 0.6;
+  if (measuredWidth > centerTextWidth) {
+    context.setFontSize(amountFontSize * centerTextWidth / measuredWidth);
+  }
+  context.fillText(amountText, center, center + uni.upx2px(16));
+  context.draw();
 };
+
+// 报价详情异步加载或金额变化后重绘，保证圆环与右侧金额保持一致。
+watch([loading, pieAmounts, finalTotalPrice], drawQuoteRing, { flush: 'post' });
 const isDecisionFinal = computed(() => ['accepted', 'rejected', 'void'].includes(quoteData.value.quote_status));
 const quoteStatusText = computed(() => ({
   draft: '草稿',
@@ -442,14 +464,14 @@ const confirmQuote = (status) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 250rpx;
-  margin-right: 30rpx;
+  width: 260rpx;
+  margin-right: 20rpx;
   flex-shrink: 0;
 }
 
 .pie-chart {
-  width: 220rpx;
-  height: 220rpx;
+  width: 240rpx;
+  height: 240rpx;
 }
 
 .pie-empty {
@@ -460,14 +482,6 @@ const confirmQuote = (status) => {
   background: #e2e8f0;
   color: #64748b;
   font-size: 24rpx;
-}
-
-.pie-total {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #1e40af;
-  white-space: nowrap;
 }
 
 .summary-details {
