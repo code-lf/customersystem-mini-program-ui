@@ -13,7 +13,8 @@
 let cachedNavInfo = null;
 
 export function getNavMetrics() {
-  if (cachedNavInfo) return cachedNavInfo;
+  // 小程序初次读取胶囊失败时不缓存兜底尺寸，后续页面进入时再尝试获取真实位置。
+  if (cachedNavInfo?.isMiniProgram || (cachedNavInfo && typeof wx === 'undefined')) return cachedNavInfo;
 
   let statusBarHeight = 20;
   let navBarHeight = 44;
@@ -31,21 +32,25 @@ export function getNavMetrics() {
       statusBarHeight = sys.statusBarHeight;
     }
 
-    // 微信小程序或其他支持胶囊的平台
-    if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
-      const menu = uni.getMenuButtonBoundingClientRect();
-      if (menu && menu.top && menu.height && menu.width) {
-        isMiniProgram = true;
-        capsuleTop = menu.top;
-        capsuleBottom = menu.bottom;
-        capsuleLeft = menu.left;
-        capsuleWidth = menu.width;
-        capsuleHeight = menu.height;
-        capsuleRightMargin = (sys.windowWidth || 375) - menu.right;
-        // 导航栏高度 = (胶囊top - 状态栏height) * 2 + 胶囊height
-        const gap = menu.top - statusBarHeight;
-        navBarHeight = gap > 0 ? (gap * 2 + menu.height) : 44;
-      }
+    // HBuilderX 运行到微信小程序时 uni 可能未代理此 API，直接回退到微信原生 wx。
+    let menu = typeof uni.getMenuButtonBoundingClientRect === 'function'
+      ? uni.getMenuButtonBoundingClientRect()
+      : null;
+    if ((!menu || !menu.top || !menu.height || !menu.width)
+      && typeof wx !== 'undefined' && typeof wx.getMenuButtonBoundingClientRect === 'function') {
+      menu = wx.getMenuButtonBoundingClientRect();
+    }
+    if (menu && menu.top && menu.height && menu.width) {
+      isMiniProgram = true;
+      capsuleTop = menu.top;
+      capsuleBottom = menu.bottom;
+      capsuleLeft = menu.left;
+      capsuleWidth = menu.width;
+      capsuleHeight = menu.height;
+      capsuleRightMargin = (sys.windowWidth || 375) - menu.right;
+      // 导航栏高度 = (胶囊top - 状态栏height) * 2 + 胶囊height。
+      const gap = menu.top - statusBarHeight;
+      navBarHeight = gap > 0 ? (gap * 2 + menu.height) : 44;
     }
   } catch (e) {
     console.warn('Get nav metrics error:', e);

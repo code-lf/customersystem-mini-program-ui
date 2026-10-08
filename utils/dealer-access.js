@@ -14,10 +14,11 @@ export const isDealerPage = (path) => DEALER_PAGES.has(path);
 
 /** 每次使用前重新读取会员接口，以后端最新绑定关系判断，不信任本地缓存。 */
 export async function requireDealerAccess(userStore, onDenied) {
+  // 未登录先单独提示登录，不提前展示经销商限制；登录后才查询实际绑定状态。
   if (!userStore.isLoggedIn) {
     uni.showModal({
-      title: '经销商专享',
-      content: '该功能仅经销商用户可使用，请先登录并绑定经销商账号。',
+      title: '请先登录',
+      content: '当前尚未登录，请先登录后使用该功能。',
       showCancel: false,
       success: () => onDenied?.()
     });

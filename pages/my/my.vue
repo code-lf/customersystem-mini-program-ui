@@ -57,6 +57,13 @@
       <view v-else class="profile-arrow" @click="handleProfileClick">
         <up-icon name="arrow-right" size="18" color="#9bb0cc" />
       </view>
+      <!-- 只展示后端实际分配的 CRM 客户经理，未绑定或未分配时不显示空入口。 -->
+      <view v-if="assignedSalesperson" class="manager-entry" @click="openPage('/pages/member/salesperson')">
+        <text class="manager-entry__title">联系客户经理</text>
+        <text class="manager-entry__name">{{ assignedSalesperson.name || '专属客户经理' }}</text>
+        <text class="manager-entry__action">联系我</text>
+        <text class="manager-entry__arrow">›</text>
+      </view>
     </view>
 
     <!-- 资金与账户资产卡片 -->
@@ -308,6 +315,11 @@ onShareTimeline(() => createShareTimelineOptions());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
+// CRM 未分配销售时返回 member_id=0；仅经销商且确有分配记录时展示联系入口。
+const assignedSalesperson = computed(() => {
+  const salesperson = userStore.userInfo?.salesperson;
+  return userStore.isDealer && Number(salesperson?.member_id) > 0 ? salesperson : null;
+});
 
 // 个人中心里重复出现的报价、营销与价格监控入口使用同一经销商校验。
 const handleMenuNavigation = (path) => openDealerPage(userStore, path);
@@ -513,7 +525,6 @@ const menus = [
   { title: '营销活动', desc: '订货会/限时促销/新品上市优惠', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
-  { title: '降价监控通知', desc: '查看关注商品的降价与价格波动', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
   { title: '合作申请', desc: '申请成为认证服务商', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   { title: '意见与反馈', desc: '产品选型与功能建议', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' },
@@ -538,12 +549,30 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 .profile-card {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   padding: 32rpx 30rpx;
   border-radius: 24rpx;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 248, 255, 0.92) 100%);
   box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.05);
   border: 1rpx solid rgba(255, 255, 255, 0.8);
 }
+
+.manager-entry {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  margin-top: 24rpx;
+  padding: 18rpx 22rpx;
+  border: 1rpx solid #d8e7ff;
+  border-radius: 18rpx;
+  background: linear-gradient(110deg, #eef5ff 0%, #ffffff 100%);
+}
+.manager-entry__title { flex-shrink: 0; color: #17233d; font-size: 26rpx; font-weight: 700; white-space: nowrap; }
+.manager-entry__name { flex: 1; min-width: 0; margin-left: 18rpx; color: #718098; font-size: 24rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manager-entry__action { flex-shrink: 0; margin-left: 12rpx; color: #2468e8; font-size: 23rpx; font-weight: 700; white-space: nowrap; }
+.manager-entry__arrow { margin-left: 8rpx; color: #2468e8; font-size: 38rpx; line-height: 32rpx; }
 
 .user-avatar-wrap {
   position: relative;

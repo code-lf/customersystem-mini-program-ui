@@ -1,6 +1,12 @@
 <template>
   <view class="detail-page">
-    <AppNavbar title="产品详情" bg-color="transparent" />
+    <!-- 导航栏放在滚动容器外，商品内容滚动时标题和返回按钮始终留在顶部。 -->
+    <AppNavbar title="产品详情" bg-color="#eaf2ff" />
+    <scroll-view
+      class="detail-scroll"
+      scroll-y
+      :style="{ height: `calc(100vh - ${navMetrics.totalNavHeight}px)` }"
+    >
 
     <view class="hero-carousel" v-if="product">
       <swiper
@@ -141,6 +147,7 @@
         </view>
       </view>
     </view>
+    </scroll-view>
 
     <!-- 底部悬浮操作栏 -->
     <view class="bottom-action-bar">
@@ -148,9 +155,9 @@
         <up-icon :name="isFav ? 'star-fill' : 'star'" size="18" :color="isFav ? '#ef543f' : '#586477'" />
         <text>{{ isFav ? '已收藏' : '收藏' }}</text>
       </button>
-      <button class="btn-sub-action" @click="followPrice">
+      <button class="btn-sub-action" :disabled="monitorBusy" @click="followPrice">
         <up-icon name="eye" size="18" color="#586477" />
-        <text>降价提醒</text>
+        <text>{{ monitorBusy ? '监控中' : '价格监控' }}</text>
       </button>
       <button class="btn-sub-action" open-type="share">
         <up-icon name="share-square" size="18" color="#586477" />
@@ -168,12 +175,18 @@ import { addFavoriteProduct, getFavoriteProducts, getProductDetail, removeFavori
 import appConfig from '@/config/app';
 import { useUserStore } from '@/store/user';
 import { openPage } from '@/utils/pages';
+import { getNavMetrics } from '@/utils/system';
+import { watchMonitorGoods } from '@/api/monitor';
+import { requireDealerAccess } from '@/utils/dealer-access';
 
 const product = ref(null);
+// 固定导航栏的占位高度与公共导航组件保持一致，兼容不同机型状态栏和微信胶囊尺寸。
+const navMetrics = computed(() => getNavMetrics());
 // 保存 onLoad 中解析出的商品 ID，供详情请求和分享路径共同使用。
 const productId = ref('');
 const isFav = ref(false);
 const favoriteBusy = ref(false);
+const monitorBusy = ref(false);
 const userStore = useUserStore();
 const activeTab = ref('params'); // 默认展示参数模块
 const isLoading = ref(true);
@@ -419,8 +432,19 @@ const getFileTypeClass = (title = '') => {
 
 const money = (value) => Number(value || 0).toLocaleString();
 
-const followPrice = () => {
-  uni.showToast({ title: '已开启该型号价格监控提醒', icon: 'success' });
+/** 商品详情的价格监控按钮先校验经销商身份，再按接口创建或更新真实关注。 */
+const followPrice = async () => {
+  if (monitorBusy.value || !(await requireDealerAccess(userStore))) return;
+  monitorBusy.value = true;
+  try {
+    await watchMonitorGoods(product.value?.goods_id || productId.value);
+    uni.showToast({ title: '已加入价格监控', icon: 'success' });
+  } catch (error) {
+    // 统一请求层已提示接口错误，这里只记录原因，避免连续出现两个错误弹窗。
+    console.error('[价格监控] 添加商品失败：', error);
+  } finally {
+    monitorBusy.value = false;
+  }
 };
 
 const previewFile = (file) => {
@@ -511,9 +535,14 @@ onShareTimeline(() => {
   line-height: 1;
 }
 .detail-page {
-  min-height: 100vh;
-  padding: 0 24rpx 220rpx;
+  height: 100vh;
+  overflow: hidden;
   background: linear-gradient(180deg, #eaf2ff 0%, #f4f7fc 260rpx, #f4f7fc 100%);
+}
+
+.detail-scroll {
+  box-sizing: border-box;
+  padding: 0 24rpx 220rpx;
 }
 
 .hero-carousel {

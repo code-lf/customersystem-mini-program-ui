@@ -2,24 +2,12 @@
   <view class="monitor-page">
     <AppNavbar title="价格监控" />
     
-    <!-- 头部品牌与统计信息 -->
+    <!-- 三类内容分别读取关注列表、近期降价、全部价格波动接口。 -->
     <view class="header-section">
-      <view class="brand-head">
-        <image class="brand-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%232468e8' /%3E%3Cstop offset='100%25' stop-color='%2306b6d4' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M85,60 H60 V75 H70 C66,85 58,90 50,90 C35,90 25,78 25,60 C25,42 35,30 50,30 C58,30 65,34 69,40 L82,30 C74,18 64,12 50,12 C24,12 8,30 8,60 C8,90 24,108 50,108 C75,108 85,90 85,75 Z' fill='url(%23grad1)' /%3E%3Ccircle cx='85' cy='45' r='10' fill='%2310b981' /%3E%3C/svg%3E" mode="aspectFit" />
-        <text class="brand-name">格宏助手智能监控</text>
-      </view>
-      
-      <!-- 自定义精美 Tabs -->
       <view class="tabs">
-        <view 
-          v-for="item in tabs" 
-          :key="item.value" 
-          class="tab-item"
-          :class="{ active: active === item.value }" 
-          @click="active = item.value"
-        >
-          <text class="tab-text">{{ item.label }}</text>
-          <view v-if="active === item.value" class="tab-indicator"></view>
+        <view v-for="tab in tabs" :key="tab.value" class="tab-item" :class="{ active: activeTab === tab.value }" @click="selectTab(tab.value)">
+          <text>{{ tab.label }}</text>
+          <view v-if="activeTab === tab.value" class="tab-indicator" />
         </view>
       </view>
     </view>
@@ -44,120 +32,199 @@
         </view>
       </template>
       
-      <template v-else>
+      <template v-else-if="activeTab === 'watches'">
         <view 
-          v-for="item in filteredList" 
+          v-for="item in allItems"
           :key="item.id" 
           class="monitor-card" 
-          @click="openPage('/pages/monitor/detail', { productId: item.id })"
+          @click="openPage('/pages/monitor/detail', { watchId: item.id })"
         >
         <!-- 图片区 -->
         <view class="image-box">
           <image :src="item.image" mode="aspectFit" />
-          <view class="tag">多联机</view>
+          <view class="tag">{{ item.watch_target_type === 'category' ? '分类监控' : '商品监控' }}</view>
         </view>
         
         <!-- 内容区 -->
         <view class="card-content">
           <view class="card-header">
             <text class="model-text">{{ item.model }}</text>
-            <view v-if="item.change" class="change-badge down">
+            <view v-if="item.watch_target_type === 'goods' && item.change > 0" class="change-badge down">
               <text class="arrow">↓</text>
               <text>¥{{ money(item.change) }}</text>
             </view>
+            <view v-else-if="item.watch_target_type === 'goods' && item.change < 0" class="change-badge flat">
+              <text>↑ ¥{{ money(-item.change) }}</text>
+            </view>
             <view v-else class="change-badge flat">
-              <text>无变化</text>
+              <text>{{ item.watch_status === 'paused' ? '已暂停' : (item.watch_target_type === 'category' ? '监控中' : '无变化') }}</text>
             </view>
           </view>
           
-          <view class="price-section">
+          <view v-if="item.watch_target_type === 'goods'" class="price-section">
             <view class="current-price">
-              <text class="label">当前底价</text>
+              <text class="label">当前监控价</text>
               <text class="symbol">¥</text>
               <text class="amount">{{ money(item.price) }}</text>
             </view>
-            <text class="original-price">历史价 ¥{{ money(item.price + item.change) }}</text>
+            <text class="original-price">关注时 ¥{{ money(item.basePrice) }}</text>
           </view>
+          <view v-else class="price-section">分类内商品价格变动监控</view>
           
           <view class="card-footer">
-            <text class="update-time">最近更新：2026-06-20</text>
-            <button class="action-btn">查看详情</button>
+            <text class="update-time">关注时间：{{ item.create_time_text || '--' }}</text>
+            <button class="action-btn" @click.stop="openPage('/pages/monitor/detail', { watchId: item.id })">查看详情</button>
           </view>
         </view>
       </view>
       
-      <!-- 列表为空时 -->
-      <view v-if="filteredList.length === 0" class="empty-state">
-        <text>暂无相关机型数据</text>
-      </view>
       </template>
+      <template v-else>
+        <view v-for="change in changes" :key="change.change_id" class="change-card" @click="openChangeProduct(change)">
+          <view class="change-card__head">
+            <text class="change-card__name">{{ change.goods_name_snapshot || change.model_snapshot || '商品价格变动' }}</text>
+            <text class="change-card__direction" :class="change.change_direction === 'down' ? 'down' : 'up'">{{ change.change_direction === 'down' ? '降价' : '涨价' }}</text>
+          </view>
+          <text class="change-card__model">{{ change.model_snapshot || change.sku_snapshot || '' }}</text>
+          <view class="change-card__prices">
+            <text class="change-card__old">¥{{ money(change.old_price) }}</text>
+            <text class="change-card__arrow">→</text>
+            <text class="change-card__new" :class="change.change_direction === 'down' ? 'down' : 'up'">¥{{ money(change.new_price) }}</text>
+            <text class="change-card__amount" :class="change.change_direction === 'down' ? 'down' : 'up'">{{ signedAmount(change.change_amount) }}</text>
+          </view>
+          <text class="change-card__time">{{ change.change_time_text || formatTime(change.change_time) }}</text>
+        </view>
+      </template>
+      <view v-if="!isLoading && !records.length" class="empty-state">
+        <text>{{ loadError || emptyMessage }}</text>
+        <text v-if="loadError" class="retry-link" @click="loadPage({ reset: true })">重试</text>
+      </view>
+      <view v-if="isLoadingMore" class="load-more">正在加载更多...</view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { computed, ref } from 'vue';
+import { onReachBottom, onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { useUserStore } from '@/store/user';
-import { getMonitorList } from '@/api/monitor';
+import { getMonitorList, getRecentPriceDrops, getPriceFluctuations } from '@/api/monitor';
 
-const active = ref('all');
 const userStore = useUserStore();
-const isLoading = ref(true);
-const watches = ref([]);
+const tabs = [
+  { label: '我关注的', value: 'watches' },
+  { label: '近期降价', value: 'drops' },
+  { label: '价格波动', value: 'fluctuations' }
+];
+const activeTab = ref('watches');
+const isLoading = ref(false);
+const isLoadingMore = ref(false);
+const loadError = ref('');
+const records = ref([]);
+const currentPage = ref(1);
+const hasMore = ref(true);
+const pageSize = 20;
+let requestSequence = 0;
 
-const loadWatches = async () => {
-  isLoading.value = true;
+/** 三个标签分别请求对应接口，并复用后端的分页结构。 */
+const loadPage = async ({ reset = false } = {}) => {
+  if (!reset && (isLoading.value || isLoadingMore.value)) return;
+  if (reset) {
+    currentPage.value = 1;
+    hasMore.value = true;
+    records.value = [];
+    loadError.value = '';
+  }
+  if (!hasMore.value) return;
+  const sequence = ++requestSequence;
+  const pageNumber = currentPage.value;
+  const tab = activeTab.value;
+  const request = tab === 'drops' ? getRecentPriceDrops : tab === 'fluctuations' ? getPriceFluctuations : getMonitorList;
+  if (reset) isLoading.value = true;
+  else isLoadingMore.value = true;
   try {
-    const res = await getMonitorList({ limit: 100 });
-    watches.value = res.data || [];
-  } catch(e) {}
-  isLoading.value = false;
+    // request 层已剥离顶层 code/data，此处拿到的是 { data, total, last_page }。
+    const page = await request({ page: pageNumber, limit: pageSize });
+    // 切换标签后忽略上一个标签尚未返回的请求，避免列表串页。
+    if (sequence !== requestSequence) return;
+    const rows = Array.isArray(page) ? page : page?.data;
+    if (!Array.isArray(rows)) throw new Error('价格监控列表格式不正确');
+    records.value = reset ? rows : [...records.value, ...rows];
+    const lastPage = Number(page?.last_page || 0);
+    hasMore.value = lastPage > 0 ? pageNumber < lastPage : rows.length >= pageSize;
+    currentPage.value = pageNumber + 1;
+    loadError.value = '';
+  } catch (error) {
+    if (sequence !== requestSequence) return;
+    console.error('[价格监控] 列表加载失败：', error);
+    loadError.value = error?.message || '价格监控加载失败';
+  } finally {
+    if (sequence === requestSequence) {
+      isLoading.value = false;
+      isLoadingMore.value = false;
+    }
+  }
+};
+
+/** 标签切换时从第一页重新加载。 */
+const selectTab = (tab) => {
+  if (tab === activeTab.value) return;
+  activeTab.value = tab;
+  loadPage({ reset: true });
 };
 
 onShow(async () => {
   // 价格监控页面本身也校验，阻止从收藏链接或历史页面绕过入口。
   if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
-  loadWatches();
+  loadPage({ reset: true });
 });
 
-watch(active, () => {
-  // locally filter
+onReachBottom(() => {
+  if (hasMore.value) loadPage();
 });
 
-const tabs = [
-  { label: '全部机型', value: 'all' },
-  { label: '近期降价', value: 'down' },
-  { label: '价格波动', value: 'changed' }
-];
-
+// 列表字段均取自 PriceWatch 快照，不能用本地商品参考价冒充监控价。
 const allItems = computed(() => {
-  return watches.value.map((item) => {
+  return (activeTab.value === 'watches' ? records.value : []).map((item) => {
+    const basePrice = Number(item.base_price ?? 0);
+    const currentPrice = Number(item.last_price ?? item.base_price ?? 0);
     return {
       ...item,
-      id: item.goods_id,
-      model: item.model_snapshot,
-      image: item.image_snapshot,
-      price: item.last_price || item.base_price,
-      change: (item.base_price || 0) - (item.last_price || 0)
+      id: item.watch_id,
+      model: item.model_snapshot || item.target_name_snapshot || item.goods_name_snapshot || '未命名监控',
+      image: item.image_snapshot || 'https://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
+      basePrice,
+      price: currentPrice,
+      change: basePrice - currentPrice
     };
   });
 });
 
-const filteredList = computed(() => {
-  if (active.value === 'down') {
-    return allItems.value.filter(item => item.change > 0);
-  }
-  if (active.value === 'changed') {
-    return allItems.value.filter(item => item.change !== 0);
-  }
-  return allItems.value;
-});
+const changes = computed(() => activeTab.value === 'watches' ? [] : records.value);
+const emptyMessage = computed(() => ({
+  watches: '暂无关注的价格监控商品',
+  drops: '暂无近期降价记录',
+  fluctuations: '暂无价格波动记录'
+})[activeTab.value]);
 
-const money = (value) => Number(value || 0).toLocaleString();
+/** 价格变动事件关联真实商品，可直接进入商品详情。 */
+const openChangeProduct = (change) => {
+  if (change.goods_id) openPage('/pages/product/detail', { id: change.goods_id });
+};
+
+const money = (value) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signedAmount = (value) => `${Number(value || 0) > 0 ? '+' : ''}${money(value)} 元`;
+/** 接口时间戳为秒，兼容后端直接返回的展示时间。 */
+const formatTime = (value) => {
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return '--';
+  const date = new Date(timestamp * 1000);
+  const pad = (part) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 </script>
 
 <style lang="scss" scoped>
@@ -169,70 +236,41 @@ const money = (value) => Number(value || 0).toLocaleString();
 
 .header-section {
   background-color: #ffffff;
-  padding: 24rpx 32rpx 0;
+  padding: 0 24rpx;
   box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.brand-head {
-  display: flex;
-  align-items: center;
-  margin-bottom: 30rpx;
-}
-
-.brand-logo {
-  width: 48rpx;
-  height: 48rpx;
-  margin-right: 16rpx;
-}
-
-.brand-name {
-  color: #1a2233;
-  font-size: 32rpx;
-  font-weight: bold;
-  letter-spacing: 1rpx;
-}
-
-/* Tabs 样式优化 */
 .tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20rpx;
+  align-items: stretch;
 }
 
 .tab-item {
   position: relative;
-  padding-bottom: 16rpx;
+  flex: 1;
+  height: 88rpx;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  cursor: pointer;
+  justify-content: center;
+  color: #687b95;
+  font-size: 27rpx;
 }
 
-.tab-text {
-  font-size: 28rpx;
-  color: #64748b;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.tab-item.active .tab-text {
+.tab-item.active {
   color: #2468e8;
-  font-weight: bold;
-  font-size: 30rpx;
+  font-weight: 700;
 }
 
 .tab-indicator {
   position: absolute;
   bottom: 0;
-  width: 32rpx;
-  height: 6rpx;
+  width: 44rpx;
+  height: 5rpx;
+  border-radius: 5rpx;
   background: #2468e8;
-  border-radius: 6rpx;
-  transition: all 0.3s;
 }
 
 /* 列表容器 */
@@ -369,7 +407,6 @@ const money = (value) => Number(value || 0).toLocaleString();
 .original-price {
   font-size: 22rpx;
   color: #94a3b8;
-  text-decoration: line-through;
 }
 
 .card-footer {
@@ -401,14 +438,47 @@ const money = (value) => Number(value || 0).toLocaleString();
   border: none;
 }
 
+/* 降价与波动共用事件卡片，展示接口返回的变动前后价格。 */
+.change-card {
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+}
+
+.change-card__head, .change-card__prices {
+  display: flex;
+  align-items: center;
+}
+
+.change-card__head { justify-content: space-between; gap: 16rpx; }
+.change-card__name { flex: 1; min-width: 0; font-size: 29rpx; font-weight: 700; color: #1a2233; }
+.change-card__direction { flex-shrink: 0; padding: 6rpx 12rpx; border-radius: 8rpx; font-size: 22rpx; }
+.change-card__model { display: block; margin-top: 8rpx; color: #8190a5; font-size: 22rpx; }
+.change-card__prices { gap: 14rpx; margin: 22rpx 0 16rpx; flex-wrap: wrap; }
+.change-card__old { color: #94a3b8; font-size: 24rpx; text-decoration: line-through; }
+.change-card__arrow { color: #94a3b8; font-size: 24rpx; }
+.change-card__new { font-size: 34rpx; font-weight: 700; }
+.change-card__amount { margin-left: auto; font-size: 23rpx; font-weight: 600; }
+.change-card__time { color: #94a3b8; font-size: 21rpx; }
+.change-card__direction.down { color: #ef4444; background: #fff1f1; }
+.change-card__direction.up { color: #2468e8; background: #edf4ff; }
+.change-card__new.down, .change-card__amount.down { color: #ef4444; }
+.change-card__new.up, .change-card__amount.up { color: #2468e8; }
+
 .empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 20rpx;
   height: 300rpx;
   color: #94a3b8;
   font-size: 28rpx;
 }
+.retry-link { color: #2468e8; font-size: 25rpx; }
+.load-more { padding: 20rpx; text-align: center; color: #94a3b8; font-size: 23rpx; }
 .skeleton-block {
   background: #e2e8f0;
   background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);

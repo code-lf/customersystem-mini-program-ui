@@ -295,7 +295,8 @@ const quickTools = [
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
   { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
-  { title: '降价通知', icon: 'bell-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/message/index' },
+  // 降价通知入口已并入价格监控；这里改用现有收藏页补齐快捷区的四列排版。
+  { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
   { title: '意见反馈', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' }
 ];
 

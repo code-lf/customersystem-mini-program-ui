@@ -14,6 +14,13 @@
               class="pie-chart"
               canvas-id="quoteRingCanvas"
             />
+            <!-- 微信原生 Canvas 的测量字号与实际显示可能不一致，圆心金额用 cover-view 叠放保证清晰可读。 -->
+            <cover-view v-if="pieTotal > 0" class="pie-center">
+              <cover-view class="pie-center-label">合计</cover-view>
+              <cover-view class="pie-center-amount" :class="{ 'pie-center-amount--long': pieCenterAmount.length > 10 }">
+                {{ pieCenterAmount }}
+              </cover-view>
+            </cover-view>
             <view v-else class="pie-chart pie-empty">暂无金额</view>
           </view>
           
@@ -186,6 +193,8 @@ const pieAmounts = computed(() => [
   additionAmount.value
 ].map((amount) => Math.max(0, Number(amount) || 0)));
 const pieTotal = computed(() => pieAmounts.value.reduce((total, amount) => total + amount, 0));
+// 圆心展示正式应付金额，长数字单独缩小一级，避免越过圆环内边缘。
+const pieCenterAmount = computed(() => `¥${money(finalTotalPrice.value)}`);
 const piePercentages = computed(() => {
   return pieAmounts.value.map((amount) => pieTotal.value ? (amount / pieTotal.value * 100).toFixed(1) : '0.0');
 });
@@ -193,13 +202,14 @@ const piePercentages = computed(() => {
 // 图例和圆环共用这组三色；零金额跳过，单项 100% 时自然绘制完整圆环。
 const ringColors = ['#1e40af', '#3b82f6', '#f59e0b'];
 
-/** 使用微信小程序原生 Canvas 绘制圆环和总额，不依赖 uCharts 的模块加载。 */
+/** 使用微信小程序原生 Canvas 绘制圆环；中心文字交给 cover-view，避免 Canvas 自动缩字。 */
 const drawQuoteRing = async () => {
   if (loading.value || pieTotal.value <= 0) return;
   await nextTick();
-  const size = uni.upx2px(240);
+  // 扩大圆环并收窄环带，为较长的报价金额留出足够的中心显示宽度。
+  const size = uni.upx2px(280);
   const center = size / 2;
-  const lineWidth = uni.upx2px(34);
+  const lineWidth = uni.upx2px(28);
   const radius = center - lineWidth / 2 - 2;
   const context = uni.createCanvasContext('quoteRingCanvas');
   context.clearRect(0, 0, size, size);
@@ -215,22 +225,6 @@ const drawQuoteRing = async () => {
     context.stroke();
     angle = nextAngle;
   });
-  context.setTextAlign('center');
-  context.setTextBaseline('middle');
-  context.setFillStyle('#64748b');
-  context.setFontSize(uni.upx2px(20));
-  context.fillText('合计', center, center - uni.upx2px(16));
-  context.setFillStyle('#1e3a8a');
-  // 金额默认放大到 30rpx；位数较多时按圆心可用宽度缩小，避免文字压住蓝色圆环。
-  const amountText = `¥${money(finalTotalPrice.value)}`;
-  const amountFontSize = uni.upx2px(30);
-  const centerTextWidth = (radius - lineWidth / 2) * 2 - uni.upx2px(8);
-  context.setFontSize(amountFontSize);
-  const measuredWidth = context.measureText?.(amountText)?.width || amountText.length * amountFontSize * 0.6;
-  if (measuredWidth > centerTextWidth) {
-    context.setFontSize(amountFontSize * centerTextWidth / measuredWidth);
-  }
-  context.fillText(amountText, center, center + uni.upx2px(16));
   context.draw();
 };
 
@@ -460,18 +454,52 @@ const confirmQuote = (status) => {
 }
 
 .pie-chart-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 260rpx;
+  width: 290rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
 }
 
 .pie-chart {
-  width: 240rpx;
-  height: 240rpx;
+  width: 280rpx;
+  height: 280rpx;
+}
+
+.pie-center {
+  position: absolute;
+  top: 0;
+  left: 5rpx;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 280rpx;
+  height: 280rpx;
+  pointer-events: none;
+}
+
+.pie-center-label {
+  color: #64748b;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.pie-center-amount {
+  margin-top: 2rpx;
+  color: #1e3a8a;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 46rpx;
+  white-space: nowrap;
+}
+
+.pie-center-amount--long {
+  font-size: 30rpx;
 }
 
 .pie-empty {
