@@ -1,13 +1,14 @@
 <template>
   <view class="chat-page">
-    <AppNavbar title="AI 智能电器助手">
-      <template #right>
-        <view class="history-entry-btn" @click="openPage('/pages/ai/history')">
-          <up-icon name="clock" size="18" color="#586477" />
-          <text>记录</text>
-        </view>
-      </template>
-    </AppNavbar>
+    <AppNavbar title="AI 智能电器助手" bg-color="#f4f7fc" />
+    <!-- 长标题与微信胶囊占据导航栏空间，会话入口独立放在下方，避免互相遮挡。 -->
+    <view class="history-toolbar">
+      <view class="history-entry-btn" @click="openPage('/pages/ai/history')">
+        <up-icon name="clock" size="18" color="#2468e8" />
+        <text>会话记录</text>
+        <up-icon name="arrow-right" size="13" color="#2468e8" />
+      </view>
+    </view>
 
     <!-- 聊天记录滚动区域 -->
     <scroll-view
@@ -21,7 +22,7 @@
         <view v-if="sessionError" class="session-state session-error" @click="restoreSession(requestedSessionId)">{{ sessionError }}，点击重试</view>
         <!-- 欢迎气泡 -->
         <view class="message-row ai-row">
-          <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
+          <image class="avatar ai-avatar" :src="robotAvatar" mode="aspectFit" />
           <view class="ai-content">
             <view class="ai-bubble">
               <text class="text-body">您好！我是格宏智能电器 AI 助手（对接阿里云百炼应用）。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。如需咨询，请确保已登录您的有效账号。</text>
@@ -44,7 +45,7 @@
           </template>
 
           <template v-else>
-            <image class="avatar" src="http://gh.starall.cn/static/resource/aircon/ai-robot-card.png" mode="aspectFit" />
+            <image class="avatar ai-avatar" :src="robotAvatar" mode="aspectFit" />
             <view class="ai-content">
               <view class="ai-bubble" :class="{ 'error-bubble': msg.isError }">
                 <view v-if="msg.isStreaming && !msg.text" class="stream-thinking">
@@ -208,6 +209,8 @@ import { createAiSession, getAiSessionDetail } from '@/api/ai-session';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
+// 聊天气泡与 AI 首页使用同一张机器人形象，避免小头像显示为旧版卡片图。
+const robotAvatar = 'http://gh.starall.cn/static/resource/aircon/ai-robot.png';
 const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/wode.png');
 
 const inputContent = ref('');
@@ -614,13 +617,22 @@ onUnload(() => {
   background: #f4f7fc;
 }
 
+.history-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8rpx 24rpx 10rpx;
+  background: #f4f7fc;
+}
+
 .history-entry-btn {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  padding: 8rpx;
-  color: #586477;
-  font-size: 22rpx;
+  padding: 10rpx 16rpx;
+  border-radius: 24rpx;
+  background: #e8f1ff;
+  color: #2468e8;
+  font-size: 23rpx;
 }
 
 .session-state { text-align: center; color: #8b95a7; font-size: 24rpx; }
@@ -678,6 +690,11 @@ onUnload(() => {
   height: 68rpx;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.ai-avatar {
+  width: 84rpx;
+  height: 84rpx;
 }
 
 .user-avatar {

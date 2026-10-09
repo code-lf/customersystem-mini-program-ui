@@ -8,23 +8,6 @@
       :style="{ height: `calc(100vh - ${navMetrics.totalNavHeight}px)` }"
     >
 
-    <view class="hero-carousel" v-if="product">
-      <swiper
-        class="hero-swiper"
-        circular
-        autoplay
-        :interval="3500"
-        :duration="400"
-        indicator-dots
-        indicator-color="rgba(0, 0, 0, 0.16)"
-        indicator-active-color="#2468e8"
-      >
-        <swiper-item v-for="(img, idx) in productGallery" :key="idx" class="swiper-item-box">
-          <image :src="img" class="swiper-product-img" mode="aspectFit" />
-        </swiper-item>
-      </swiper>
-    </view>
-
     <view class="title-card" v-if="product">
       <!-- 商品名称作为主标题，型号作为次级信息；规格说明继续放在型号下方。 -->
       <view class="title-card__row">
@@ -32,7 +15,7 @@
         <text v-if="product.comment" class="tag-hot">{{ product.comment }}</text>
       </view>
       <text class="title-card__model">{{ product.model }}</text>
-      <text class="title-card__spec">{{ product.spec }}</text>
+      <text v-if="product.spec" class="title-card__spec">规格：{{ product.spec }}</text>
       
       <view class="price-row">
         <text class="price-label">参考价</text>
@@ -73,54 +56,25 @@
         </view>
       </view>
 
-      <!-- 2. 图文模块 (图文详情与核心亮点) -->
+      <!-- 2. 图文模块：原顶部商品图片改为纵向展示，不再自动轮播。 -->
       <view v-if="activeTab === 'rich'" class="rich-panel">
+        <view v-for="(imageUrl, index) in productGallery" :key="`${imageUrl}-${index}`" class="rich-image-box">
+          <image :src="imageUrl" mode="widthFix" class="rich-image" />
+        </view>
         <view v-if="product.goods_content" class="rich-content-box">
           <rich-text :nodes="formatRichText(product.goods_content)"></rich-text>
         </view>
-        
-        <view class="rich-feature-section">
-          <view class="section-sub-title">产品核心特性</view>
-          <view class="rich-banner">
-            <view class="rich-b-text">
-              <text class="rich-b-title">{{ product.model || product.goods_name }}</text>
-              <text class="rich-b-sub">{{ product.sale_policy || '高效节能 · 智能控制 · 稳定耐用' }}</text>
-            </view>
-            <image :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
-          </view>
-          
-          <view class="feature-grid-3">
-            <view class="feature-card-item">
-              <view class="feat-icon-box">
-                <up-icon name="checkmark-circle-fill" size="22" color="#2468e8" />
-              </view>
-              <text class="feat-title">宽温域稳定运行</text>
-              <text class="feat-desc">-30℃低温强劲制热，55℃高温高效制冷</text>
-            </view>
-            <view class="feature-card-item">
-              <view class="feat-icon-box">
-                <up-icon name="volume-fill" size="22" color="#10b981" />
-              </view>
-              <text class="feat-title">静音舒适设计</text>
-              <text class="feat-desc">多重流体力学降噪风道，低噪静音运转</text>
-            </view>
-            <view class="feature-card-item">
-              <view class="feat-icon-box">
-                <up-icon name="integral-fill" size="22" color="#f59e0b" />
-              </view>
-              <text class="feat-title">全直流变频科技</text>
-              <text class="feat-desc">高效稀土压缩机，精准控温更低能耗</text>
-            </view>
-          </view>
-        </view>
+        <view v-if="product.sale_policy" class="sale-policy">销售政策：{{ product.sale_policy }}</view>
+        <view v-if="!productGallery.length && !product.goods_content && !product.sale_policy" class="rich-empty">暂无图文详情</view>
       </view>
 
       <!-- 3. 资料模块 (PDF手册/规格书/图集资料) -->
       <view v-if="activeTab === 'materials'" class="file-panel">
         <view class="materials-header">
           <text class="materials-header-title">设备相关文档与图纸资料</text>
-          <text class="materials-header-count">共 {{ displayMaterials.length }} 份文件</text>
+          <text class="materials-header-count">共 {{ product.materials_total ?? displayMaterials.length }} 份文件</text>
         </view>
+        <view class="material-notice" @click="contactManager">页面只提供预览；需要原文件请联系客户经理 ›</view>
 
         <view v-if="displayMaterials.length > 0" class="materials-list">
           <view v-for="file in displayMaterials" :key="file.id || file.title" class="file-card">
@@ -131,12 +85,12 @@
               <text class="file-row__name">{{ file.title }}</text>
               <view class="file-meta-row">
                 <text class="file-cat-tag">{{ file.category_name || file.remark || '工程资料' }}</text>
-                <text class="file-size-tag">{{ file.size || 'PDF文档' }}</text>
+                <text class="file-size-tag">{{ getFileExt(file.title, file.file_url || file.link_url) }}</text>
               </view>
             </view>
             <button class="file-action-btn" @click="previewFile(file)">
-              <up-icon name="download" size="14" color="#2468e8" />
-              <text>调阅</text>
+              <up-icon name="eye" size="14" color="#2468e8" />
+              <text>预览</text>
             </button>
           </view>
         </view>
@@ -148,6 +102,12 @@
       </view>
     </view>
     </scroll-view>
+
+    <!-- 图片类资料只在本页查看，不提供保存或复制文件地址的入口。 -->
+    <view v-if="previewImageUrl" class="image-preview" @click="previewImageUrl = ''">
+      <text class="image-preview__close">关闭预览 ×</text>
+      <image :src="previewImageUrl" mode="aspectFit" :show-menu-by-longpress="false" @click.stop />
+    </view>
 
     <!-- 底部悬浮操作栏 -->
     <view class="bottom-action-bar">
@@ -187,6 +147,7 @@ const productId = ref('');
 const isFav = ref(false);
 const favoriteBusy = ref(false);
 const monitorBusy = ref(false);
+const previewImageUrl = ref('');
 const userStore = useUserStore();
 const activeTab = ref('params'); // 默认展示参数模块
 const isLoading = ref(true);
@@ -266,40 +227,28 @@ onLoad((query = {}) => {
   loadDetail(goodsId);
 });
 
-// 轮播图列表
+/** 文件和图片可能返回相对路径，统一补齐静态资源域名。 */
+const resolveResourceUrl = (value) => {
+  const path = String(value || '').trim().replace(/\\/g, '/');
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  if (path.startsWith('//')) return `https:${path}`;
+  const serverBase = String(appConfig.baseUrl || '').replace(/\/api\/?$/, '');
+  return `${serverBase}/${path.replace(/^\/+/, '')}`;
+};
+
+// 商品图片只读取详情接口的 image/images，不再为缺图商品补造展示图。
 const productGallery = computed(() => {
-  if (!product.value) return ['https://gh.starall.cn/static/resource/aircon/outdoor-unit.png'];
+  if (!product.value) return [];
   const p = product.value;
-  const list = [];
-  if (Array.isArray(p.images) && p.images.length > 0) {
-    list.push(...p.images);
-  } else if (Array.isArray(p.gallery) && p.gallery.length > 0) {
-    list.push(...p.gallery);
-  } else if (p.image) {
-    list.push(p.image);
-  }
-  // 补全商品视角图片，确保轮播图展示丰富
-  if (list.length <= 1) {
-    const isCentral = (p.category_name || '').includes('中央') || (p.goods_name || '').includes('多联');
-    if (isCentral) {
-      list.push(
-        'https://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
-        'https://gh.starall.cn/static/resource/aircon/central-default.png'
-      );
-    } else {
-      list.push(
-        'https://gh.starall.cn/static/resource/aircon/home-green.png',
-        'https://gh.starall.cn/static/resource/aircon/home-default.png'
-      );
-    }
-  }
-  return [...new Set(list.filter(Boolean))];
+  return [...new Set([p.image, ...(Array.isArray(p.images) ? p.images : [])].map(resolveResourceUrl).filter(Boolean))];
 });
 
-// 模块标签：按用户需求图文模块暂时隐藏，保留参数与资料模块
+// 参数、图文和资料分别对应详情接口字段。
 const tabs = computed(() => {
   return [
     { label: '规格参数', value: 'params' },
+    { label: '图文详情', value: 'rich' },
     { 
       label: '工程资料', 
       value: 'materials',
@@ -326,10 +275,13 @@ const techInfo = computed(() => {
   if (!product.value) return [];
   const list = [];
 
-  // 后端 params 列表
+  // OpenAPI 参数项字段是 name/value，旧数据的 label/key 仅作兼容。
   if (Array.isArray(product.value.params) && product.value.params.length > 0) {
     product.value.params.forEach(p => {
-      list.push({ label: p.label || p.key, value: p.value });
+      const label = p.name || p.label || p.key;
+      if (label && p.value !== undefined && p.value !== null && p.value !== '') {
+        list.push({ label, value: p.value });
+      }
     });
   }
 
@@ -350,7 +302,7 @@ const techInfo = computed(() => {
   return list;
 });
 
-// 提取与格式化全部资料文件
+// 仅展现接口 materials 分类中的真实文件，不虚构产品手册或下载地址。
 const displayMaterials = computed(() => {
   if (!product.value) return [];
   const result = [];
@@ -361,43 +313,11 @@ const displayMaterials = computed(() => {
         cat.items.forEach(it => {
           result.push({
             ...it,
-            category_name: cat.category_name || '产品资料',
-            size: it.size || 'PDF/文档'
+            category_name: cat.category_name || '产品资料'
           });
         });
       }
     });
-  }
-
-  // 若该产品无自定义文件，则配置标准工程官方技术资料
-  if (result.length === 0) {
-    const modelName = product.value.model || '电器空调设备';
-    result.push(
-      {
-        id: 'doc_1',
-        title: `${modelName} 产品技术规格选型手册.pdf`,
-        category_name: '选型手册',
-        remark: '技术参数与电气配线图纸',
-        size: '2.8 MB',
-        isDefault: true
-      },
-      {
-        id: 'doc_2',
-        title: `${modelName} 安装调试及施工指导规范.pdf`,
-        category_name: '安装指南',
-        remark: '管路敷设与工程调试规范',
-        size: '3.4 MB',
-        isDefault: true
-      },
-      {
-        id: 'doc_3',
-        title: `${modelName} 运行维护与保修说明书.pdf`,
-        category_name: '说明书',
-        remark: '日常维护与保养操作指引',
-        size: '1.9 MB',
-        isDefault: true
-      }
-    );
   }
 
   return result;
@@ -406,19 +326,20 @@ const displayMaterials = computed(() => {
 // 格式化富文本
 const formatRichText = (html) => {
   if (!html) return '';
-  // 确保图片自适应宽度
+  // 富文本内图片也可能是相对路径；补齐域名并限制到页面宽度。
   return String(html)
     .replace(/<img[^>]*>/gi, (match) => {
-      return match.replace(/style="[^"]*"/gi, '').replace(/<img/gi, '<img style="max-width:100%;height:auto;border-radius:12rpx;margin:12rpx 0;display:block;"');
+      return match
+        .replace(/src=(['"])(.*?)\1/i, (_, quote, src) => `src=${quote}${resolveResourceUrl(src)}${quote}`)
+        .replace(/style="[^"]*"/gi, '')
+        .replace(/<img/gi, '<img style="max-width:100%;height:auto;border-radius:12rpx;margin:12rpx 0;display:block;"');
     });
 };
 
-const getFileExt = (title = '') => {
-  if (title.toLowerCase().endsWith('.pdf')) return 'PDF';
-  if (title.toLowerCase().endsWith('.dwg') || title.toLowerCase().endsWith('.cad')) return 'CAD';
-  if (title.toLowerCase().endsWith('.doc') || title.toLowerCase().endsWith('.docx')) return 'DOC';
-  if (title.toLowerCase().endsWith('.xls') || title.toLowerCase().endsWith('.xlsx')) return 'XLS';
-  return 'PDF';
+const getFileExt = (title = '', url = '') => {
+  // 文件名可能不带扩展名，优先取标题，再尝试去掉查询参数后的真实 URL。
+  const path = [title, String(url).split('?')[0]].find(value => /\.(pdf|docx?|xlsx?|pptx?|dwg|cad|png|jpe?g|webp)$/i.test(String(value))) || '';
+  return String(path).match(/\.([a-z0-9]+)$/i)?.[1]?.toUpperCase() || '文件';
 };
 
 const getFileTypeClass = (title = '') => {
@@ -427,7 +348,7 @@ const getFileTypeClass = (title = '') => {
   if (ext === 'CAD') return 'type-cad';
   if (ext === 'DOC') return 'type-doc';
   if (ext === 'XLS') return 'type-xls';
-  return 'type-pdf';
+  return '';
 };
 
 const money = (value) => Number(value || 0).toLocaleString();
@@ -447,50 +368,58 @@ const followPrice = async () => {
   }
 };
 
-const previewFile = (file) => {
-  let fileUrl = file.file_url || file.link_url || file.url;
-  if (fileUrl) {
-    if (fileUrl.startsWith('/') && !fileUrl.startsWith('//')) {
-      const serverBase = (appConfig.baseUrl || '').replace(/\/api$/, '');
-      fileUrl = serverBase + fileUrl.replace(/\\/g, '/');
-    }
-    // #ifdef H5
-    try {
-      window.open(fileUrl, '_blank');
-    } catch(e) {
-      uni.setClipboardData({
-        data: fileUrl,
-        success: () => uni.showToast({ title: '文件链接已复制到剪贴板', icon: 'none' })
-      });
-    }
-    // #endif
-
-    // #ifndef H5
-    uni.showLoading({ title: '正在加载资料...' });
-    uni.downloadFile({
-      url: fileUrl,
-      success: (res) => {
-        uni.hideLoading();
-        uni.openDocument({
-          filePath: res.tempFilePath,
-          showMenu: true,
-          fail: () => {
-            uni.showToast({ title: '已下载: ' + file.title, icon: 'none' });
-          }
-        });
-      },
-      fail: () => {
-        uni.hideLoading();
-        uni.setClipboardData({
-          data: fileUrl,
-          success: () => uni.showToast({ title: '已复制下载链接', icon: 'none' })
-        });
-      }
-    });
-    // #endif
-  } else {
-    uni.showToast({ title: `调阅文档: ${file.title}`, icon: 'none' });
+/** 原文件通过客户经理获取；该页不暴露下载、分享或复制链接入口。 */
+const contactManager = () => {
+  if (userStore.isDealer && Number(userStore.userInfo?.salesperson?.member_id) > 0) {
+    openPage('/pages/member/salesperson');
+    return;
   }
+  uni.showModal({ title: '联系业务员', content: '如需下载原文件，请联系对应业务员获取。', showCancel: false });
+};
+
+/** 小程序文档预览需先取得临时文件；关闭转发菜单不等于服务端防下载。 */
+const previewFile = (file) => {
+  const fileUrl = resolveResourceUrl(file.file_url || file.link_url);
+  if (!fileUrl) {
+    uni.showToast({ title: '该资料暂无预览地址', icon: 'none' });
+    return;
+  }
+  const fileType = getFileExt(file.title, fileUrl).toLowerCase();
+  if (['png', 'jpg', 'jpeg', 'webp'].includes(fileType)) {
+    previewImageUrl.value = fileUrl;
+    return;
+  }
+  if (!['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType)) {
+    uni.showModal({ title: '暂不支持预览', content: '此格式无法在小程序中预览，请联系客户经理获取原文件。', showCancel: false });
+    return;
+  }
+  // #ifdef H5
+  // 浏览器直接打开公开文件通常自带下载功能，因此 H5 不伪称“仅预览”。
+  uni.showModal({ title: '请在小程序预览', content: '网页端无法限制浏览器下载。请在微信小程序预览，原文件请联系客户经理。', showCancel: false });
+  // #endif
+  // #ifndef H5
+  uni.showLoading({ title: '正在加载资料...' });
+  uni.downloadFile({
+    url: fileUrl,
+    success: (res) => {
+      uni.hideLoading();
+      if (res.statusCode !== 200 || !res.tempFilePath) {
+        uni.showToast({ title: '资料预览失败', icon: 'none' });
+        return;
+      }
+      uni.openDocument({
+        filePath: res.tempFilePath,
+        fileType,
+        showMenu: false,
+        fail: () => uni.showToast({ title: '无法预览，请联系客户经理', icon: 'none' })
+      });
+    },
+    fail: () => {
+      uni.hideLoading();
+      uni.showToast({ title: '资料加载失败', icon: 'none' });
+    }
+  });
+  // #endif
 };
 
 const addToSolution = () => {
@@ -545,52 +474,17 @@ onShareTimeline(() => {
   padding: 0 24rpx 220rpx;
 }
 
-.hero-carousel {
-  position: relative;
-  height: 420rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
-  overflow: hidden;
-}
-
-.hero-swiper {
-  width: 100%;
-  height: 420rpx;
-}
-
-.swiper-item-box {
-  width: 100%;
-  height: 100%;
+.image-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20rpx;
-  box-sizing: border-box;
+  background: rgba(13, 24, 43, .94);
 }
-
-.swiper-product-img {
-  width: 520rpx;
-  height: 340rpx;
-}
-
-.hero {
-  position: relative;
-  height: 420rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
-}
-
-.hero image {
-  width: 520rpx;
-  height: 340rpx;
-}
+.image-preview image { width: 100%; max-height: 80vh; }
+.image-preview__close { position: absolute; top: 90rpx; right: 32rpx; color: #fff; font-size: 27rpx; }
 
 .title-card {
   padding: 28rpx;
@@ -630,7 +524,7 @@ onShareTimeline(() => {
   flex: 1;
   min-width: 0;
   color: #17233d;
-  font-size: 36rpx;
+  font-size: 38rpx;
   font-weight: 800;
   line-height: 46rpx;
 }
@@ -783,80 +677,16 @@ onShareTimeline(() => {
   padding: 24rpx 28rpx;
 }
 
+.rich-image-box { margin-bottom: 18rpx; overflow: hidden; border-radius: 16rpx; background: #f8fafc; }
+.rich-image { display: block; width: 100%; }
+.rich-empty { padding: 100rpx 0; color: #94a3b8; font-size: 26rpx; text-align: center; }
+.sale-policy { margin-top: 18rpx; padding: 20rpx; border-radius: 12rpx; background: #f0f6ff; color: #334155; font-size: 25rpx; }
+
 .rich-content-box {
   padding: 16rpx 0 24rpx;
   color: #334155;
   font-size: 26rpx;
   line-height: 1.6;
-}
-
-.rich-feature-section {
-  margin-top: 10rpx;
-}
-
-.rich-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx;
-  border-radius: 20rpx;
-  background: linear-gradient(135deg, #eff6ff 0%, #e0edff 100%);
-  margin-bottom: 24rpx;
-
-  .rich-b-title {
-    display: block;
-    color: #1e3a8a;
-    font-size: 30rpx;
-    font-weight: 900;
-  }
-
-  .rich-b-sub {
-    display: block;
-    margin-top: 8rpx;
-    color: #3b82f6;
-    font-size: 22rpx;
-  }
-
-  image {
-    width: 160rpx;
-    height: 110rpx;
-    flex-shrink: 0;
-  }
-}
-
-.feature-grid-3 {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.feature-card-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
-  padding: 20rpx;
-  border-radius: 16rpx;
-  background: #f8fafc;
-  border: 1rpx solid #f1f5f9;
-
-  .feat-icon-box {
-    margin-top: 4rpx;
-  }
-
-  .feat-title {
-    display: block;
-    color: #1e293b;
-    font-size: 26rpx;
-    font-weight: 700;
-  }
-
-  .feat-desc {
-    display: block;
-    margin-top: 4rpx;
-    color: #64748b;
-    font-size: 22rpx;
-    line-height: 32rpx;
-  }
 }
 
 /* 资料面板 */
@@ -888,6 +718,8 @@ onShareTimeline(() => {
   border-radius: 12rpx;
 }
 
+.material-notice { margin-bottom: 20rpx; color: #64748b; font-size: 23rpx; line-height: 34rpx; }
+
 .materials-list {
   display: flex;
   flex-direction: column;
@@ -913,6 +745,7 @@ onShareTimeline(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: #64748b;
 
   &.type-pdf {
     background: #ef4444;
