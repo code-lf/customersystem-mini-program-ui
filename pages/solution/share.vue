@@ -17,7 +17,7 @@
             <!-- 微信原生 Canvas 的测量字号与实际显示可能不一致，圆心金额用 cover-view 叠放保证清晰可读。 -->
             <cover-view v-if="pieTotal > 0" class="pie-center">
               <cover-view class="pie-center-label">合计</cover-view>
-              <cover-view class="pie-center-amount" :class="{ 'pie-center-amount--long': pieCenterAmount.length > 10 }">
+              <cover-view class="pie-center-amount" :class="{ 'pie-center-amount--long': pieCenterAmount.length > 9 }">
                 {{ pieCenterAmount }}
               </cover-view>
             </cover-view>
@@ -206,8 +206,8 @@ const ringColors = ['#1e40af', '#3b82f6', '#f59e0b'];
 const drawQuoteRing = async () => {
   if (loading.value || pieTotal.value <= 0) return;
   await nextTick();
-  // 扩大圆环并收窄环带，为较长的报价金额留出足够的中心显示宽度。
-  const size = uni.upx2px(280);
+  // 直径恢复为原来的 240rpx；画布和圆心浮层必须使用同一尺寸。
+  const size = uni.upx2px(240);
   const center = size / 2;
   const lineWidth = uni.upx2px(28);
   const radius = center - lineWidth / 2 - 2;
@@ -459,27 +459,27 @@ const confirmQuote = (status) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 290rpx;
+  width: 260rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
 }
 
 .pie-chart {
-  width: 280rpx;
-  height: 280rpx;
+  width: 240rpx;
+  height: 240rpx;
 }
 
 .pie-center {
   position: absolute;
   top: 0;
-  left: 5rpx;
+  left: 10rpx;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 280rpx;
-  height: 280rpx;
+  width: 240rpx;
+  height: 240rpx;
   pointer-events: none;
 }
 

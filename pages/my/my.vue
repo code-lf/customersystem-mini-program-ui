@@ -86,21 +86,6 @@
       <button class="withdraw-btn" @click="handleWithdrawClick">{{ userStore.isLoggedIn ? '提现' : '去登录' }}</button>
     </view>
 
-    <!-- 常用业务快捷入口 4 宫格 -->
-    <view class="shortcut-card">
-      <view
-        v-for="item in shortcuts"
-        :key="item.title"
-        class="shortcut-item"
-        @click="handleMenuNavigation(item.path)"
-      >
-        <view class="shortcut-icon-box" :style="{ background: item.bg }">
-          <up-icon :name="item.icon" size="26" :color="item.color" />
-        </view>
-        <text class="shortcut-title">{{ item.title }}</text>
-      </view>
-    </view>
-
     <!-- 辅助功能列表 -->
     <view class="menu-card">
       <view
@@ -514,20 +499,11 @@ const handleLogout = () => {
   });
 };
 
-const shortcuts = [
-  { title: '我的报价单', icon: 'file-text-fill', color: '#2468e8', bg: '#edf4ff', path: '/pages/solution/index' },
-  { title: '价格监控', icon: 'eye-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/monitor/index' },
-  { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
-  { title: '调阅资料', icon: 'folder', color: '#10b981', bg: '#e6fcf5', path: '/pages/product/index' }
-];
-
+// 首页工作台已有报价、价格监控、收藏和反馈入口；“我的”不再重复展示，调阅资料入口也隐藏。
 const menus = [
-  { title: '营销活动', desc: '订货会/限时促销/新品上市优惠', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
-  { title: '合作申请', desc: '申请成为认证服务商', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
-  { title: '意见与反馈', desc: '产品选型与功能建议', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' },
   { title: '账号与安全设置', desc: '修改企业信息与密码', icon: 'setting-fill', color: '#647389', bg: '#f0f3f8', path: '/pages/member/profile' }
 ];
 

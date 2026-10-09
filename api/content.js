@@ -40,9 +40,9 @@ export function submitCooperation(data) {
   return apiPost('crm/cooperation/application', data);
 }
 
-/** 合作申请重复检查 */
-export function checkCooperation(params = {}) {
-  return apiGet('crm/cooperation/application/check', params);
+/** 合作申请重复检查；允许页面静默预检，提交接口仍会最终拦截重复申请。 */
+export function checkCooperation(params = {}, options = {}) {
+  return apiGet('crm/cooperation/application/check', params, options);
 }
 
 /** 我的合作申请列表 */

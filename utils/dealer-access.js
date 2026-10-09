@@ -19,8 +19,13 @@ export async function requireDealerAccess(userStore, onDenied) {
     uni.showModal({
       title: '请先登录',
       content: '当前尚未登录，请先登录后使用该功能。',
-      showCancel: false,
-      success: () => onDenied?.()
+      cancelText: '取消',
+      confirmText: '去登录',
+      success: ({ confirm }) => {
+        // 登录按钮直接打开登录页；取消时才执行页面提供的返回动作。
+        if (confirm) openPage('/pages/auth/login');
+        else onDenied?.();
+      }
     });
     return false;
   }

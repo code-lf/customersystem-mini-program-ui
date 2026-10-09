@@ -64,7 +64,7 @@
 
       <!-- 加载中 -->
       <view v-if="loading" class="loading-state">
-        <up-icon name="loading" size="28" color="#2563eb" />
+        <AppLoadingSpinner />
         <text class="loading-text">正在获取最新营销活动...</text>
       </view>
 
@@ -155,6 +155,7 @@ import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
+import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
