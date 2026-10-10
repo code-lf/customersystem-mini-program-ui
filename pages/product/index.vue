@@ -165,9 +165,12 @@ const openQuickFilter = (item) => {
   openPage('/pages/product/list', item.query);
 };
 
-const search = () => {
-  const text = keyword.value.trim();
-  if (text) openPage('/pages/product/list', { keyword: text });
+const search = (event) => {
+  // 键盘“搜索”可能先于 v-model 更新，优先读取确认事件里的实时输入值。
+  const text = String(event?.detail?.value ?? keyword.value).trim();
+  if (!text) return;
+  keyword.value = text;
+  openPage('/pages/product/list', { keyword: text });
 };
 </script>
 

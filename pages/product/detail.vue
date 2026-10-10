@@ -12,10 +12,15 @@
       <!-- 商品名称作为主标题，型号作为次级信息；规格说明继续放在型号下方。 -->
       <view class="title-card__row">
         <text class="title-card__name">{{ product.goods_name }}</text>
-        <text v-if="product.comment" class="tag-hot">{{ product.comment }}</text>
       </view>
       <text class="title-card__model">{{ product.model }}</text>
       <text v-if="product.spec" class="title-card__spec">规格：{{ product.spec }}</text>
+      <!-- 标签来自 tags/tag_list；卖点和关键词仅在接口确有内容时显示。 -->
+      <view v-if="productTags.length" class="product-tags">
+        <text v-for="tag in productTags" :key="tag" class="product-tag">{{ tag }}</text>
+      </view>
+      <view v-if="sellingPoint" class="product-extra"><text class="product-extra__label">卖点</text><text>{{ sellingPoint }}</text></view>
+      <view v-if="productKeywords" class="product-extra"><text class="product-extra__label">关键词</text><text>{{ productKeywords }}</text></view>
       
       <view class="price-row">
         <text class="price-label">参考价</text>
@@ -61,11 +66,11 @@
         <view v-for="(imageUrl, index) in productGallery" :key="`${imageUrl}-${index}`" class="rich-image-box">
           <image :src="imageUrl" mode="widthFix" class="rich-image" />
         </view>
-        <view v-if="product.goods_content" class="rich-content-box">
-          <rich-text :nodes="formatRichText(product.goods_content)"></rich-text>
+        <view v-if="richContent" class="rich-content-box">
+          <rich-text :nodes="formatRichText(richContent)"></rich-text>
         </view>
         <view v-if="product.sale_policy" class="sale-policy">销售政策：{{ product.sale_policy }}</view>
-        <view v-if="!productGallery.length && !product.goods_content && !product.sale_policy" class="rich-empty">暂无图文详情</view>
+        <view v-if="!productGallery.length && !richContent && !product.sale_policy" class="rich-empty">暂无图文详情</view>
       </view>
 
       <!-- 3. 资料模块 (PDF手册/规格书/图集资料) -->
@@ -244,13 +249,28 @@ const productGallery = computed(() => {
   return [...new Set([p.image, ...(Array.isArray(p.images) ? p.images : [])].map(resolveResourceUrl).filter(Boolean))];
 });
 
+// 商品标签优先读取详情接口的 tags，旧数据仅返回 tag_list 时取其中的名称。
+const productTags = computed(() => {
+  const detail = product.value || {};
+  const source = Array.isArray(detail.tags) && detail.tags.length ? detail.tags : detail.tag_list;
+  if (!Array.isArray(source)) return [];
+  return [...new Set(source.map(item => String(typeof item === 'string' ? item : item?.name || '').trim()).filter(Boolean))];
+});
+
+// 历史商品把卖点备注和关键词保存在 raw.comment、raw.gjz；空字段不占页面空间。
+const sellingPoint = computed(() => String(product.value?.comment || product.value?.raw?.comment || '').trim());
+const productKeywords = computed(() => String(product.value?.gjz || product.value?.raw?.gjz || '').trim());
+
+// 正规字段为空时兼容旧商品原始 HTML，仍交给微信 rich-text 组件渲染。
+const richContent = computed(() => String(product.value?.goods_content || product.value?.raw?.goods_content || '').trim());
+
 // 参数、图文和资料分别对应详情接口字段。
 const tabs = computed(() => {
   return [
     { label: '规格参数', value: 'params' },
-    { label: '图文详情', value: 'rich' },
-    { 
-      label: '工程资料', 
+    { label: '图文', value: 'rich' },
+    {
+      label: '资料',
       value: 'materials',
       badge: displayMaterials.value.length > 0 ? String(displayMaterials.value.length) : ''
     }
@@ -510,15 +530,6 @@ onShareTimeline(() => {
   line-height: 38rpx;
 }
 
-.tag-hot {
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
-  background: #fff0ed;
-  color: #ef543f;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-
 .title-card__name {
   display: block;
   flex: 1;
@@ -534,6 +545,36 @@ onShareTimeline(() => {
   margin-top: 10rpx;
   color: #8b95a7;
   font-size: 24rpx;
+}
+
+.product-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.product-tag {
+  padding: 6rpx 14rpx;
+  border-radius: 10rpx;
+  background: #edf4ff;
+  color: #2468e8;
+  font-size: 22rpx;
+  line-height: 30rpx;
+}
+
+.product-extra {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 14rpx;
+  color: #475569;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.product-extra__label {
+  flex: none;
+  color: #8b95a7;
 }
 
 .price-row {

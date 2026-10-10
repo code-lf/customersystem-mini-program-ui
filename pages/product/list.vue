@@ -139,12 +139,14 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue';
+import { computed, ref, reactive } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getPageOptions, openPage } from '@/utils/pages';
+import { openPage } from '@/utils/pages';
 import { getProductList, CATEGORY_IDS } from '@/api/product';
 
-const pageOptions = getPageOptions();
+// 小程序页面参数必须在 onLoad 回调中取得；setup 阶段读取页面栈可能拿到上一页参数。
+const pageOptions = reactive({});
 const isHome = computed(() => {
   if (pageOptions.type === 'home' || ['wall', 'cabinet'].includes(pageOptions.category)) return true;
   if (pageOptions.category_id) {
@@ -173,7 +175,7 @@ const currentCategoryName = computed(() => {
   return isHome.value ? '家用空调系列' : '中央空调系列';
 });
 
-const keywordInput = ref(pageOptions.keyword || '');
+const keywordInput = ref('');
 const activeFilterKey = ref('');
 const sortAsc = ref(true);
 const products = ref([]);
@@ -205,6 +207,7 @@ const centralFilterTabs = [
 const currentFilterTabs = computed(() => isHome.value ? homeFilterTabs : centralFilterTabs);
 
 const pageTitle = computed(() => {
+  if (pageOptions.keyword && !pageOptions.category_id) return '商品搜索结果';
   if (!isHome.value) return '中央空调产品列表';
   return pageOptions.category === 'cabinet' ? '柜式空调' : '壁挂式空调';
 });
@@ -311,9 +314,12 @@ const toggleSort = () => {
 
 const clearKeyword = () => {
   keywordInput.value = '';
+  loadProducts();
 };
 
-const onSearchConfirm = () => {
+const onSearchConfirm = (event) => {
+  // 输入法确认事件可能早于 v-model 更新，使用事件中的实时关键词发起搜索。
+  keywordInput.value = String(event?.detail?.value ?? keywordInput.value).trim();
   loadProducts();
 };
 
@@ -322,7 +328,7 @@ const loadProducts = async () => {
   try {
     const params = { limit: 100 };
     if (pageOptions.category_id) params.category_id = pageOptions.category_id;
-    if (keywordInput.value) params.keyword = keywordInput.value;
+    if (keywordInput.value.trim()) params.keyword = keywordInput.value.trim();
     const res = await getProductList(params);
     const list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
     products.value = list;
@@ -333,12 +339,22 @@ const loadProducts = async () => {
   }
 };
 
-onMounted(() => {
-  if (pageOptions.filter_horse) {
-    selectedFilters.horse = pageOptions.filter_horse;
+onLoad((options = {}) => {
+  // 跳转工具会对中文关键词进行 URL 编码；微信小程序的 onLoad 可能仍返回编码值。
+  // 在展示和调用搜索接口前统一解码，解码失败时保留原词以兼容用户输入的百分号。
+  let searchKeyword = String(options.keyword || '').trim();
+  try {
+    searchKeyword = decodeURIComponent(searchKeyword);
+  } catch (error) {
+    console.warn('[商品搜索] 关键词解码失败，使用原始参数：', error);
   }
-  if (pageOptions.filter_brand) {
-    selectedFilters.brand = pageOptions.filter_brand;
+  Object.assign(pageOptions, options, { keyword: searchKeyword });
+  keywordInput.value = searchKeyword;
+  if (options.filter_horse) {
+    selectedFilters.horse = options.filter_horse;
+  }
+  if (options.filter_brand) {
+    selectedFilters.brand = options.filter_brand;
   }
   loadProducts();
 });
@@ -346,18 +362,8 @@ onMounted(() => {
 const displayProducts = computed(() => {
   let list = [...products.value];
 
-  // 1. 关键词过滤
-  if (keywordInput.value) {
-    const kw = keywordInput.value.toLowerCase().trim();
-    list = list.filter(p =>
-      (p.goods_name && p.goods_name.toLowerCase().includes(kw)) ||
-      (p.model && p.model.toLowerCase().includes(kw)) ||
-      (p.category_name && p.category_name.toLowerCase().includes(kw)) ||
-      (p.comment && p.comment.toLowerCase().includes(kw))
-    );
-  }
-
-  // 2. 匹数/冷量/品牌等下拉过滤
+  // 后端已按关键词搜索名称、SKU、型号和条码；不再二次过滤，以免误删 SKU 命中项。
+  // 匹数/冷量/品牌等下拉过滤仍只作用于当前返回结果。
   if (selectedFilters.horse) {
     list = list.filter(p =>
       (p.goods_name && p.goods_name.includes(selectedFilters.horse)) ||
@@ -380,7 +386,7 @@ const displayProducts = computed(() => {
     );
   }
 
-  // 3. 价格排序
+  // 价格排序
   return list.sort((a, b) => sortAsc.value ? (Number(a.price) - Number(b.price)) : (Number(b.price) - Number(a.price)));
 });
 
