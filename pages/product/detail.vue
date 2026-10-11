@@ -226,6 +226,8 @@ onLoad((query = {}) => {
   // 同时兼容 id 与 OpenAPI 使用的 goods_id，避免不同入口字段名不一致。
   const goodsId = query.goods_id || query.id;
   productId.value = goodsId || '';
+  // AI 资料卡片直达本页“资料”页签，仍使用现有的预览流程。
+  activeTab.value = query.tab === 'materials' ? 'materials' : 'params';
   if (!goodsId) {
     console.error('[商品详情] 页面参数异常：', query);
   }

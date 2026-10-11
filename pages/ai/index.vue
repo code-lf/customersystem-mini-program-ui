@@ -10,7 +10,7 @@
           <view class="hero-circle hero-circle--large" />
           <view class="hero-circle hero-circle--small" />
           <view class="hero-copy">
-            <text class="hero-title">家电 AI 智能助理</text>
+            <text class="hero-title">AI 小格 · 家电助理</text>
             <text class="hero-desc">空调 / 家电选型 · 咨询与方案推荐</text>
             <view class="hero-points">
               <text>专业可靠</text>
@@ -19,7 +19,7 @@
           </view>
           <image
             class="hero-robot"
-            src="https://gh.starall.cn/static/resource/aircon/ai-robot.png"
+            src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png"
             mode="aspectFit"
           />
         </view>
@@ -66,7 +66,7 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 const metrics = computed(() => getNavMetrics());
 
 // 分享只打开公共助理首页，不携带用户的历史对话内容。
-const SHARE_TITLE = '格宏 AI 助理｜家电选型与报价';
+const SHARE_TITLE = '小格 AI 助理｜家电选型与报价';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
 onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 onShow(() => showMiniProgramShareMenu());
@@ -111,7 +111,7 @@ onShow(() => showMiniProgramShareMenu());
   background: linear-gradient(120deg, #eaf4ff 0%, #f3f8ff 62%, #e5f1ff 100%);
 }
 
-// 圆环压在文字和机器人下方，只为浅蓝底色增加轻微层次。
+// 圆环压在文字和小格形象下方，只为浅蓝底色增加轻微层次。
 .hero-circle {
   position: absolute;
   z-index: 0;

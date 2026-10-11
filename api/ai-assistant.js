@@ -2,6 +2,7 @@ import config from '../config/app';
 import request from '../utils/request';
 import { getStorage } from '../utils/storage';
 import { STORAGE_KEYS } from '../config/storage';
+import { resolveAiCards } from '../utils/ai-cards';
 
 /**
  * 格宏 AI 助手统一接入层。
@@ -22,22 +23,6 @@ function normalizeHistory(history = []) {
     }));
 }
 
-function normalizeProducts(rawProducts = []) {
-  return Array.isArray(rawProducts)
-    ? rawProducts.map((p) => ({
-        id: p.goods_id || p.id,
-        goods_id: p.goods_id || p.id,
-        name: p.goods_name || p.name || '推荐机型',
-        model: p.model || '',
-        image: p.image || 'http://gh.starall.cn/static/resource/aircon/central-default.png',
-        price: Number(p.price || 0),
-        series: p.category_name || p.series || '',
-        specs: p.spec ? (Array.isArray(p.spec) ? p.spec : [String(p.spec)]) : (p.specs || []),
-        area: p.area || p.comment || ''
-      }))
-    : [];
-}
-
 function normalizeResponse(result = {}) {
   const data = result?.data || result || {};
   const output = data.output || {};
@@ -50,14 +35,16 @@ function normalizeResponse(result = {}) {
     || output.message
     || (Array.isArray(output.texts) ? output.texts[0]?.text || output.texts[0] : '');
 
-  const rawProducts = data.products || output.products || [];
-  const products = normalizeProducts(rawProducts);
+  // AI 回答末尾的卡片片段兼容旧代理；后端若提供结构化字段则优先使用。
+  const cards = resolveAiCards(text, { ...output, ...data });
 
   return {
-    text: String(text || 'AI 助手已为您生成方案建议。'),
+    text: cards.text || '小格已为您生成建议。',
     sessionId: data.session_id || output.session_id || '',
-    quoteId: data.quote_id || null,
-    products,
+    quoteId: cards.quotes[0]?.quote_id || null,
+    products: cards.products,
+    quotes: cards.quotes,
+    materials: cards.materials,
     raw: result
   };
 }
@@ -455,11 +442,14 @@ function createSseParser(handler = {}) {
 
 function createStreamResult(text, meta = {}, fallbackResult = null) {
   if (fallbackResult) return fallbackResult;
+  const cards = resolveAiCards(text, meta);
   return {
-    text: String(text || ''),
+    text: cards.text,
     sessionId: meta.session_id || meta.sessionId || '',
-    quoteId: meta.quote_id || null,
-    products: normalizeProducts(meta.products || []),
+    quoteId: cards.quotes[0]?.quote_id || null,
+    products: cards.products,
+    quotes: cards.quotes,
+    materials: cards.materials,
     responseId: meta.response_id || '',
     idempotencyKey: meta.idempotency_key || '',
     raw: meta,

@@ -1,6 +1,6 @@
 <template>
   <view class="chat-page">
-    <AppNavbar title="家电 AI 智能助理" bg-color="#f4f7fc" />
+    <AppNavbar title="AI 小格 · 家电助理" bg-color="#f4f7fc" />
     <!-- 长标题与微信胶囊占据导航栏空间，会话入口独立放在下方，避免互相遮挡。 -->
     <view class="history-toolbar">
       <view class="history-entry-btn" @click="openPage('/pages/ai/history')">
@@ -35,7 +35,7 @@
           </template>
 
           <template v-else>
-            <image class="avatar ai-avatar" :src="robotAvatar" mode="aspectFit" />
+            <image class="avatar ai-avatar" :src="xiaogeAvatar" mode="aspectFit" />
             <view class="ai-content">
               <view class="ai-bubble" :class="{ 'error-bubble': msg.isError }">
                 <view v-if="msg.isStreaming && !msg.text" class="stream-thinking">
@@ -63,20 +63,26 @@
                 <view class="login-action-btn">去登录 ›</view>
               </view>
 
-              <!-- 关联报价单直达 -->
+              <!-- 开单与查询报价均展示真实报价单卡片，点击进入对应详情。 -->
               <view
-                v-if="msg.quoteId"
+                v-for="quote in msg.quotes || []"
+                :key="quote.quote_id"
                 class="quote-link-card"
-                @click="openPage('/pages/solution/share', { id: msg.quoteId })"
+                @click="openPage('/pages/solution/share', { id: quote.quote_id })"
               >
                 <view class="quote-link-left">
                   <up-icon name="order" size="18" color="#2468e8" />
-                  <text class="quote-link-text">已为您生成配套报价方案 #{{ msg.quoteId }}</text>
+                  <view class="quote-card-copy">
+                    <text class="quote-link-text">报价单 {{ quote.quote_no || '#' + quote.quote_id }}</text>
+                    <text v-if="quote.pay_amount != null || quote.quote_status" class="quote-card-meta">
+                      {{ quote.quote_status || '报价单' }}<text v-if="quote.pay_amount != null"> · ¥{{ formatPrice(quote.pay_amount) }}</text>
+                    </text>
+                  </view>
                 </view>
                 <text class="quote-link-action">查看详情 ›</text>
               </view>
 
-              <!-- 如果 AI 返回了推荐机型卡片 -->
+              <!-- 商品搜索结果与推荐结果都使用同一张可跳转卡片。 -->
               <view
                 v-if="msg.products && msg.products.length"
                 class="recommend-cards-wrap"
@@ -86,14 +92,14 @@
                   :key="product.id || product.goods_id"
                   class="recommend-card"
                 >
-                  <view class="rec-badge">推荐方案 0{{ idx + 1 }} · {{ product.series || '空调机型' }}</view>
+                  <view class="rec-badge">商品 0{{ idx + 1 }} · {{ product.series || '家电产品' }}</view>
                   <view class="rec-body">
-                    <image class="rec-img" :src="product.image" mode="aspectFit" />
+                    <image v-if="product.image" class="rec-img" :src="product.image" mode="aspectFit" />
                     <view class="rec-info">
                       <text class="rec-model">{{ product.model }} {{ product.name }}</text>
                       <text class="rec-spec">{{ (product.specs || []).slice(0, 2).join(' | ') }}</text>
                       <text v-if="product.area" class="rec-area">适用：{{ product.area }}</text>
-                      <view class="rec-price">
+                      <view v-if="product.price != null" class="rec-price">
                         <text class="symbol">¥</text>
                         <text class="num">{{ formatPrice(product.price) }}</text>
                       </view>
@@ -104,6 +110,16 @@
                     <button class="btn-add-quote" @click="addQuote(product)">加入报价单</button>
                   </view>
                 </view>
+              </view>
+              <!-- 资料只提供商品详情预览入口，不把文件直链作为下载按钮暴露。 -->
+              <view v-for="material in msg.materials || []" :key="`${material.goods_id}-${material.id || material.title}`"
+                class="material-link-card" @click="openPage('/pages/product/detail', { id: material.goods_id, tab: 'materials' })">
+                <up-icon name="file-text" size="20" color="#2468e8" />
+                <view class="material-card-copy">
+                  <text class="material-card-title">{{ material.title }}</text>
+                  <text class="material-card-sub">{{ material.category_name || '商品资料' }} · 点击预览</text>
+                </view>
+                <text class="quote-link-action">查看 ›</text>
               </view>
             </view>
           </template>
@@ -156,7 +172,7 @@
           <template v-else>
             <input
               v-model="inputContent"
-              placeholder="向 AI 助理提问，例如查询家电型号"
+              placeholder="向小格提问，例如查询家电型号"
               placeholder-class="placeholder"
               confirm-type="send"
               @confirm="hasVoiceDraft ? sendVoiceDraft() : sendMessage(inputContent)"
@@ -197,10 +213,11 @@ import { openPage } from '@/utils/pages';
 import { askAiStream } from '@/api/ai-assistant';
 import { createAiSession, getAiSessionDetail } from '@/api/ai-session';
 import { useUserStore } from '@/store/user';
+import { parseAiCardText, resolveAiCards } from '@/utils/ai-cards';
 
 const userStore = useUserStore();
-// 聊天气泡与 AI 首页使用同一张机器人形象，避免小头像显示为旧版卡片图。
-const robotAvatar = 'http://gh.starall.cn/static/resource/aircon/ai-robot.png';
+// 聊天气泡与 AI 首页统一使用 OSS 上的小格形象。
+const xiaogeAvatar = 'https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png';
 const userAvatar = computed(() => userStore.userInfo?.avatar || '/static/tabbar/wode.png');
 
 const inputContent = ref('');
@@ -422,10 +439,9 @@ const restoreSession = async (id) => {
       .map((item, index) => ({
         id: item.message_id || `${id}_${index}`,
         role: item.role === 'assistant' ? 'ai' : 'user',
-        text: item.content || '',
+        ...resolveAiCards(item.content || '', item),
         // 后端会保存自动发出的首句“你好”；恢复会话时同样隐藏这条引导消息。
         isHidden: index === 0 && item.role === 'user' && (item.content || '').trim() === DEFAULT_GREETING,
-        quoteId: item.quote_id || null,
         isError: item.status === 'failed'
       }));
     sessionId.value = detail?.session_id || id;
@@ -506,7 +522,8 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
     role: 'ai',
     text: '',
     products: [],
-    quoteId: null,
+    quotes: [],
+    materials: [],
     isStreaming: true
   };
   messages.value.push(aiMessage);
@@ -517,7 +534,7 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
   }, {
     onDelta(delta, fullText) {
       // 使用 API 层提供的累计文本覆盖，避免网络重试或重复分片造成内容重复。
-      aiMessage.text = fullText || (aiMessage.text + delta);
+      aiMessage.text = parseAiCardText(fullText || (aiMessage.text + delta)).text;
       scheduleScrollToBottom();
     },
     onFallback(reason) {
@@ -525,7 +542,8 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
       // 回退时清空流式阶段的半段内容，再从完整答案开头播放，避免重复文字。
       aiMessage.text = '';
       aiMessage.products = [];
-      aiMessage.quoteId = null;
+      aiMessage.quotes = [];
+      aiMessage.materials = [];
     }
   });
   activeAiRequest = requestController;
@@ -537,7 +555,8 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
     // 最终结果补齐 meta 中的报价单与商品卡片；文本通常已由 delta 实时写入。
     aiMessage.text = result.text || aiMessage.text;
     aiMessage.products = result.products || [];
-    aiMessage.quoteId = result.quoteId;
+    aiMessage.quotes = result.quotes?.length ? result.quotes : (result.quoteId ? [{ quote_id: result.quoteId }] : []);
+    aiMessage.materials = result.materials || [];
     aiMessage.isStreaming = false;
   } catch (error) {
     if (error?.cancelled) return;
@@ -550,7 +569,7 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
     aiMessage.isLoginRequired = isLoginErr;
     aiMessage.text = isLoginErr
       ? '后端接口校验提示：请先登录。您当前的登录会话已失效或未在后台鉴权，请重新登录。'
-      : ('AI 助理请求失败：' + tip);
+      : ('小格请求失败：' + tip);
 
     if (isLoginErr) {
       uni.showModal({
@@ -670,6 +689,44 @@ onUnload(() => {
     color: #2468e8;
     font-weight: 600;
   }
+}
+
+.quote-card-copy,
+.material-card-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.quote-card-meta,
+.material-card-sub {
+  margin-top: 4rpx;
+  color: #7184a2;
+  font-size: 21rpx;
+}
+
+.material-link-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 14rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid #dce8fa;
+  border-radius: 16rpx;
+  background: #fff;
+}
+
+.material-card-copy {
+  flex: 1;
+}
+
+.material-card-title {
+  overflow: hidden;
+  color: #17233d;
+  font-size: 25rpx;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-scroll {

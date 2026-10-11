@@ -63,7 +63,7 @@
             <view class="quote-product-info">
               <text class="quote-product-name">{{ item.name }}</text>
               <text class="quote-product-model">{{ item.model || item.type }}</text>
-              <text class="quote-product-spec">{{ item.spec || (item.specs ? item.specs.slice(0, 2).join(' | ') : '一级能效 · 变频节能') }}</text>
+              <!-- 报价清单只展示商品名称、型号和价格；能效等规格仍保留在商品数据中。 -->
               <view class="quote-product-price-row">
                 <text class="price-symbol">¥</text>
                 <text class="price-val">{{ formatPrice(item.price) }}</text>
@@ -1236,13 +1236,6 @@ const checkPendingProduct = async () => {
   color: #2468e8;
   font-size: 25rpx;
   font-weight: 700;
-}
-
-.quote-product-spec {
-  display: block;
-  margin-top: 4rpx;
-  color: #8b95a7;
-  font-size: 23rpx;
 }
 
 .quote-product-price-row {

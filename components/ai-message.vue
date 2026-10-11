@@ -1,3 +1,4 @@
-<template><view class="ai-row" :class="{ user: role === 'user' }"><image v-if="role !== 'user'" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" /><view class="bubble">{{ content }}</view></view></template>
+<!-- 统一使用 OSS 上的小格形象，避免旧机器人头像在复用消息组件时再次出现。 -->
+<template><view class="ai-row" :class="{ user: role === 'user' }"><image v-if="role !== 'user'" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png" /><view class="bubble">{{ content }}</view></view></template>
 <script setup>defineProps({ role: { type: String, default: 'assistant' }, content: { type: String, default: '' } });</script>
 <style lang="scss" scoped>.ai-row{display:flex;align-items:flex-start;margin:20rpx 0}.ai-row.user{justify-content:flex-end}.ai-row image{width:64rpx;height:64rpx;margin-right:14rpx;border-radius:50%}.bubble{max-width:78%;padding:18rpx 22rpx;color:#17233d;background:#fff;border-radius:18rpx;font-size:25rpx;line-height:38rpx}.user .bubble{color:#fff;background:#2468e8;border-radius:18rpx 18rpx 4rpx 18rpx}</style>

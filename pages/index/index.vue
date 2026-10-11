@@ -293,7 +293,7 @@ const quickTools = [
   { title: '营销活动', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
-  { title: 'AI 助理', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  { title: 'AI 小格', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   // 降价通知入口已并入价格监控；这里改用现有收藏页补齐快捷区的四列排版。
   { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },

@@ -1,6 +1,6 @@
 <template>
   <view class="crm-page history-page">
-    <AppNavbar title="AI 会话记录" />
+    <AppNavbar title="AI 小格会话记录" />
     <view class="page-actions">
       <text>历史会话</text>
       <button @click="openPage('/pages/ai/chat')">+ 新对话</button>

@@ -13,7 +13,8 @@
     <!-- 品牌标志与引导 -->
     <view class="brand-hero">
       <view class="logo-box">
-        <image class="logo-img" src="http://gh.starall.cn/static/resource/aircon/ai-robot.png" mode="aspectFit" />
+        <!-- 登录页也使用小格形象，避免旧机器人图仍被用户看到。 -->
+        <image class="logo-img" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png" mode="aspectFit" />
         <view class="logo-glow" />
       </view>
       <text class="brand-name">格宏家电助手</text>
