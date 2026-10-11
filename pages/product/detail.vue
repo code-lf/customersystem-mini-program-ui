@@ -124,11 +124,11 @@
         <up-icon name="eye" size="18" color="#586477" />
         <text>{{ monitorBusy ? '监控中' : '价格监控' }}</text>
       </button>
-      <button class="btn-sub-action" open-type="share">
+      <button class="btn-sub-action btn-share-action" open-type="share">
         <up-icon name="share-square" size="18" color="#586477" />
         <text>分享</text>
       </button>
-      <button class="btn-main-add" @click="addToSolution">加入方案报价单</button>
+      <button class="btn-main-add" @click="addToSolution">加入报价单</button>
     </view>
   </view>
 </template>
@@ -907,9 +907,18 @@ onShareTimeline(() => {
   font-size: 22rpx;
   font-weight: 700;
   border: none;
+  margin: 0;
+  white-space: nowrap;
 }
 .btn-sub-action::after {
   display: none;
+}
+
+/* 分享按钮给图标和文字留足空间；主按钮缩短文案后仍自适应剩余宽度。 */
+.btn-share-action {
+  flex: none;
+  min-width: 112rpx;
+  padding: 0 20rpx;
 }
 
 .btn-main-add {
@@ -924,6 +933,7 @@ onShareTimeline(() => {
   line-height: 80rpx;
   box-shadow: 0 8rpx 24rpx rgba(36, 104, 232, 0.35);
   border: none;
+  margin: 0;
 }
 .btn-sub-action::after {
   display: none;

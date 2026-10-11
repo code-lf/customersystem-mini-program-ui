@@ -6,8 +6,11 @@
     <view class="center-stage">
       <view class="center-content">
         <view class="hero">
+          <!-- 浅色圆环只作背景装饰，不参与点击与内容布局。 -->
+          <view class="hero-circle hero-circle--large" />
+          <view class="hero-circle hero-circle--small" />
           <view class="hero-copy">
-            <text class="hero-title">AI 智能电器助手</text>
+            <text class="hero-title">家电 AI 智能助理</text>
             <text class="hero-desc">空调 / 家电选型 · 咨询与方案推荐</text>
             <view class="hero-points">
               <text>专业可靠</text>
@@ -62,8 +65,8 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 // 导航占位跟随设备状态栏和胶囊高度变化，避免中央内容顶到系统按钮。
 const metrics = computed(() => getNavMetrics());
 
-// 分享只打开公共助手首页，不携带用户的历史对话内容。
-const SHARE_TITLE = '格宏 AI 助手｜智能选型与报价';
+// 分享只打开公共助理首页，不携带用户的历史对话内容。
+const SHARE_TITLE = '格宏 AI 助理｜家电选型与报价';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
 onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 onShow(() => showMiniProgramShareMenu());
@@ -101,8 +104,35 @@ onShow(() => showMiniProgramShareMenu());
   display: flex;
   align-items: center;
   min-height: 190rpx;
-  padding: 0 8rpx;
+  padding: 18rpx 22rpx;
   overflow: hidden;
+  border: 1rpx solid #dceaff;
+  border-radius: 26rpx;
+  background: linear-gradient(120deg, #eaf4ff 0%, #f3f8ff 62%, #e5f1ff 100%);
+}
+
+// 圆环压在文字和机器人下方，只为浅蓝底色增加轻微层次。
+.hero-circle {
+  position: absolute;
+  z-index: 0;
+  border: 2rpx solid rgba(255, 255, 255, .65);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hero-circle--large {
+  top: -100rpx;
+  right: -24rpx;
+  width: 300rpx;
+  height: 300rpx;
+  background: rgba(255, 255, 255, .18);
+}
+
+.hero-circle--small {
+  right: 142rpx;
+  bottom: -64rpx;
+  width: 130rpx;
+  height: 130rpx;
 }
 
 .hero-copy {
@@ -143,8 +173,9 @@ onShow(() => showMiniProgramShareMenu());
 
 .hero-robot {
   position: absolute;
+  z-index: 1;
   right: -2rpx;
-  bottom: -10rpx;
+  bottom: -6rpx;
   width: 190rpx;
   height: 190rpx;
 }

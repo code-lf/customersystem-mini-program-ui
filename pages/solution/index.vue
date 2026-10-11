@@ -38,7 +38,7 @@
             <view class="skeleton-block" style="width: 200rpx; height: 32rpx; border-radius: 8rpx;"></view>
           </view>
           <view v-for="i in 3" :key="i" class="quote-product-row" style="border-bottom: 1rpx solid #f1f5f9;">
-            <view class="skeleton-block" style="width: 140rpx; height: 140rpx; border-radius: 12rpx; margin-right: 20rpx;"></view>
+            <!-- 报价清单不显示商品图片，加载骨架也只保留文字信息。 -->
             <view style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
               <view class="skeleton-block" style="width: 80%; height: 28rpx; margin-bottom: 12rpx; border-radius: 6rpx;"></view>
               <view class="skeleton-block" style="width: 60%; height: 24rpx; margin-bottom: 12rpx; border-radius: 6rpx;"></view>
@@ -59,7 +59,7 @@
           </view>
 
           <view v-for="item in quoteItems" :key="item.id" class="quote-product-row">
-            <image class="quote-product-image" :src="item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
+            <!-- 商品 image 字段仍由接口保留；清单页暂不渲染图片，避免无图商品请求占位图。 -->
             <view class="quote-product-info">
               <text class="quote-product-name">{{ item.name }}</text>
               <text class="quote-product-model">{{ item.model || item.type }}</text>
@@ -1213,15 +1213,6 @@ const checkPendingProduct = async () => {
 
 .quote-product-row:last-child {
   border-bottom: none;
-}
-
-.quote-product-image {
-  width: 130rpx;
-  height: 130rpx;
-  margin-right: 22rpx;
-  border-radius: 16rpx;
-  background: #f7f9fc;
-  flex-shrink: 0;
 }
 
 .quote-product-info {

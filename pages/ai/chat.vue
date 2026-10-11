@@ -1,6 +1,6 @@
 <template>
   <view class="chat-page">
-    <AppNavbar title="AI 智能电器助手" bg-color="#f4f7fc" />
+    <AppNavbar title="家电 AI 智能助理" bg-color="#f4f7fc" />
     <!-- 长标题与微信胶囊占据导航栏空间，会话入口独立放在下方，避免互相遮挡。 -->
     <view class="history-toolbar">
       <view class="history-entry-btn" @click="openPage('/pages/ai/history')">
@@ -20,19 +20,9 @@
       <view class="chat-inner">
         <view v-if="sessionLoading" class="session-state">正在加载会话消息...</view>
         <view v-if="sessionError" class="session-state session-error" @click="restoreSession(requestedSessionId)">{{ sessionError }}，点击重试</view>
-        <!-- 欢迎气泡 -->
-        <view class="message-row ai-row">
-          <image class="avatar ai-avatar" :src="robotAvatar" mode="aspectFit" />
-          <view class="ai-content">
-            <view class="ai-bubble">
-              <text class="text-body">您好！我是格宏智能电器 AI 助手（对接阿里云百炼应用）。我可以为您进行中央空调及家用空调选型推荐、参数比对、价格测算与资料调阅。如需咨询，请确保已登录您的有效账号。</text>
-            </view>
-          </view>
-        </view>
-
         <!-- 历史消息列表 -->
         <view
-          v-for="msg in messages"
+          v-for="msg in visibleMessages"
           :key="msg.id"
           class="message-row"
           :class="msg.role === 'user' ? 'user-row' : 'ai-row'"
@@ -166,7 +156,7 @@
           <template v-else>
             <input
               v-model="inputContent"
-              placeholder="向 AI 助手提问，例如 120㎡ 办公室方案"
+              placeholder="向 AI 助理提问，例如查询家电型号"
               placeholder-class="placeholder"
               confirm-type="send"
               @confirm="hasVoiceDraft ? sendVoiceDraft() : sendMessage(inputContent)"
@@ -226,6 +216,8 @@ const sessionId = ref('');
 const requestedSessionId = ref('');
 const sessionLoading = ref(false);
 const sessionError = ref('');
+// 首次进入新会话只发送这一句问候，回复正文完全由后端 AI 接口返回。
+const DEFAULT_GREETING = '你好';
 
 const quickChips = [
   '120㎡ 办公室中央空调方案',
@@ -236,6 +228,8 @@ const quickChips = [
 
 // 对话消息列表
 const messages = ref([]);
+// 自动问候要参与接口上下文，但不作为用户气泡显示。
+const visibleMessages = computed(() => messages.value.filter((item) => !item.isHidden));
 
 // 微信同声传译录音识别管理器，仅在微信小程序平台初始化。
 let recognitionManager = null;
@@ -429,6 +423,8 @@ const restoreSession = async (id) => {
         id: item.message_id || `${id}_${index}`,
         role: item.role === 'assistant' ? 'ai' : 'user',
         text: item.content || '',
+        // 后端会保存自动发出的首句“你好”；恢复会话时同样隐藏这条引导消息。
+        isHidden: index === 0 && item.role === 'user' && (item.content || '').trim() === DEFAULT_GREETING,
         quoteId: item.quote_id || null,
         isError: item.status === 'failed'
       }));
@@ -446,6 +442,7 @@ const startNewChat = async () => {
   if (!userStore.isLoggedIn) return goToLogin();
   if (sessionLoading.value) return;
   sessionLoading.value = true;
+  let createdSuccessfully = false;
   try {
     const created = await createAiSession();
     if (!created?.session_id) throw new Error('创建会话未返回 session_id');
@@ -457,15 +454,17 @@ const startNewChat = async () => {
     sessionId.value = created.session_id;
     requestedSessionId.value = '';
     sessionError.value = '';
-    uni.showToast({ title: '已创建新会话', icon: 'success' });
+    createdSuccessfully = true;
   } catch (error) {
     uni.showToast({ title: error?.message || '创建会话失败', icon: 'none' });
   } finally {
     sessionLoading.value = false;
   }
+  // 后端会话创建成功后再发问候，避免与历史会话串线或留下空白会话。
+  if (createdSuccessfully && !isPageLeaving) sendMessage(DEFAULT_GREETING, { hideUserMessage: true });
 };
 
-const sendMessage = async (text) => {
+const sendMessage = async (text, { hideUserMessage = false } = {}) => {
   if (!text || !text.trim() || isThinking.value || sessionLoading.value || sessionError.value) return;
 
   const userText = text.trim();
@@ -476,7 +475,8 @@ const sendMessage = async (text) => {
     messages.value.push({
       id: Date.now(),
       role: 'user',
-      text: userText
+      text: userText,
+      isHidden: hideUserMessage
     });
     messages.value.push({
       id: Date.now() + 1,
@@ -495,7 +495,8 @@ const sendMessage = async (text) => {
   messages.value.push({
     id: Date.now(),
     role: 'user',
-    text: userText
+    text: userText,
+    isHidden: hideUserMessage
   });
   scrollToBottom();
 
@@ -541,7 +542,7 @@ const sendMessage = async (text) => {
   } catch (error) {
     if (error?.cancelled) return;
     console.warn('[AI助手页面] 请求失败：', error);
-    const tip = error?.message || '百炼智能助手调用异常，请稍后重试。';
+    const tip = error?.message || '智能助理调用异常，请稍后重试。';
     const isLoginErr = tip.includes('登录') || tip.includes('401');
 
     aiMessage.isStreaming = false;
@@ -549,12 +550,12 @@ const sendMessage = async (text) => {
     aiMessage.isLoginRequired = isLoginErr;
     aiMessage.text = isLoginErr
       ? '后端接口校验提示：请先登录。您当前的登录会话已失效或未在后台鉴权，请重新登录。'
-      : ('百炼 AI 助手请求失败：' + tip);
+      : ('AI 助理请求失败：' + tip);
 
     if (isLoginErr) {
       uni.showModal({
         title: '需要登录',
-        content: '使用阿里云百炼 AI 智能助手需要登录账号，是否前往登录？',
+        content: '使用 AI 智能助理需要登录账号，是否前往登录？',
         confirmText: '去登录',
         success: (res) => {
           if (res.confirm) {
@@ -585,6 +586,9 @@ onLoad((pageOptions = {}) => {
     restoreSession(requestedSessionId.value);
   } else if (pageOptions.question) {
     sendMessage(pageOptions.question);
+  } else {
+    // 新打开的对话页只在 onLoad 触发一次；返回页面不会重复问候。
+    sendMessage(DEFAULT_GREETING, { hideUserMessage: true });
   }
 });
 

@@ -17,7 +17,7 @@
           <image class="brand__logo" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/28/1790566432f2c3d369e02b6b091ca5a409e3a20e3e_aliyun.png?x-oss-process=image/resize,h_200,w_200" mode="aspectFit" />
         </view>
         <view class="brand__text-box">
-          <text class="brand__name">格宏助手</text>
+          <text class="brand__name">格宏助理</text>
           <text class="brand__sub">一个懂得你的数字搭档</text>
         </view>
       </view>
@@ -154,7 +154,7 @@ import AppWatermark from '@/components/app-watermark.vue';
 
 const metrics = computed(() => getNavMetrics());
 // 首页路由：/pages/index/index；生命周期直接注册在页面顶层，编译器才能启用分享菜单。
-const SHARE_TITLE = '格宏助手｜智能选型与报价平台';
+const SHARE_TITLE = '格宏助理｜智能选型与报价平台';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
 onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
 const isLoading = ref(true);
@@ -293,7 +293,7 @@ const quickTools = [
   { title: '营销活动', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
-  { title: 'AI 顾问', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  { title: 'AI 助理', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   // 降价通知入口已并入价格监控；这里改用现有收藏页补齐快捷区的四列排版。
   { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
