@@ -3,8 +3,8 @@
     <AppNavbar title="监控详情" />
     <view v-if="loading" class="crm-card state-card">正在加载价格监控...</view>
     <view v-else-if="watch" class="crm-card">
+      <!-- 监控详情仅展示商品名称、型号和状态，避免图片挤占文字空间。 -->
       <view class="product">
-        <image :src="watch.image_snapshot || fallbackImage" mode="aspectFit" />
         <view class="product-info">
           <text class="product-name">{{ watch.goods_name_snapshot || watch.target_name_snapshot || '价格监控' }}</text>
           <text class="product-model">{{ watch.model_snapshot || (watch.watch_target_type === 'category' ? '分类监控' : '') }}</text>
@@ -40,7 +40,6 @@ import { requireDealerAccess } from '@/utils/dealer-access';
 import { openPage } from '@/utils/pages';
 import { useUserStore } from '@/store/user';
 
-const fallbackImage = 'https://gh.starall.cn/static/resource/aircon/outdoor-unit.png';
 const userStore = useUserStore();
 const watchId = ref('');
 const watch = ref(null);
@@ -123,9 +122,8 @@ const confirmCancel = () => {
 <style lang="scss" scoped>
 .monitor-detail-page { min-height: 100vh; }
 .state-card { color: #64748b; text-align: center; }
-.product { display: flex; align-items: center; gap: 20rpx; }
-.product image { width: 150rpx; height: 150rpx; flex-shrink: 0; background: #f4f8ff; border-radius: 14rpx; }
-.product-info { min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.product { display: flex; align-items: center; }
+.product-info { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
 .product-name { color: #17233d; font-size: 30rpx; font-weight: 700; }
 .product-model, .watch-status { color: #718098; font-size: 24rpx; }
 .watch-status { color: #2468e8; }

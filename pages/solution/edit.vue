@@ -25,7 +25,7 @@
             <view class="goods-heading">
               <text class="goods-model">{{ item.model || item.name }}</text>
               <text class="goods-name">{{ item.name }}</text>
-              <text class="muted">原折后单价 ¥{{ money(item.originalPrice) }}</text>
+              <text class="muted">当前报价单价 ¥{{ money(item.originalPrice) }}</text>
             </view>
             <button class="remove-button" :disabled="items.length <= 1" @click="removeItem(index)">移除</button>
           </view>
@@ -46,7 +46,8 @@
           </view>
           <view class="field-row">
             <text>单品折扣</text>
-            <view class="input-with-unit">
+            <text v-if="isQuoteDiscountExcluded(item)" class="discount-disabled">不参与折扣</text>
+            <view v-else class="input-with-unit">
               <input v-model="item.discount_rate" type="digit" placeholder="跟随整单" />
               <text>%</text>
             </view>
@@ -108,8 +109,9 @@ import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppWatermark from '@/components/app-watermark.vue';
 import { getSolutionDetail, updateQuote } from '@/api/solution';
-import { getProductList } from '@/api/product';
+import { getProductList, getProductDetail } from '@/api/product';
 import { replacePage } from '@/utils/pages';
+import { isQuoteDiscountExcluded } from '@/utils/quote-discount';
 
 const quoteId = ref(0);
 const quote = ref({});
@@ -135,11 +137,13 @@ const mapItem = (item) => ({
   name: item.goods_name_snapshot || item.goods_name || '',
   model: item.model_snapshot || item.model || '',
   originalPrice: item.quote_price ?? item.origin_price ?? 0,
+  quote_discount_enabled: item.quote_discount_enabled,
   quantity: String(item.quantity ?? 1),
   box_quantity: String(item.box_quantity ?? 0),
   carton_quantity: String(item.carton_quantity ?? 0),
   // 详情未提供分类折扣配置时，将已生效的分类折扣转为单品折扣，避免保存后静默丢失。
-  discount_rate: ['manual_item', 'manual_category'].includes(item.discount_source) ? String(item.discount_rate ?? '') : '',
+  discount_rate: !isQuoteDiscountExcluded(item) && ['manual_item', 'manual_category'].includes(item.discount_source)
+    ? String(item.discount_rate ?? '') : '',
   manual_price: item.manual_price === true || /manual/i.test(String(item.price_source || '')),
   quote_price: String(item.quote_price ?? ''),
   remark: item.remark || ''
@@ -157,6 +161,18 @@ const loadQuote = async () => {
     editable.value = ['draft', 'sent'].includes(detail.quote_status);
     if (!editable.value) throw new Error('该报价状态不允许编辑');
     items.value = detail.items.map(mapItem);
+    // 老报价详情可能尚未回传禁折标记，按商品详情补齐后再开放编辑。
+    await Promise.all(items.value.filter(item => item.quote_discount_enabled == null).map(async (item) => {
+      try {
+        const goods = await getProductDetail(item.goods_id);
+        if (goods?.quote_discount_enabled != null) {
+          item.quote_discount_enabled = goods.quote_discount_enabled;
+          if (isQuoteDiscountExcluded(item)) item.discount_rate = '';
+        }
+      } catch (error) {
+        console.warn('[报价编辑] 商品禁折标记补取失败：', item.goods_id, error);
+      }
+    }));
     globalDiscountRate.value = String(detail.global_discount_rate ?? 100);
     installationAmount.value = String(detail.installation_amount ?? 0);
     additionAmount.value = String(detail.addition_amount ?? 0);
@@ -202,16 +218,31 @@ const searchGoods = async () => {
   }
 };
 
-const addItem = (goods) => {
+const addItem = async (goods) => {
   if (items.value.some((item) => item.goods_id === Number(goods.goods_id))) {
     uni.showToast({ title: '该设备已在报价单中', icon: 'none' });
     return;
   }
+  // 搜索列表若未携带生效后的禁折标记，先取详情，避免新商品显示错误的折扣入口。
+  let product = goods;
+  if (goods.quote_discount_enabled == null) {
+    try {
+      product = { ...goods, ...await getProductDetail(goods.goods_id) };
+    } catch (error) {
+      uni.showToast({ title: '商品折扣配置读取失败，请重试', icon: 'none' });
+      return;
+    }
+  }
+  if (product.quote_discount_enabled == null) {
+    uni.showToast({ title: '商品未返回折扣配置，暂不能加入', icon: 'none' });
+    return;
+  }
   items.value.push(mapItem({
-    goods_id: goods.goods_id,
-    goods_name: goods.goods_name,
-    model: goods.model,
-    origin_price: goods.price,
+    goods_id: product.goods_id,
+    goods_name: product.goods_name,
+    model: product.model,
+    origin_price: product.price,
+    quote_discount_enabled: product.quote_discount_enabled,
     quantity: 1
   }));
   searchResults.value = [];
@@ -248,7 +279,8 @@ const buildPayload = () => {
         manual_price: Boolean(item.manual_price),
         remark: item.remark.trim()
       };
-      if (String(item.discount_rate).trim() !== '') {
+      // 禁折商品不发送单品折扣；是否参与全局折扣仍由后端按商品及祖先分类规则核定。
+      if (!isQuoteDiscountExcluded(item) && String(item.discount_rate).trim() !== '') {
         data.discount_rate = validNumber(item.discount_rate, `第 ${index + 1} 款折扣`, 0, 100);
       }
       if (data.manual_price) {
@@ -311,6 +343,7 @@ const saveQuote = async () => {
 .original-total { margin-top: 14rpx; color: #ef543f; font-size: 25rpx; }
 .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14rpx; color: #17233d; font-size: 28rpx; font-weight: 800; }
 .muted { color: #94a3b8; font-size: 21rpx; font-weight: 400; }
+.discount-disabled { color: #9a5b16; font-size: 22rpx; }
 .goods-row { padding: 20rpx 0; border-top: 1rpx solid #edf1f8; }
 .goods-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12rpx; }
 .goods-heading { min-width: 0; flex: 1; }

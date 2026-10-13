@@ -16,12 +16,12 @@
     <view class="list-container">
       <template v-if="isLoading">
         <view v-for="i in 4" :key="i" class="monitor-card">
-          <view class="skeleton-block" style="width: 160rpx; height: 160rpx; border-radius: 16rpx; margin-right: 24rpx;"></view>
           <view class="card-content">
             <view class="card-header" style="margin-bottom: 12rpx;">
               <view class="skeleton-block" style="width: 60%; height: 32rpx; border-radius: 6rpx;"></view>
               <view class="skeleton-block" style="width: 100rpx; height: 32rpx; border-radius: 8rpx;"></view>
             </view>
+            <view class="skeleton-block" style="width: 75%; height: 24rpx; margin-bottom: 12rpx; border-radius: 6rpx;"></view>
             <view class="skeleton-block" style="width: 50%; height: 40rpx; margin-bottom: 8rpx; border-radius: 6rpx;"></view>
             <view class="skeleton-block" style="width: 70%; height: 24rpx; border-radius: 6rpx; margin-bottom: 16rpx;"></view>
             <view class="card-footer">
@@ -39,16 +39,13 @@
           class="monitor-card" 
           @click="openPage('/pages/monitor/detail', { watchId: item.id })"
         >
-        <!-- 图片区 -->
-        <view class="image-box">
-          <image :src="item.image" mode="aspectFit" />
-          <view class="tag">{{ item.watch_target_type === 'category' ? '分类监控' : '商品监控' }}</view>
-        </view>
-        
-        <!-- 内容区 -->
+        <!-- 监控列表只展示商品名称与型号，不再请求或占用商品图片空间。 -->
         <view class="card-content">
           <view class="card-header">
-            <text class="model-text">{{ item.model }}</text>
+            <view class="goods-identity">
+              <text class="goods-name-text">{{ item.name }}</text>
+              <text v-if="item.model && item.model !== item.name" class="model-text">{{ item.model }}</text>
+            </view>
             <view v-if="item.watch_target_type === 'goods' && item.change > 0" class="change-badge down">
               <text class="arrow">↓</text>
               <text>¥{{ money(item.change) }}</text>
@@ -194,8 +191,8 @@ const allItems = computed(() => {
     return {
       ...item,
       id: item.watch_id,
-      model: item.model_snapshot || item.target_name_snapshot || item.goods_name_snapshot || '未命名监控',
-      image: item.image_snapshot || 'https://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
+      name: item.goods_name_snapshot || item.target_name_snapshot || item.model_snapshot || '未命名监控',
+      model: item.model_snapshot || '',
       basePrice,
       price: currentPrice,
       change: basePrice - currentPrice
@@ -278,7 +275,7 @@ const formatTime = (value) => {
   padding: 24rpx;
 }
 
-/* 精美卡片设计 */
+/* 纯文字监控卡片：名称与型号占满宽度，不保留图片占位。 */
 .monitor-card {
   display: flex;
   padding: 24rpx;
@@ -293,36 +290,6 @@ const formatTime = (value) => {
   transform: scale(0.98);
 }
 
-.image-box {
-  position: relative;
-  width: 160rpx;
-  height: 160rpx;
-  margin-right: 24rpx;
-  border-radius: 16rpx;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.image-box image {
-  width: 120rpx;
-  height: 120rpx;
-}
-
-.tag {
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: linear-gradient(135deg, #2468e8, #4f86f7);
-  color: #fff;
-  font-size: 18rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 16rpx 0 16rpx 0;
-  font-weight: bold;
-}
-
 .card-content {
   flex: 1;
   min-width: 0;
@@ -335,17 +302,29 @@ const formatTime = (value) => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 12rpx;
 }
 
-.model-text {
+.goods-identity { flex: 1; min-width: 0; }
+
+.goods-name-text {
+  display: block;
   color: #1a2233;
   font-size: 30rpx;
   font-weight: bold;
-  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 10rpx;
+}
+
+.model-text {
+  display: block;
+  margin-top: 7rpx;
+  color: #64758d;
+  font-size: 23rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .change-badge {

@@ -72,14 +72,25 @@
           <text class="wechat-sub-text">无需手动输入，自动同步微信认证信息并注册为普通会员</text>
         </view>
 
+        <!-- 小程序端先取得微信手机号授权码，再与登录 code 一起提交后端。 -->
+        <!-- #ifdef MP-WEIXIN -->
         <button
           class="wechat-submit-btn"
           :loading="loading"
-          @click="handleWechatLogin"
+          :open-type="isAgreed ? 'getPhoneNumber' : ''"
+          @click="handleWechatButtonClick"
+          @getphonenumber="handleWechatPhoneLogin"
         >
           <up-icon name="weixin-fill" size="20" color="#ffffff" />
           <text class="btn-text">微信一键登录 / 注册</text>
         </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <button class="wechat-submit-btn" :loading="loading" @click="handleWechatLogin">
+          <up-icon name="weixin-fill" size="20" color="#ffffff" />
+          <text class="btn-text">微信一键登录 / 注册</text>
+        </button>
+        <!-- #endif -->
       </view>
 
       <!-- 2. 手机号快捷登录 / 注册 -->
@@ -192,7 +203,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { login, mobileLogin, weappLogin, sendMobileCode } from '@/api/auth';
+import { bindMemberMobile } from '@/api/member';
 import { useUserStore } from '@/store/user';
+import appConfig from '@/config/app';
 import { openPage, replacePage } from '@/utils/pages';
 import AppWatermark from '@/components/app-watermark.vue';
 
@@ -259,8 +272,28 @@ const validateAgreement = () => {
   return true;
 };
 
-// 1. 微信一键快捷登录 / 注册
-const handleWechatLogin = async () => {
+// 协议未同意时禁用微信手机号授权；拒绝授权时不悄悄降级为无手机号登录。
+const handleWechatButtonClick = () => {
+  if (!isAgreed.value) validateAgreement();
+};
+
+const handleWechatPhoneLogin = (event) => {
+  if (!validateAgreement() || loading.value) return;
+  const mobileCode = String(event?.detail?.code || '').trim();
+  if (!mobileCode) {
+    uni.showToast({ title: '请授权手机号后登录', icon: 'none' });
+    return;
+  }
+  // 开发者工具的模拟凭证不能换取真实手机号，避免误送到正式接口。
+  if (/mock/i.test(mobileCode)) {
+    uni.showToast({ title: '模拟手机号不可用，请在真机预览', icon: 'none' });
+    return;
+  }
+  handleWechatLogin(mobileCode);
+};
+
+// 1. 微信一键快捷登录 / 注册：手机号授权码由 getPhoneNumber 回调提供。
+const handleWechatLogin = async (mobileCode = '') => {
   if (!validateAgreement()) return;
 
   loading.value = true;
@@ -276,25 +309,41 @@ const handleWechatLogin = async () => {
     });
 
     try {
-      const res = await weappLogin({ code: loginRes.code });
+      if (!loginRes?.code) throw new Error('微信登录未返回凭证');
+      const res = await weappLogin({ code: loginRes.code, mobile_code: mobileCode });
       if (res && (res.token || res.access_token)) {
         userStore.setToken(res.token || res.access_token);
         userStore.setUserInfo(res.user || res.member || {
           nickname: '微信用户',
-          mobile: res.mobile || '',
-          company_name: '格宏电器合作客户',
-          role_name: '普通会员'
+          mobile: res.mobile || ''
         });
-        uni.showToast({ title: '登录成功', icon: 'success' });
+        // 登录响应可能只有基础字段，立刻读取 /member 中实际保存的公司资料。
+        const member = await userStore.fetchUserInfo();
+        // 与 niucloud 原项目保持一致：登录未带出手机号时，用本次授权码绑定会员。
+        let mobileBindFailed = false;
+        if (mobileCode && !member?.mobile) {
+          try {
+            await bindMemberMobile(mobileCode);
+            const refreshedMember = await userStore.fetchUserInfo();
+            mobileBindFailed = !refreshedMember?.mobile;
+          } catch (bindError) {
+            console.warn('[微信登录] 手机号绑定失败：', bindError);
+            mobileBindFailed = true;
+          }
+        }
+        uni.showToast({ title: mobileBindFailed ? '登录成功，手机号未绑定' : '登录成功', icon: mobileBindFailed ? 'none' : 'success' });
         setTimeout(() => replacePage('/pages/index/index'), 600);
         return;
       }
     } catch (apiErr) {
-      console.warn('weappLogin API error, fallback to mock register:', apiErr);
+      // 正式小程序接口失败时不能生成演示账号，否则会出现假公司名和假登录态。
+      console.warn('weappLogin API error:', apiErr);
+      throw apiErr;
     }
     // #endif
 
-    // H5 / 开发测试环境或接口未配置微信时：一键生成普通会员身份并完成注册登录
+    // 仅 Mock 开发环境可生成演示会员，正式环境不伪造登录状态。
+    if (appConfig.apiMode !== 'mock') throw new Error('微信登录接口暂不可用');
     setTimeout(() => {
       const mockToken = 'wx_token_' + Date.now();
       const mockMember = {
@@ -302,7 +351,6 @@ const handleWechatLogin = async () => {
         nickname: '微信认证用户',
         mobile: '139****' + Math.floor(1000 + Math.random() * 9000),
         avatar: '/static/avatars/avatar-demo.png',
-        company_name: '格宏电器合作客户（待完善）',
         position: '客户经理',
         role_name: '普通会员',
         is_verified: 0
@@ -375,10 +423,9 @@ const handleMobileLogin = async () => {
         userStore.setToken(token);
         userStore.setUserInfo(res.user || res.member || {
           nickname: '用户_' + mobileForm.mobile.slice(-4),
-          mobile: mobileForm.mobile,
-          company_name: '格宏电器合作客户',
-          role_name: '认证会员'
+          mobile: mobileForm.mobile
         });
+        await userStore.fetchUserInfo();
         uni.showToast({ title: '登录成功', icon: 'success' });
         setTimeout(() => replacePage('/pages/index/index'), 600);
         return;
@@ -426,9 +473,7 @@ const handleAccountLogin = async () => {
         if (!userInfo || !userInfo.nickname) {
           userStore.setUserInfo({
             nickname: res.mobile || accountForm.username,
-            mobile: res.mobile || accountForm.username,
-            company_name: '格宏电器科技有限公司',
-            role_name: '认证服务商'
+            mobile: res.mobile || accountForm.username
           });
         }
         uni.showToast({ title: '登录成功', icon: 'success' });
@@ -447,10 +492,14 @@ const handleAccountLogin = async () => {
         uni.showToast({ title: errorMsg, icon: 'none' });
         return;
       }
+      if (appConfig.apiMode !== 'mock') {
+        uni.showToast({ title: errorMsg, icon: 'none' });
+        return;
+      }
     }
 
     // 演示账号密码兜底匹配
-    if (accountForm.username === 'demo' || accountForm.username.includes('admin') || accountForm.password === '123456') {
+    if (appConfig.apiMode === 'mock' && (accountForm.username === 'demo' || accountForm.username.includes('admin') || accountForm.password === '123456')) {
       userStore.setToken('account_token_demo');
       userStore.setUserInfo({
         member_id: 10001,

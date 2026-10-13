@@ -42,7 +42,7 @@
         </view>
         <view class="meta-row">
           <up-icon :name="userStore.isLoggedIn ? 'home' : 'lock'" size="13" color="#7a8b9e" />
-          <text class="company-name">{{ userStore.isLoggedIn ? (userStore.userInfo.company_name || '未填写企业/门店名称') : '登录后查看专属经销商政策与报价' }}</text>
+          <text class="company-name">{{ userStore.isLoggedIn ? userStore.displayCompany : '登录后查看专属经销商政策与报价' }}</text>
         </view>
         <view class="meta-row">
           <up-icon :name="userStore.isLoggedIn ? 'phone' : 'info-circle'" size="13" color="#9aa7b8" />
@@ -59,9 +59,9 @@
       </view>
       <!-- 只展示后端实际分配的 CRM 客户经理，未绑定或未分配时不显示空入口。 -->
       <view v-if="assignedSalesperson" class="manager-entry" @click="openPage('/pages/member/salesperson')">
-        <text class="manager-entry__title">联系客户经理</text>
-        <text class="manager-entry__name">{{ assignedSalesperson.name || '专属客户经理' }}</text>
-        <text class="manager-entry__action">联系我</text>
+        <text class="manager-entry__title">专属客户经理</text>
+        <text class="manager-entry__name">{{ assignedSalesperson.name || '查看详情' }}</text>
+        <text class="manager-entry__action">联系经理</text>
         <text class="manager-entry__arrow">›</text>
       </view>
     </view>
@@ -228,35 +228,19 @@
                 </view>
               </view>
 
-              <view class="form-item">
+              <!-- 客户单位属于经销商池资料，仅经销商可通过专用接口修改。 -->
+              <view v-if="userStore.isDealer" class="form-item">
                 <view class="form-item-label-row">
                   <text class="form-label">企业 / 门店名称</text>
                 </view>
                 <view class="form-input-wrap">
                   <input
-                    v-model="editForm.company_name"
+                    v-model="editForm.dealer_unit"
                     class="form-input"
                     placeholder="请输入所属暖通公司或门店名称"
-                    maxlength="150"
+                    maxlength="100"
                   />
-                  <view v-if="editForm.company_name" class="clear-btn" @click="editForm.company_name = ''">
-                    <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
-                  </view>
-                </view>
-              </view>
-
-              <view class="form-item">
-                <view class="form-item-label-row">
-                  <text class="form-label">门店职位 / 身份</text>
-                </view>
-                <view class="form-input-wrap">
-                  <input
-                    v-model="editForm.job_title"
-                    class="form-input"
-                    placeholder="如：暖通工程师、销售总监、专属顾问"
-                    maxlength="50"
-                  />
-                  <view v-if="editForm.job_title" class="clear-btn" @click="editForm.job_title = ''">
+                  <view v-if="editForm.dealer_unit" class="clear-btn" @click="editForm.dealer_unit = ''">
                     <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
                   </view>
                 </view>
@@ -321,8 +305,7 @@ const currentPresetList = computed(() => {
 const editForm = reactive({
   nickname: '',
   avatar: '',
-  company_name: '',
-  job_title: ''
+  dealer_unit: ''
 });
 
 const handleAvatarOrEditClick = () => {
@@ -341,8 +324,7 @@ const openEditProfileModal = () => {
   const u = userStore.userInfo || {};
   editForm.nickname = u.nickname || u.username || '张工';
   editForm.avatar = u.avatar || u.headimg || '/static/avatars/avatar-demo.png';
-  editForm.company_name = u.company_name || '';
-  editForm.job_title = u.job_title || '';
+  editForm.dealer_unit = u.dealer_unit || '';
   showEditProfileModal.value = true;
 };
 
@@ -394,25 +376,31 @@ const handleSaveProfile = async () => {
   isSaving.value = true;
   uni.showLoading({ title: '正在保存资料...' });
   try {
-    // 只提交发生变化的字段；空字符串允许清空自填企业/门店与职位。
+    // 只提交发生变化的字段；空字符串允许清空经销商池中的客户单位。
     const current = userStore.userInfo || {};
     const payload = {};
     if (nickname !== (current.nickname || current.username || '')) payload.nickname = nickname;
     if (editForm.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = editForm.avatar;
-    if (editForm.company_name.trim() !== (current.company_name || '')) payload.company_name = editForm.company_name.trim();
-    if (editForm.job_title.trim() !== (current.job_title || '')) payload.job_title = editForm.job_title.trim();
-    if (Object.keys(payload).length) await updateMemberInfo(payload);
-
-    // 同步更新 Pinia Store 与 Storage
-    const updated = {
-      ...userStore.userInfo,
+    if (userStore.isDealer && editForm.dealer_unit.trim() !== (current.dealer_unit || '')) payload.dealer_unit = editForm.dealer_unit.trim();
+    // 修改接口成功与会员详情立即同步分开处理，避免成功写入却弹出失败提示。
+    const result = Object.keys(payload).length ? await updateMemberInfo(payload) : { member: current, synced: true };
+    userStore.setUserInfo({
+      ...current,
+      ...result.member,
       ...payload,
-      ...(payload.headimg ? { avatar: payload.headimg } : {})
-    };
-    userStore.setUserInfo(updated);
+      avatar: payload.headimg || result.member?.headimg || result.member?.avatar || current.avatar
+    });
 
-    uni.showToast({ title: '个人资料已更新', icon: 'success' });
     showEditProfileModal.value = false;
+    if (result.synced) {
+      uni.showToast({ title: '个人资料已更新', icon: 'success' });
+    } else {
+      uni.showModal({
+        title: '修改请求已成功',
+        content: '修改接口已成功，但会员资料暂未回读到新的客户单位。请稍后重新进入核对。',
+        showCancel: false
+      });
+    }
   } catch (error) {
     uni.showToast({ title: error?.message || '保存失败，请重试', icon: 'none' });
   } finally {
@@ -539,16 +527,18 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   align-items: center;
   width: 100%;
   min-width: 0;
-  margin-top: 24rpx;
+  min-height: 92rpx;
+  margin-top: 26rpx;
   padding: 18rpx 22rpx;
   border: 1rpx solid #d8e7ff;
   border-radius: 18rpx;
   background: linear-gradient(110deg, #eef5ff 0%, #ffffff 100%);
 }
-.manager-entry__title { flex-shrink: 0; color: #17233d; font-size: 26rpx; font-weight: 700; white-space: nowrap; }
-.manager-entry__name { flex: 1; min-width: 0; margin-left: 18rpx; color: #718098; font-size: 24rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.manager-entry__action { flex-shrink: 0; margin-left: 12rpx; color: #2468e8; font-size: 23rpx; font-weight: 700; white-space: nowrap; }
-.manager-entry__arrow { margin-left: 8rpx; color: #2468e8; font-size: 38rpx; line-height: 32rpx; }
+/* 联系入口加大触达区域，姓名仍保持独立显示且不会挤压右侧操作。 */
+.manager-entry__title { flex-shrink: 0; color: #17233d; font-size: 29rpx; font-weight: 800; white-space: nowrap; }
+.manager-entry__name { flex: 1; min-width: 0; margin-left: 16rpx; color: #64758d; font-size: 26rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.manager-entry__action { flex-shrink: 0; margin-left: 10rpx; padding: 9rpx 12rpx; border-radius: 20rpx; background: #e6f0ff; color: #2468e8; font-size: 24rpx; font-weight: 700; white-space: nowrap; }
+.manager-entry__arrow { margin-left: 5rpx; color: #2468e8; font-size: 38rpx; line-height: 32rpx; }
 
 .user-avatar-wrap {
   position: relative;

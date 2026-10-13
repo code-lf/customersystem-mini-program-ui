@@ -11,17 +11,17 @@
 
     <!-- 详情内容区 -->
     <view v-else-if="campaign" class="detail-body">
-      <!-- 头部大图与状态 -->
-      <view class="hero-cover">
+      <!-- 活动没有封面时不展示默认测试图，也不保留大图占位。 -->
+      <view v-if="campaign.cover_image" class="hero-cover">
         <image
           class="hero-img"
-          :src="campaign.cover_image || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
+          :src="campaign.cover_image"
           mode="aspectFill"
         />
         <view class="hero-overlay" />
         <view class="hero-tag-bar">
           <view class="type-pill" :class="campaign.campaign_type">
-            {{ formatTypeName(campaign.campaign_type) }}
+            {{ campaign.campaign_type_name || campaign.campaign_type }}
           </view>
           <view class="status-pill" :class="campaignStatusClass">
             {{ campaignStatusText }}
@@ -30,7 +30,11 @@
       </view>
 
       <!-- 活动主标题与倒计时 -->
-      <view class="section-card title-card">
+      <view class="section-card title-card" :class="{ 'title-card--no-cover': !campaign.cover_image }">
+        <view v-if="!campaign.cover_image" class="text-tag-bar">
+          <text class="text-type-tag">{{ campaign.campaign_type_name || campaign.campaign_type }}</text>
+          <text class="text-status-badge" :class="campaignStatusClass">{{ campaignStatusText }}</text>
+        </view>
         <text class="campaign-title">{{ campaign.campaign_title }}</text>
         <text class="campaign-summary">{{ campaign.summary }}</text>
 
@@ -107,9 +111,11 @@
             class="prod-card"
             @click="handleProductClick(prod)"
           >
+            <!-- 活动商品没有快照图片时只显示文字，不借用无关商品图片。 -->
             <image
+              v-if="prod.image_snapshot"
               class="prod-thumb"
-              :src="prod.image_snapshot || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
+              :src="prod.image_snapshot"
               mode="aspectFit"
             />
             <view class="prod-detail">
@@ -286,6 +292,7 @@
 import { computed, reactive, ref } from 'vue';
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import { getCampaignDetail, enrollCampaign } from '@/api/marketing';
+import { getMemberInfo } from '@/api/member';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { openPage } from '@/utils/pages';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -299,6 +306,7 @@ const campaignId = ref(null);
 const campaign = ref(null);
 const loading = ref(true);
 const submitting = ref(false);
+const openingEnroll = ref(false);
 const showEnrollModal = ref(false);
 
 const enrollForm = reactive({
@@ -428,11 +436,6 @@ const daysRemaining = computed(() => {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 });
 
-const formatTypeName = (type) => {
-  const map = { order: '订货会', promotion: '限时促销', new: '新品上市', clearance: '清仓特惠' };
-  return map[type] || '专题活动';
-};
-
 const formatDateVal = (val) => {
   if (!val) return '';
   if (typeof val === 'number') {
@@ -519,7 +522,25 @@ const fetchDetail = async (id) => {
   }
 };
 
-const openEnrollModal = () => {
+// 联系人优先取会员资料中的姓名；账号编号不能冒充真实联系人姓名。
+const getMemberContactName = (member = {}) => {
+  const name = [member.realname, member.real_name, member.full_name, member.contact_name, member.name]
+    .map((value) => String(value || '').trim())
+    .find(Boolean);
+  if (name) return name;
+  const nickname = String(member.nickname || '').trim();
+  const account = String(member.username || member.member_no || '').trim();
+  if (nickname && nickname !== account) return nickname;
+  return /[\u3400-\u9fff]/.test(account) ? account : '';
+};
+
+// 只预填可直接用于报名的完整手机号，避免把账号或脱敏号码当成联系电话。
+const getMemberContactMobile = (member = {}) => {
+  const candidates = [member.mobile, member.member_mobile, member.phone, member.username];
+  return candidates.map((value) => String(value || '').trim()).find((value) => /^1\d{10}$/.test(value)) || '';
+};
+
+const openEnrollModal = async () => {
   if (!campaign.value?.campaign_id || campaign.value.can_enroll === false) {
     uni.showToast({ title: '当前活动暂不可报名', icon: 'none' });
     return;
@@ -536,11 +557,24 @@ const openEnrollModal = () => {
     return;
   }
 
-  // 预填充用户信息
-  const u = userStore.userInfo || {};
-  enrollForm.contact_name = u.nickname || u.username || '';
-  enrollForm.contact_mobile = u.mobile || '';
-  showEnrollModal.value = true;
+  if (openingEnroll.value) return;
+  openingEnroll.value = true;
+  try {
+    // 打开报名弹窗时重新读取会员资料；读取失败才回退到本地缓存，表单仍允许手动修改。
+    let member = {};
+    try {
+      const response = await getMemberInfo({ showError: false, timeout: 5000 });
+      member = response?.data && typeof response.data === 'object' ? response.data : response || {};
+    } catch (error) {
+      console.warn('[营销活动] 读取会员联系人信息失败，改用本地资料：', error);
+    }
+    const cachedMember = userStore.userInfo || {};
+    enrollForm.contact_name = getMemberContactName(member) || getMemberContactName(cachedMember);
+    enrollForm.contact_mobile = getMemberContactMobile(member) || getMemberContactMobile(cachedMember);
+    showEnrollModal.value = true;
+  } finally {
+    openingEnroll.value = false;
+  }
 };
 
 const handleSubmitEnroll = async () => {
@@ -733,6 +767,34 @@ const handleSubmitEnroll = async () => {
   margin-top: -30rpx;
   position: relative;
   z-index: 10;
+
+  /* 无封面时标题卡按正常间距排列，类型与状态仍可见。 */
+  &.title-card--no-cover { margin-top: 24rpx; }
+
+  .text-tag-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+  }
+
+  .text-type-tag {
+    padding: 6rpx 16rpx;
+    border-radius: 8rpx;
+    background: #e8f1ff;
+    color: #2468e8;
+    font-size: 24rpx;
+    font-weight: 600;
+  }
+
+  .text-status-badge {
+    color: #059669;
+    font-size: 24rpx;
+    font-weight: 600;
+
+    &.upcoming { color: #2563eb; }
+    &.ended { color: #94a3b8; }
+  }
 
   .campaign-title {
     font-size: 36rpx;
@@ -987,6 +1049,7 @@ const handleSubmitEnroll = async () => {
 
     .prod-detail {
       flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       justify-content: space-between;

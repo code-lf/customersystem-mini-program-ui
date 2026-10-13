@@ -51,16 +51,12 @@
           <text class="label">手机号码</text>
           <text class="value">{{ userStore.userInfo.mobile || '--' }}</text>
         </view>
-        <view class="info-row" @click="openEditModal">
+        <view v-if="userStore.isDealer" class="info-row" @click="openEditModal">
           <text class="label">企业 / 门店名称</text>
           <view class="value-with-arrow">
-            <text class="value">{{ userStore.userInfo.company_name || '未填写' }}</text>
+            <text class="value">{{ userStore.userInfo.dealer_unit || '未填写' }}</text>
             <up-icon name="arrow-right" size="14" color="#94a3b8" />
           </view>
-        </view>
-        <view class="info-row">
-          <text class="label">门店职位 / 身份</text>
-          <text class="value">{{ userStore.userInfo.job_title || '未填写' }}</text>
         </view>
         <view class="info-row">
           <text class="label">注册渠道</text>
@@ -150,13 +146,10 @@
                 <!-- 微信小程序原生昵称输入框自带“使用微信昵称”快捷填入，也可手动修改。 -->
                 <input v-model="form.nickname" type="nickname" class="custom-input" placeholder="请输入或填入微信昵称" />
               </view>
-              <view class="input-block">
+              <!-- 经销商客户单位走专用接口；职位暂无接口，编辑项暂不展示。 -->
+              <view v-if="userStore.isDealer" class="input-block">
                 <text class="input-label">企业 / 门店名称</text>
-                <input v-model="form.company_name" class="custom-input" maxlength="150" placeholder="请输入企业或门店名称" />
-              </view>
-              <view class="input-block">
-                <text class="input-label">门店职位 / 身份</text>
-                <input v-model="form.job_title" class="custom-input" maxlength="50" placeholder="例如：销售工程师" />
+                <input v-model="form.dealer_unit" class="custom-input" maxlength="100" placeholder="请输入企业或门店名称" />
               </view>
             </view>
           </view>
@@ -194,16 +187,14 @@ const currentPresetList = computed(() => {
 const form = reactive({
   nickname: '',
   avatar: '',
-  company_name: '',
-  job_title: ''
+  dealer_unit: ''
 });
 
 const openEditModal = () => {
   const u = userStore.userInfo || {};
   form.nickname = u.nickname || u.username || '';
   form.avatar = u.avatar || u.headimg || '/static/avatars/avatar-demo.png';
-  form.company_name = u.company_name || '';
-  form.job_title = u.job_title || '';
+  form.dealer_unit = u.dealer_unit || '';
   showEditModal.value = true;
 };
 
@@ -239,17 +230,27 @@ const saveProfile = async () => {
     const payload = {};
     if (name !== (current.nickname || current.username || '')) payload.nickname = name;
     if (form.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = form.avatar;
-    if (form.company_name.trim() !== (current.company_name || '')) payload.company_name = form.company_name.trim();
-    if (form.job_title.trim() !== (current.job_title || '')) payload.job_title = form.job_title.trim();
-    if (Object.keys(payload).length) await updateMemberInfo(payload);
-
-    const updated = { ...current, ...payload, ...(payload.headimg ? { avatar: payload.headimg } : {}) };
+    if (userStore.isDealer && form.dealer_unit.trim() !== (current.dealer_unit || '')) payload.dealer_unit = form.dealer_unit.trim();
+    // 修改接口成功后先展示本次填写内容；若 /member 仍读到旧值，明确提示待核对而非误报修改失败。
+    const result = Object.keys(payload).length ? await updateMemberInfo(payload) : { member: current, synced: true };
+    const updated = {
+      ...current,
+      ...result.member,
+      ...payload,
+      avatar: payload.headimg || result.member?.headimg || result.member?.avatar || current.avatar
+    };
     userStore.setUserInfo(updated);
-    uni.setStorageSync('wap_member_info', updated);
-    uni.setStorageSync('user_info', updated);
 
-    uni.showToast({ title: '修改成功', icon: 'success' });
     showEditModal.value = false;
+    if (result.synced) {
+      uni.showToast({ title: '修改成功', icon: 'success' });
+    } else {
+      uni.showModal({
+        title: '修改请求已成功',
+        content: '修改接口已成功，但会员资料暂未回读到新的客户单位。请稍后重新进入核对。',
+        showCancel: false
+      });
+    }
   } catch(e) {
     console.error('saveProfile error:', e);
     uni.showToast({ title: e?.message || '保存失败，请稍后重试', icon: 'none' });

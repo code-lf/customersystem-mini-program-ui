@@ -32,22 +32,55 @@ export function getMemberInfo(options = {}) {
   });
 }
 
-/** 修改会员资料：只提交有变化的字段，任一接口失败都不伪造保存成功。 */
+/** 微信小程序授权手机号后，按 niucloud 接口绑定当前登录会员手机号。 */
+export function bindMemberMobile(mobileCode) {
+  return apiPut('member/mobile', { mobile_code: mobileCode }, getMemberRequestOptions());
+}
+
+/** 修改会员资料：经销商客户单位使用专用接口，不再写入自填 company_name 或暂无接口的职位。 */
 export async function updateMemberInfo(data = {}) {
-  const promises = [];
-  if (Object.prototype.hasOwnProperty.call(data, 'nickname')) promises.push(modifyMemberField('nickname', data.nickname));
+  const updates = [];
+  if (Object.prototype.hasOwnProperty.call(data, 'nickname')) updates.push(['nickname', data.nickname]);
   const avatar = data.headimg || data.avatar;
-  if (avatar) promises.push(modifyMemberField('headimg', avatar));
-  // 企业/门店名称和职位是会员自填资料，并不代表经销商认证状态。
-  if (Object.prototype.hasOwnProperty.call(data, 'company_name')) promises.push(modifyMemberField('company_name', data.company_name));
-  if (Object.prototype.hasOwnProperty.call(data, 'job_title')) promises.push(modifyMemberField('job_title', data.job_title));
-  await Promise.all(promises);
-  return data;
+  if (avatar) updates.push(['headimg', avatar]);
+  if (Object.prototype.hasOwnProperty.call(data, 'dealer_unit')) {
+    if (String(data.dealer_unit).length > 100) throw new Error('企业/门店名称不能超过100个字');
+    updates.push(['dealer_unit', data.dealer_unit]);
+  }
+  // 同一会员的字段更新依次提交，避免并发写入在后端互相覆盖。
+  for (const [field, value] of updates) {
+    if (field === 'dealer_unit') {
+      await apiPut('member/dealer/unit', { dealer_unit: value }, getMemberRequestOptions());
+    } else {
+      await modifyMemberField(field, value);
+    }
+  }
+  if (!updates.length) return null;
+
+  // PUT 成功与 GET 立即读到新值是两件事；短暂重试后仍不一致时返回待核对状态，不能误报写入失败。
+  let member = null;
+  let synced = false;
+  const checkedFields = ['dealer_unit'].filter(field => Object.prototype.hasOwnProperty.call(data, field));
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt) await new Promise(resolve => setTimeout(resolve, 400));
+    try {
+      const response = await getMemberInfo({ showError: false });
+      member = response?.data && typeof response.data === 'object' ? response.data : response;
+      synced = Boolean(member && typeof member === 'object') && checkedFields.every(field =>
+        Object.prototype.hasOwnProperty.call(member, field)
+        && String(member[field] ?? '').trim() === String(data[field] ?? '').trim());
+      if (synced) break;
+    } catch (error) {
+      console.warn('[会员资料] 修改接口成功，但回读失败：', error);
+    }
+  }
+  return { member: member && typeof member === 'object' ? member : {}, synced };
 }
 
 /** 修改特定会员字段 (如 nickname, headimg) */
 export function modifyMemberField(field, value) {
-  return apiPut(`member/modify/${field}`, { value, [field]: value }, getMemberRequestOptions());
+  // OpenAPI 约定请求体只有 value 字段，避免额外字段被严格校验的后端拒绝。
+  return apiPut(`member/modify/${field}`, { value }, getMemberRequestOptions());
 }
 
 export function getBalance() {

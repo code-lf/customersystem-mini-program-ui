@@ -33,10 +33,8 @@
           v-for="(cat, index) in categoryTree"
           :key="cat.id"
           class="hero-card"
-          :class="['hero-card--central', 'hero-card--appliance', 'hero-card--split'][index % 3] || 'hero-card--central'"
           @click="openCategoryPage(cat.id, cat.category_name)"
         >
-          <view class="card-glass-glow" />
           <view class="card-head">
             <view class="card-title-group">
               <text class="hero-card__title">{{ cat.category_name }}</text>
@@ -51,9 +49,9 @@
 
           <view class="card-footer">
             <text class="footer-tip">点击探索更多型号配比</text>
-            <view class="white-pill" :class="['white-pill--central', 'white-pill--appliance', 'white-pill--split'][index % 3] || 'white-pill--central'">
+            <view class="white-pill">
               <text>进入选型</text>
-              <up-icon name="arrow-right" size="12" :color="['#1d4ed8', '#c2410c', '#047857'][index % 3] || '#1d4ed8'" />
+              <up-icon name="arrow-right" size="12" color="#2468e8" />
             </view>
           </view>
         </view>
@@ -217,36 +215,28 @@ const search = (event) => {
 .category-cards-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 20rpx;
   margin-top: 24rpx;
 }
 
+/* 所有动态分类统一使用蓝色渐变底和白字，与产品分类参考样式保持一致。 */
 .hero-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 160rpx;
-  padding: 22rpx 28rpx;
+  min-height: 170rpx;
+  padding: 24rpx 28rpx;
   border-radius: 20rpx;
   overflow: hidden;
   box-sizing: border-box;
-  margin-bottom: 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(115deg, #234cbb 0%, #246be9 60%, #1e9be9 100%);
+  box-shadow: 0 8rpx 20rpx rgba(31, 92, 200, 0.2);
   transition: transform 0.2s ease;
 
   &:active {
     transform: scale(0.985);
   }
-}
-
-.card-glass-glow {
-  position: absolute;
-  right: -40rpx;
-  top: -40rpx;
-  width: 220rpx;
-  height: 220rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
-  pointer-events: none;
 }
 
 .card-head {
@@ -267,12 +257,11 @@ const search = (event) => {
 }
 
 .hero-card__title {
-  color: #fff;
+  color: #ffffff;
   font-size: 32rpx;
   font-weight: 800;
   line-height: 40rpx;
   letter-spacing: 0.5rpx;
-  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -281,8 +270,8 @@ const search = (event) => {
   display: inline-flex;
   align-items: center;
   padding: 2rpx 12rpx;
-  background: rgba(255, 255, 255, 0.22);
-  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1rpx solid rgba(255, 255, 255, 0.42);
   border-radius: 10rpx;
   color: #ffffff;
   font-size: 20rpx;
@@ -293,7 +282,7 @@ const search = (event) => {
 }
 
 .card-sub-code {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.76);
   font-size: 18rpx;
   font-weight: 700;
   letter-spacing: 1.5rpx;
@@ -314,8 +303,8 @@ const search = (event) => {
 
 .card-tag {
   padding: 4rpx 16rpx;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1rpx solid rgba(255, 255, 255, 0.38);
   border-radius: 18rpx;
   color: #ffffff;
   font-size: 22rpx;
@@ -326,12 +315,12 @@ const search = (event) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+  border-top: 1rpx solid rgba(255, 255, 255, 0.25);
   padding-top: 14rpx;
 }
 
 .footer-tip {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.86);
   font-size: 22rpx;
   font-weight: 500;
 }
@@ -343,37 +332,12 @@ const search = (event) => {
   height: 48rpx;
   padding: 0 20rpx;
   border-radius: 24rpx;
+  border: 1rpx solid #c5daf8;
   background: #ffffff;
+  color: #2468e8;
   font-size: 22rpx;
   font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-}
-
-.hero-card--central {
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #0ea5e9 100%);
-  box-shadow: 0 12rpx 32rpx rgba(30, 64, 175, 0.28);
-
-  .white-pill--central {
-    color: #1d4ed8;
-  }
-}
-
-.hero-card--appliance {
-  background: linear-gradient(135deg, #b45309 0%, #ea580c 50%, #f43f5e 100%);
-  box-shadow: 0 12rpx 32rpx rgba(234, 88, 12, 0.28);
-
-  .white-pill--appliance {
-    color: #c2410c;
-  }
-}
-
-.hero-card--split {
-  background: linear-gradient(135deg, #047857 0%, #059669 50%, #0891b2 100%);
-  box-shadow: 0 12rpx 32rpx rgba(4, 120, 87, 0.28);
-
-  .white-pill--split {
-    color: #047857;
-  }
+  box-shadow: 0 3rpx 10rpx rgba(36, 104, 232, 0.07);
 }
 
 .section-head {

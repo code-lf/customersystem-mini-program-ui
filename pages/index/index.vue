@@ -17,7 +17,7 @@
           <image class="brand__logo" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/28/1790566432f2c3d369e02b6b091ca5a409e3a20e3e_aliyun.png?x-oss-process=image/resize,h_200,w_200" mode="aspectFit" />
         </view>
         <view class="brand__text-box">
-          <text class="brand__name">格宏助理</text>
+          <text class="brand__name">格宏家电助手</text>
           <text class="brand__sub">一个懂得你的数字搭档</text>
         </view>
       </view>
@@ -276,7 +276,7 @@ const currentDisplayRole = computed(() => {
 
 const currentDisplayCompany = computed(() => {
   if (!userStore.isLoggedIn) return '登录后查看专属经销商政策与报价';
-  return userStore.userInfo.company_name || '格宏电器科技有限公司';
+  return userStore.userInfo.dealer_unit || '未填写企业/门店名称';
 });
 
 const handleGreetingClick = () => {
@@ -394,7 +394,7 @@ onMounted(async () => {
 }
 
 .brand__logo {
-  /* 保留原图比例，放大到能看清下方“格宏助手”字样的尺寸。 */
+  /* 保留原图比例，放大到能看清旁边“格宏家电助手”标题的尺寸。 */
   display: block;
   width: 90rpx;
   height: 90rpx;

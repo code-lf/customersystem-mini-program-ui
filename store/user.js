@@ -4,6 +4,9 @@ import { getStorage, removeStorage, setStorage } from '../utils/storage';
 import config from '../config/app';
 import { getMemberInfo } from '../api/member';
 
+// 登录、退出和资料保存都会使在途的旧会员请求失效，防止旧响应覆盖新账号资料。
+let userRevision = 0;
+
 const demoUser = {
   member_id: 10001,
   member_no: '0001',
@@ -34,7 +37,7 @@ const normalizeUserData = (user = {}) => {
   if (!data.avatar && data.headimg) {
     data.avatar = data.headimg;
   }
-  // 企业/门店名是后端会员自填字段；空值也可能是用户主动清空，不覆盖为示例公司。
+  // 客户单位以经销商池返回的 dealer_unit 为准；空值可能是用户主动清空，不覆盖为示例公司。
   if (!data.nickname) {
     data.nickname = data.username || (data.mobile ? ('用户_' + String(data.mobile).slice(-4)) : '格宏用户');
   }
@@ -64,12 +67,20 @@ export const useUserStore = defineStore('user', {
     isLoggedIn: (state) => Boolean(state.token),
     isDealer: (state) => Boolean(state.token) && isDealerFlag(state.userInfo.is_dealer),
     displayName: (state) => Boolean(state.token) ? (state.userInfo.nickname || state.userInfo.username || '格宏用户') : '请登录',
-    displayCompany: (state) => Boolean(state.token) ? (state.userInfo.company_name || '格宏电器科技有限公司') : '未登录',
+    // 企业展示统一使用后端经销商池客户单位，不回退旧的会员自填公司名。
+    displayCompany: (state) => Boolean(state.token) ? (state.userInfo.dealer_unit || '未填写企业/门店名称') : '未登录',
     displayRole: (state) => Boolean(state.token) ? resolveDealerLevel(state.userInfo) : '未登录'
   },
   actions: {
     setToken(token) {
-      this.token = token || '';
+      const nextToken = token || '';
+      if (this.token !== nextToken) {
+        userRevision += 1;
+        // 切换账号时先清除上一个会员资料，不能把旧公司名合并进新账号。
+        this.userInfo = {};
+        removeStorage(STORAGE_KEYS.userInfo);
+      }
+      this.token = nextToken;
       if (token) {
         setStorage(STORAGE_KEYS.token, token);
       } else {
@@ -79,14 +90,18 @@ export const useUserStore = defineStore('user', {
       }
     },
     setUserInfo(userInfo = {}) {
+      userRevision += 1;
       const normalized = normalizeUserData(userInfo);
       this.userInfo = normalized;
       setStorage(STORAGE_KEYS.userInfo, normalized);
     },
     async fetchUserInfo() {
       if (!this.token) return null;
+      const requestRevision = userRevision;
       try {
         const res = await getMemberInfo();
+        // 请求发出后若发生退出、重新登录或资料保存，忽略过期响应。
+        if (!this.token || requestRevision !== userRevision) return null;
         const raw = (res && typeof res === 'object' && res.data) ? res.data : res;
         if (raw && typeof raw === 'object') {
           const merged = { ...this.userInfo, ...raw };
@@ -99,6 +114,7 @@ export const useUserStore = defineStore('user', {
       return this.userInfo;
     },
     logout() {
+      userRevision += 1;
       this.token = '';
       this.userInfo = {};
       removeStorage(STORAGE_KEYS.token);

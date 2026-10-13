@@ -15,7 +15,7 @@ apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const config = {
   // 应用的基础信息，可用于页面标题、日志和埋点。
-  appName: '格宏助理',
+  appName: '格宏家电助手',
   appVersion: '1.0.0',
 
   // 接口模式：mock 用于前端独立开发，api 用于后续切换真实后台接口。

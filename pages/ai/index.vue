@@ -5,6 +5,12 @@
 
     <view class="center-stage">
       <view class="center-content">
+        <!-- 欢迎语固定占位，打字过程中不让下方卡片上下跳动。 -->
+        <view class="greeting-row">
+          <view class="greeting-bubble">
+            <text>{{ greetingText }}</text><text v-if="isTyping" class="typing-cursor">|</text>
+          </view>
+        </view>
         <view class="hero">
           <!-- 浅色圆环只作背景装饰，不参与点击与内容布局。 -->
           <view class="hero-circle hero-circle--large" />
@@ -17,12 +23,13 @@
               <text>方案精准</text>
             </view>
           </view>
-          <image
-            class="hero-robot"
-            src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png"
-            mode="aspectFit"
-          />
         </view>
+        <!-- 人物独立于信息框，允许头部探出卡片边界。 -->
+        <image
+          class="hero-robot"
+          src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png"
+          mode="aspectFit"
+        />
 
         <!-- 仅保留开始对话和历史对话两个入口，不再展示推荐问题与功能卡片。 -->
         <view class="action-list">
@@ -56,8 +63,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
+import { computed, onUnmounted, ref } from 'vue';
+import { onHide, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
@@ -65,11 +72,42 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 // 导航占位跟随设备状态栏和胶囊高度变化，避免中央内容顶到系统按钮。
 const metrics = computed(() => getNavMetrics());
 
+// 每次进入页面重新播放简短欢迎语；离开页面清理计时器，避免后台继续更新。
+const GREETING = '嗨！我是 AI 小格，很高兴见到您！';
+const greetingText = ref('');
+const isTyping = ref(false);
+let typingTimer = null;
+
+function stopGreeting() {
+  if (typingTimer) {
+    clearInterval(typingTimer);
+    typingTimer = null;
+  }
+  isTyping.value = false;
+}
+
+function startGreeting() {
+  stopGreeting();
+  greetingText.value = '';
+  isTyping.value = true;
+  let index = 0;
+  typingTimer = setInterval(() => {
+    index += 1;
+    greetingText.value = GREETING.slice(0, index);
+    if (index >= GREETING.length) stopGreeting();
+  }, 110);
+}
+
 // 分享只打开公共助理首页，不携带用户的历史对话内容。
 const SHARE_TITLE = '小格 AI 助理｜家电选型与报价';
 onShareAppMessage(() => createShareAppMessageOptions(SHARE_TITLE));
 onShareTimeline(() => createShareTimelineOptions(SHARE_TITLE));
-onShow(() => showMiniProgramShareMenu());
+onShow(() => {
+  showMiniProgramShareMenu();
+  startGreeting();
+});
+onHide(stopGreeting);
+onUnmounted(stopGreeting);
 </script>
 
 <style lang="scss" scoped>
@@ -95,8 +133,51 @@ onShow(() => showMiniProgramShareMenu());
 }
 
 .center-content {
+  position: relative;
   width: 100%;
   max-width: 760rpx;
+}
+
+.greeting-row {
+  display: flex;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  height: 142rpx;
+  padding: 0 18rpx 24rpx 40rpx;
+}
+
+.greeting-bubble {
+  position: relative;
+  align-self: flex-start;
+  box-sizing: border-box;
+  width: 410rpx;
+  min-height: 100rpx;
+  padding: 17rpx 23rpx;
+  border: 1rpx solid #dbeaff;
+  border-radius: 25rpx 25rpx 8rpx 25rpx;
+  color: #2451a0;
+  background: #fff;
+  box-shadow: 0 10rpx 25rpx rgba(50, 105, 190, .09);
+  font-size: 27rpx;
+  line-height: 1.35;
+}
+
+.greeting-bubble::after {
+  position: absolute;
+  right: 24rpx;
+  bottom: -13rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-right: 1rpx solid #dbeaff;
+  border-bottom: 1rpx solid #dbeaff;
+  background: #fff;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.typing-cursor {
+  color: #287df6;
+  font-weight: 700;
 }
 
 .hero {
@@ -105,7 +186,6 @@ onShow(() => showMiniProgramShareMenu());
   align-items: center;
   min-height: 190rpx;
   padding: 18rpx 22rpx;
-  overflow: hidden;
   border: 1rpx solid #dceaff;
   border-radius: 26rpx;
   background: linear-gradient(120deg, #eaf4ff 0%, #f3f8ff 62%, #e5f1ff 100%);
@@ -121,18 +201,18 @@ onShow(() => showMiniProgramShareMenu());
 }
 
 .hero-circle--large {
-  top: -100rpx;
-  right: -24rpx;
-  width: 300rpx;
-  height: 300rpx;
+  top: 8rpx;
+  right: 10rpx;
+  width: 180rpx;
+  height: 180rpx;
   background: rgba(255, 255, 255, .18);
 }
 
 .hero-circle--small {
-  right: 142rpx;
-  bottom: -64rpx;
-  width: 130rpx;
-  height: 130rpx;
+  right: 165rpx;
+  bottom: 8rpx;
+  width: 90rpx;
+  height: 90rpx;
 }
 
 .hero-copy {
@@ -140,7 +220,7 @@ onShow(() => showMiniProgramShareMenu());
   z-index: 1;
   display: flex;
   flex-direction: column;
-  max-width: 500rpx;
+  max-width: calc(100% - 175rpx);
 }
 
 .hero-title {
@@ -173,11 +253,14 @@ onShow(() => showMiniProgramShareMenu());
 
 .hero-robot {
   position: absolute;
-  z-index: 1;
-  right: -2rpx;
-  bottom: -6rpx;
-  width: 190rpx;
-  height: 190rpx;
+  z-index: 2;
+  // 原图四周有透明留白，放大绘制区域后人物才会在手机端明显变大。
+  // 只向右侧与卡片上方溢出，避免遮住左侧介绍和下方对话入口。
+  top: -40rpx;
+  right: -45rpx;
+  width: 390rpx;
+  height: 390rpx;
+  pointer-events: none;
 }
 
 .action-list {

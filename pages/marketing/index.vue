@@ -16,7 +16,6 @@
             placeholder="搜索活动主题、机型或促销关键词"
             placeholder-class="placeholder-text"
             confirm-type="search"
-            @confirm="handleSearch"
           />
           <view v-if="keyword" class="clear-btn" @click="clearSearch">
             <up-icon name="close-circle-fill" size="16" color="#cbd5e1" />
@@ -76,16 +75,16 @@
           class="campaign-card"
           @click="openDetail(item)"
         >
-          <!-- 封面图与状态角标 -->
-          <view class="card-cover-box">
+          <!-- 只有接口提供活动封面时才展示图片，不使用测试占位图。 -->
+          <view v-if="item.cover_image" class="card-cover-box">
             <image
               class="card-cover-img"
-              :src="item.cover_image || 'https://gh.starall.cn/static/resource/aircon/central-default.png'"
+              :src="item.cover_image"
               mode="aspectFill"
             />
             <view class="cover-overlay" />
             <view class="cover-type-tag" :class="item.campaign_type">
-              {{ formatTypeName(item.campaign_type) }}
+              {{ item.campaign_type_name || item.campaign_type }}
             </view>
             <view class="cover-status-badge" :class="getCampaignStatusClass(item)">
               {{ formatCampaignStatus(item) }}
@@ -94,6 +93,10 @@
 
           <!-- 卡片信息区 -->
           <view class="card-body">
+            <view v-if="!item.cover_image" class="text-tag-bar">
+              <text class="text-type-tag">{{ item.campaign_type_name || item.campaign_type }}</text>
+              <text class="text-status-badge" :class="getCampaignStatusClass(item)">{{ formatCampaignStatus(item) }}</text>
+            </view>
             <view class="card-title-row">
               <text class="card-title">{{ item.campaign_title }}</text>
             </view>
@@ -136,12 +139,20 @@
         </view>
       </view>
 
+      <!-- 请求失败与无可见活动分开显示，避免接口错误被误判为没有活动。 -->
+      <view v-else-if="loadError" class="empty-state">
+        <up-icon name="warning" size="48" color="#cbd5e1" />
+        <text class="empty-title">活动加载失败</text>
+        <text class="empty-desc">{{ loadError }}</text>
+        <button class="empty-reset-btn" @click="fetchCampaigns">重新加载</button>
+      </view>
+
       <!-- 空状态 -->
       <view v-else class="empty-state">
         <up-icon name="order" size="48" color="#cbd5e1" />
-        <text class="empty-title">暂无相关营销活动</text>
-        <text class="empty-desc">换个筛选类别或搜索关键词试试看吧</text>
-        <button class="empty-reset-btn" @click="resetFilter">重置筛选条件</button>
+        <text class="empty-title">{{ allCampaigns.length ? '暂无相关营销活动' : '当前账号暂无可见活动' }}</text>
+        <text class="empty-desc">{{ allCampaigns.length ? '换个筛选类别或搜索关键词试试看吧' : '仅显示已发布、有效期内且面向当前经销商的活动' }}</text>
+        <button v-if="allCampaigns.length" class="empty-reset-btn" @click="resetFilter">重置筛选条件</button>
       </view>
     </view>
   </view>
@@ -169,26 +180,31 @@ onShareTimeline(() => createShareTimelineOptions('格宏家电助手·营销活�
 const keyword = ref('');
 const currentType = ref('all');
 const loading = ref(false);
-const campaignList = ref([]);
+const loadError = ref('');
+const allCampaigns = ref([]);
 const enrollCount = ref(0);
 
-const typeTabs = [
-  { key: 'all', label: '全部活动' },
-  { key: 'order', label: '订货会' },
-  { key: 'promotion', label: '限时促销' },
-  { key: 'new', label: '新品上市' },
-  { key: 'clearance', label: '清仓特惠' }
-];
+// 活动接口返回真实类型编码和名称；筛选标签只展示当前账号实际可见活动中的类型。
+const typeTabs = computed(() => {
+  const types = new Map();
+  allCampaigns.value.forEach((item) => {
+    const key = String(item.campaign_type || '').trim();
+    if (key && !types.has(key)) types.set(key, String(item.campaign_type_name || key).trim());
+  });
+  return [{ key: 'all', label: '全部活动' }, ...Array.from(types, ([key, label]) => ({ key, label }))];
+});
 
-const formatTypeName = (type) => {
-  const map = {
-    order: '订货会',
-    promotion: '限时促销',
-    new: '新品上市',
-    clearance: '清仓特惠'
-  };
-  return map[type] || '专题活动';
-};
+// 在接口返回的完整可见活动列表上筛选，避免前端虚构不存在的活动类型。
+const campaignList = computed(() => {
+  const search = keyword.value.trim().toLowerCase();
+  return allCampaigns.value.filter((item) => {
+    if (currentType.value !== 'all' && item.campaign_type !== currentType.value) return false;
+    if (!search) return true;
+    const fields = [item.campaign_no, item.campaign_title, item.summary];
+    (item.items || []).forEach((product) => fields.push(product.goods_name_snapshot, product.model_snapshot));
+    return fields.some((field) => String(field || '').toLowerCase().includes(search));
+  });
+});
 
 // 活动发布状态与活动时间分开计算，接口没有 ongoing/upcoming 字段。
 const formatCampaignStatus = (item) => {
@@ -270,45 +286,41 @@ const formatTimeRange = (itemOrStart, end) => {
 
 const switchType = (key) => {
   currentType.value = key;
-  fetchCampaigns();
-};
-
-const handleSearch = () => {
-  fetchCampaigns();
 };
 
 const clearSearch = () => {
   keyword.value = '';
-  fetchCampaigns();
 };
 
 const resetFilter = () => {
   keyword.value = '';
   currentType.value = 'all';
-  fetchCampaigns();
 };
 
 const openDetail = (item) => {
   if (item?.campaign_id) openPage('/pages/marketing/detail', { id: item.campaign_id });
 };
 
-// 获取活动列表数据
+// 逐页读取当前账号在接口中实际可见的活动，完整列表用于生成真实类型和本地筛选。
 const fetchCampaigns = async () => {
   loading.value = true;
+  loadError.value = '';
   try {
-    const params = {
-      page: 1,
-      limit: 100,
-      ...(currentType.value !== 'all' ? { campaign_type: currentType.value } : {}),
-      ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {})
-    };
-    const res = await getCampaigns(params);
-    // request 工具已拆掉外层 code/data，列表本身是分页对象。
-    campaignList.value = Array.isArray(res?.data) ? res.data : [];
+    const rows = [];
+    let lastPage = 1;
+    for (let page = 1; page <= lastPage; page += 1) {
+      const res = await getCampaigns({ page, limit: 100 });
+      // request 工具只拆掉最外层 code/data，分页对象里的 data 才是活动数组。
+      if (!res || !Array.isArray(res.data)) throw new Error('活动列表返回格式不正确');
+      rows.push(...res.data);
+      lastPage = Math.max(1, Number(res.last_page) || 1);
+    }
+    allCampaigns.value = rows;
+    if (!typeTabs.value.some((tab) => tab.key === currentType.value)) currentType.value = 'all';
   } catch (error) {
     console.warn('获取营销活动失败:', error);
-    campaignList.value = [];
-    uni.showToast({ title: error?.message || '获取活动失败', icon: 'none' });
+    allCampaigns.value = [];
+    loadError.value = error?.message || '请检查网络后重试';
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
@@ -678,6 +690,32 @@ onShow(async () => {
 
     .card-body {
       padding: 24rpx;
+
+      /* 无封面时把活动类型和状态放在文字区顶部，避免留下图片高度的空白。 */
+      .text-tag-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16rpx;
+      }
+
+      .text-type-tag {
+        padding: 6rpx 16rpx;
+        border-radius: 8rpx;
+        background: #e8f1ff;
+        color: #2468e8;
+        font-size: 22rpx;
+        font-weight: 600;
+      }
+
+      .text-status-badge {
+        color: #059669;
+        font-size: 22rpx;
+        font-weight: 600;
+
+        &.upcoming { color: #2563eb; }
+        &.ended { color: #94a3b8; }
+      }
 
       .card-title-row {
         margin-bottom: 8rpx;

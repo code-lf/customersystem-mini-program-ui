@@ -63,6 +63,7 @@
             <view class="quote-product-info">
               <text class="quote-product-name">{{ item.name }}</text>
               <text class="quote-product-model">{{ item.model || item.type }}</text>
+              <text v-if="isQuoteDiscountExcluded(item)" class="no-discount-tag">不参与折扣</text>
               <!-- 报价清单只展示商品名称、型号和价格；能效等规格仍保留在商品数据中。 -->
               <view class="quote-product-price-row">
                 <text class="price-symbol">¥</text>
@@ -181,7 +182,7 @@
         <view class="price-panel__head">
           <view>
             <text class="popup-main-title">导出方案报价单</text>
-            <text class="popup-sub-title">设置折扣率或总金额后，可生成精美方案分享给客户</text>
+            <text class="popup-sub-title">整单折扣仅作用于允许折扣的商品，禁折商品保持原价</text>
           </view>
           <view class="panel-close" @click="showPricePanel = false">
             <up-icon name="close" size="20" color="#8b95a7" />
@@ -449,8 +450,9 @@ import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { useUserStore } from '@/store/user';
 import { getCart, addCartItem, editCartItem, removeCartItem, setCartDiscount, exportCart, getSolutionList, deleteQuote } from '@/api/solution';
-import { getProductList, getProductCategories } from '@/api/product';
+import { getProductList, getProductCategories, getProductDetail } from '@/api/product';
 import { getNavMetrics } from '@/utils/system';
+import { calculateQuotePreview, isQuoteDiscountExcluded } from '@/utils/quote-discount';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppWatermark from '@/components/app-watermark.vue';
 
@@ -497,6 +499,8 @@ const candidateScopes = [
 ];
 
 const quoteItems = ref([]);
+// 商品详情补查去重，避免快速调节折扣时对同一商品重复发起请求。
+const pendingDiscountFlagIds = new Set();
 const cartData = ref({
   goods_amount: 0,
   total_quantity: 0,
@@ -621,13 +625,8 @@ const changeCandidateItemQty = async (item, delta) => {
 
 // 核心：计算与同步报价单价格与数量
 const recalculateCart = (items, mode = 'discount', rate = discountRate.value, remark = quoteRemark.value) => {
-  const goods_amount = items.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
-  const total_quantity = items.reduce((sum, it) => sum + Number(it.quantity || 1), 0);
-  let pay_amount = goods_amount;
-  let discount_amount = 0;
-  
-  pay_amount = Math.round(goods_amount * (Number(rate || 100) / 100) * 100) / 100;
-  discount_amount = Math.max(0, Math.round((goods_amount - pay_amount) * 100) / 100);
+  // 禁折商品的金额不进入折扣基数；这里只做响应中的预览，最终金额取后端返回。
+  const { goods_amount, total_quantity, pay_amount, discount_amount } = calculateQuotePreview(items, rate);
 
   const updatedCart = {
     items,
@@ -646,6 +645,31 @@ const recalculateCart = (items, mode = 'discount', rate = discountRate.value, re
   return updatedCart;
 };
 
+/** 旧报价篮未带禁折标记时，以商品详情补齐；不改写服务端已经核定的金额。 */
+const hydrateMissingDiscountFlags = async (items) => {
+  const missing = items.filter(item => item.quote_discount_enabled == null
+    && Number(item.goods_id) > 0 && !pendingDiscountFlagIds.has(Number(item.goods_id)));
+  await Promise.all(missing.map(async (item) => {
+    pendingDiscountFlagIds.add(Number(item.goods_id));
+    try {
+      const goods = await getProductDetail(item.goods_id);
+      if (goods?.quote_discount_enabled == null) return;
+      const current = quoteItems.value.find(row => Number(row.goods_id) === Number(item.goods_id));
+      if (!current || current.quote_discount_enabled != null) return;
+      const updatedItems = quoteItems.value.map(row => Number(row.goods_id) === Number(item.goods_id)
+        ? { ...row, quote_discount_enabled: goods.quote_discount_enabled }
+        : row);
+      quoteItems.value = updatedItems;
+      cartData.value = { ...cartData.value, items: updatedItems };
+      uni.setStorageSync('solution_local_cart', cartData.value);
+    } catch (error) {
+      console.warn('[报价单] 商品禁折标记补取失败：', item.goods_id, error);
+    } finally {
+      pendingDiscountFlagIds.delete(Number(item.goods_id));
+    }
+  }));
+};
+
 /**
  * 把 OpenAPI 的 Cart 对象转换成页面直接使用的结构。
  *
@@ -656,6 +680,7 @@ const recalculateCart = (items, mode = 'discount', rate = discountRate.value, re
 const applyServerCart = (serverCart) => {
   if (!serverCart || !Array.isArray(serverCart.items)) return false;
 
+  const oldFlags = new Map(quoteItems.value.map(item => [Number(item.goods_id), item.quote_discount_enabled]));
   const normalizedItems = serverCart.items.map(item => ({
     ...item,
     // 编辑和删除接口要求 cart_item_id；id 仅作为模板渲染的统一键。
@@ -665,7 +690,9 @@ const applyServerCart = (serverCart) => {
     model: item.model_snapshot || item.model,
     image: item.image_snapshot || item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
     price: Number(item.origin_price || item.quote_price || item.price || 0),
-    quantity: Number(item.quantity || 1)
+    quantity: Number(item.quantity || 1),
+    // 优先使用本次后端字段，旧接口未返回时保留刚从商品详情查到的标记。
+    quote_discount_enabled: item.quote_discount_enabled ?? oldFlags.get(Number(item.goods_id))
   }));
 
   const normalizedCart = {
@@ -684,6 +711,7 @@ const applyServerCart = (serverCart) => {
   discountRate.value = Number(serverCart.global_discount_rate ?? 100);
   quoteRemark.value = serverCart.remark || '';
   uni.setStorageSync('solution_local_cart', normalizedCart);
+  hydrateMissingDiscountFlags(normalizedItems);
   return true;
 };
 
@@ -969,7 +997,8 @@ const addProductToQuote = async (product) => {
       spec: product.spec || (Array.isArray(product.specs) ? product.specs.slice(0, 2).join(' | ') : '高效节能 · 变频冷暖'),
       image: product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png',
       price: Number(product.price || 0),
-      quantity: 1
+      quantity: 1,
+      quote_discount_enabled: product.quote_discount_enabled
     });
   }
 
@@ -1052,7 +1081,7 @@ const exportQuote = async () => {
       quote_id: createdQuote.quote_id,
       quote_no: createdQuote.quote_no || '',
       title: createdQuote.quote_no ? `方案报价单 (${createdQuote.quote_no})` : '方案报价单',
-      subtitle: `${totalCount.value} 项设备 · 享受 ${discountRate.value}% 折扣`,
+      subtitle: `${totalCount.value} 项设备 · 可折扣商品按 ${discountRate.value}% 核价`,
       contact_name_snapshot: '贵宾客户',
       customerName: '贵宾客户',
       date: nowText,
@@ -1236,6 +1265,14 @@ const checkPendingProduct = async () => {
   color: #2468e8;
   font-size: 25rpx;
   font-weight: 700;
+}
+
+/* 禁折标记直接展示在商品行，避免用户误以为整单折扣覆盖全部设备。 */
+.no-discount-tag {
+  display: inline-block;
+  margin-top: 6rpx;
+  color: #9a5b16;
+  font-size: 21rpx;
 }
 
 .quote-product-price-row {
