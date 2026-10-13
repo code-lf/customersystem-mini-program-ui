@@ -5,26 +5,47 @@
 
     <view class="center-stage">
       <view class="center-content">
-        <!-- 欢迎语固定占位，打字过程中不让下方卡片上下跳动。 -->
+        <!-- 欢迎语固定占位，带光泽质感与平滑微动效 -->
         <view class="greeting-row">
           <view class="greeting-bubble">
-            <text>{{ greetingText }}</text><text v-if="isTyping" class="typing-cursor">|</text>
-          </view>
-        </view>
-        <view class="hero">
-          <!-- 浅色圆环只作背景装饰，不参与点击与内容布局。 -->
-          <view class="hero-circle hero-circle--large" />
-          <view class="hero-circle hero-circle--small" />
-          <view class="hero-copy">
-            <text class="hero-title">AI 小格 · 家电助理</text>
-            <text class="hero-desc">空调 / 家电选型 · 咨询与方案推荐</text>
-            <view class="hero-points">
-              <text>专业可靠</text>
-              <text>方案精准</text>
+            <text class="bubble-spark">✨</text>
+            <view class="bubble-content">
+              <text class="bubble-text">{{ greetingText }}</text>
+              <text v-if="isTyping" class="typing-cursor">|</text>
             </view>
           </view>
         </view>
-        <!-- 人物独立于信息框，允许头部探出卡片边界。 -->
+
+        <view class="hero">
+          <!-- 柔和科技光晕与微轨道装饰背景 -->
+          <view class="hero-glow" />
+          <view class="hero-orbit hero-orbit--1" />
+          <view class="hero-orbit hero-orbit--2" />
+          <view class="hero-pedestal" />
+
+          <view class="hero-copy">
+            <view class="hero-title-row">
+              <text class="hero-title">AI 小格 · 家电助理</text>
+              <view class="hero-status-pill">
+                <text class="status-dot" />
+                <text class="status-text">实时在线</text>
+              </view>
+            </view>
+            <text class="hero-desc">空调 / 家电选型 · 咨询与方案推荐</text>
+            <view class="hero-points">
+              <view class="hero-chip">
+                <text class="hero-chip__icon">✓</text>
+                <text class="hero-chip__text">专业可靠</text>
+              </view>
+              <view class="hero-chip">
+                <text class="hero-chip__icon">✓</text>
+                <text class="hero-chip__text">方案精准</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 人物独立于信息框，增加轻盈呼吸悬浮微动效 -->
         <image
           class="hero-robot"
           src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202610/11/xiaoge-assistant.png"
@@ -142,77 +163,121 @@ onUnmounted(stopGreeting);
   display: flex;
   justify-content: flex-start;
   box-sizing: border-box;
-  height: 142rpx;
-  padding: 0 18rpx 24rpx 40rpx;
+  height: 136rpx;
+  padding: 0 18rpx 16rpx 36rpx;
 }
 
 .greeting-bubble {
   position: relative;
   align-self: flex-start;
   box-sizing: border-box;
-  width: 410rpx;
-  min-height: 100rpx;
-  padding: 17rpx 23rpx;
-  border: 1rpx solid #dbeaff;
-  border-radius: 25rpx 25rpx 8rpx 25rpx;
-  color: #2451a0;
-  background: #fff;
-  box-shadow: 0 10rpx 25rpx rgba(50, 105, 190, .09);
-  font-size: 27rpx;
-  line-height: 1.35;
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  width: 440rpx;
+  min-height: 96rpx;
+  padding: 18rpx 24rpx;
+  border: 1rpx solid #cce1ff;
+  border-radius: 26rpx 26rpx 8rpx 26rpx;
+  background: #ffffff;
+  box-shadow: 0 10rpx 30rpx rgba(37, 99, 235, 0.08), 0 2rpx 6rpx rgba(15, 23, 42, 0.02);
 }
 
 .greeting-bubble::after {
   position: absolute;
-  right: 24rpx;
-  bottom: -13rpx;
-  width: 24rpx;
-  height: 24rpx;
-  border-right: 1rpx solid #dbeaff;
-  border-bottom: 1rpx solid #dbeaff;
-  background: #fff;
+  right: 28rpx;
+  bottom: -12rpx;
+  width: 22rpx;
+  height: 22rpx;
+  border-right: 1rpx solid #cce1ff;
+  border-bottom: 1rpx solid #cce1ff;
+  background: #ffffff;
   content: '';
   transform: rotate(45deg);
+  border-radius: 0 0 4rpx 0;
+}
+
+.bubble-spark {
+  font-size: 26rpx;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.bubble-content {
+  flex: 1;
+  font-size: 26rpx;
+  line-height: 1.45;
+  color: #1e3a8a;
+  font-weight: 600;
 }
 
 .typing-cursor {
-  color: #287df6;
+  color: #2563eb;
   font-weight: 700;
+  animation: cursor-blink 0.8s infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .hero {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 190rpx;
-  padding: 18rpx 22rpx;
-  border: 1rpx solid #dceaff;
-  border-radius: 26rpx;
-  background: linear-gradient(120deg, #eaf4ff 0%, #f3f8ff 62%, #e5f1ff 100%);
+  min-height: 200rpx;
+  padding: 24rpx 26rpx;
+  border: 1rpx solid #d9e8fc;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #ffffff 0%, #f6faff 50%, #ecf4ff 100%);
+  box-shadow: 0 12rpx 32rpx rgba(37, 99, 235, 0.07), 0 2rpx 6rpx rgba(15, 23, 42, 0.02);
+  overflow: visible;
 }
 
-// 圆环压在文字和小格形象下方，只为浅蓝底色增加轻微层次。
-.hero-circle {
+/* 科技光晕与背景环 */
+.hero-glow {
   position: absolute;
-  z-index: 0;
-  border: 2rpx solid rgba(255, 255, 255, .65);
+  right: 10rpx;
+  top: 10rpx;
+  width: 260rpx;
+  height: 240rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(147, 197, 253, 0.32) 0%, rgba(219, 234, 254, 0.05) 65%, transparent 80%);
+  pointer-events: none;
+}
+
+.hero-orbit {
+  position: absolute;
   border-radius: 50%;
   pointer-events: none;
 }
 
-.hero-circle--large {
-  top: 8rpx;
-  right: 10rpx;
-  width: 180rpx;
-  height: 180rpx;
-  background: rgba(255, 255, 255, .18);
+.hero-orbit--1 {
+  right: 15rpx;
+  top: 10rpx;
+  width: 210rpx;
+  height: 210rpx;
+  border: 1rpx dashed rgba(147, 197, 253, 0.45);
 }
 
-.hero-circle--small {
-  right: 165rpx;
-  bottom: 8rpx;
-  width: 90rpx;
-  height: 90rpx;
+.hero-orbit--2 {
+  right: 48rpx;
+  top: 42rpx;
+  width: 145rpx;
+  height: 145rpx;
+  border: 1rpx solid rgba(191, 219, 254, 0.4);
+}
+
+.hero-pedestal {
+  position: absolute;
+  right: 60rpx;
+  bottom: 12rpx;
+  width: 140rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(30, 64, 175, 0.18) 0%, transparent 72%);
+  pointer-events: none;
 }
 
 .hero-copy {
@@ -220,47 +285,108 @@ onUnmounted(stopGreeting);
   z-index: 1;
   display: flex;
   flex-direction: column;
-  max-width: calc(100% - 175rpx);
+  max-width: calc(100% - 185rpx);
+}
+
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
 .hero-title {
-  color: #17233d;
-  font-size: 38rpx;
-  font-weight: 900;
-  line-height: 1.25;
+  color: #0f172a;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.5rpx;
+}
+
+.hero-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 20rpx;
+  background: #ecfdf5;
+  border: 1rpx solid #a7f3d0;
+}
+
+.status-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8rpx rgba(16, 185, 129, 0.6);
+  animation: dot-pulse 2s infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+.status-text {
+  font-size: 19rpx;
+  color: #059669;
+  font-weight: 600;
 }
 
 .hero-desc {
   margin-top: 10rpx;
-  color: #728198;
+  color: #64748b;
   font-size: 23rpx;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .hero-points {
   display: flex;
-  gap: 18rpx;
-  margin-top: 16rpx;
-  color: #4476d5;
-  font-size: 21rpx;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
 }
 
-.hero-points text::before {
-  content: '✓';
-  margin-right: 5rpx;
-  color: #2468e8;
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 12rpx;
+  background: rgba(239, 246, 255, 0.9);
+  border: 1rpx solid rgba(191, 219, 254, 0.85);
+}
+
+.hero-chip__icon {
+  font-size: 20rpx;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.hero-chip__text {
+  font-size: 21rpx;
+  font-weight: 600;
+  color: #1e40af;
 }
 
 .hero-robot {
   position: absolute;
   z-index: 2;
-  // 原图四周有透明留白，放大绘制区域后人物才会在手机端明显变大。
-  // 只向右侧与卡片上方溢出，避免遮住左侧介绍和下方对话入口。
-  top: -40rpx;
-  right: -45rpx;
-  width: 390rpx;
-  height: 390rpx;
+  top: -46rpx;
+  right: -36rpx;
+  width: 385rpx;
+  height: 385rpx;
   pointer-events: none;
+  animation: mascot-float 3.6s ease-in-out infinite;
+}
+
+@keyframes mascot-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8rpx);
+  }
 }
 
 .action-list {
