@@ -51,7 +51,7 @@
             <text class="footer-tip">点击探索更多型号配比</text>
             <view class="white-pill">
               <text>进入选型</text>
-              <up-icon name="arrow-right" size="12" color="#1e52d3" />
+              <up-icon name="arrow-right" size="12" color="#ffffff" />
             </view>
           </view>
         </view>
@@ -220,7 +220,7 @@ const search = (event) => {
   margin-top: 24rpx;
 }
 
-/* 亮蓝基底上的简约低调质感卡片 */
+/* 简约低调清爽质感卡片：告别沉重深蓝大色块，保持通透轻盈 */
 .hero-card {
   position: relative;
   display: flex;
@@ -230,9 +230,9 @@ const search = (event) => {
   border-radius: 22rpx;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1rpx solid rgba(255, 255, 255, 0.26);
-  background: linear-gradient(135deg, #1d52d8 0%, #2563eb 55%, #3b82f6 100%);
-  box-shadow: 0 8rpx 22rpx rgba(29, 78, 216, 0.14), 0 2rpx 6rpx rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+  border: 1rpx solid #dce8f8;
+  box-shadow: 0 6rpx 22rpx rgba(28, 78, 178, 0.05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:active {
@@ -258,7 +258,7 @@ const search = (event) => {
 }
 
 .hero-card__title {
-  color: #ffffff;
+  color: #172b4d;
   font-size: 32rpx;
   font-weight: 700;
   line-height: 40rpx;
@@ -271,19 +271,19 @@ const search = (event) => {
   display: inline-flex;
   align-items: center;
   padding: 2rpx 14rpx;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1rpx solid rgba(255, 255, 255, 0.28);
+  background: #eff6ff;
+  border: 1rpx solid #bfdbfe;
   border-radius: 12rpx;
-  color: rgba(255, 255, 255, 0.95);
+  color: #2563eb;
   font-size: 20rpx;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 26rpx;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .card-sub-code {
-  color: rgba(255, 255, 255, 0.52);
+  color: #94a3b8;
   font-size: 18rpx;
   font-weight: 600;
   letter-spacing: 1.5rpx;
@@ -303,11 +303,11 @@ const search = (event) => {
 }
 
 .card-tag {
-  padding: 4rpx 16rpx;
-  background: rgba(255, 255, 255, 0.13);
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  padding: 5rpx 18rpx;
+  background: #f0f6ff;
+  border: 1rpx solid #d6e6fd;
   border-radius: 18rpx;
-  color: rgba(255, 255, 255, 0.95);
+  color: #1d4ed8;
   font-size: 22rpx;
   font-weight: 500;
 }
@@ -316,12 +316,12 @@ const search = (event) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.15);
+  border-top: 1rpx solid #eef3f9;
   padding-top: 15rpx;
 }
 
 .footer-tip {
-  color: rgba(255, 255, 255, 0.75);
+  color: #64748b;
   font-size: 22rpx;
   font-weight: 400;
 }
@@ -331,13 +331,13 @@ const search = (event) => {
   align-items: center;
   gap: 6rpx;
   height: 48rpx;
-  padding: 0 20rpx;
+  padding: 0 22rpx;
   border-radius: 24rpx;
-  background: #ffffff;
-  color: #1d52d8;
+  background: #2563eb;
+  color: #ffffff;
   font-size: 22rpx;
   font-weight: 600;
-  box-shadow: 0 3rpx 10rpx rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.22);
 }
 
 .section-head {
