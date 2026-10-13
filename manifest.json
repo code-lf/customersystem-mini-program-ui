@@ -1,7 +1,7 @@
 {
-    "name" : "格宏助理",
+    "name" : "格宏电器客户报价与选型系统",
     "appid" : "__UNI__A14DA30",
-    "description" : "格宏电器选型与方案报价小程序",
+    "description" : "格宏电器科技有限公司客户管理、产品选型与方案报价小程序",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
