@@ -37,10 +37,15 @@ export function bindMemberMobile(mobileCode) {
   return apiPut('member/mobile', { mobile_code: mobileCode }, getMemberRequestOptions());
 }
 
-/** 修改会员资料：经销商客户单位使用专用接口，不再写入自填 company_name 或暂无接口的职位。 */
+/** 修改会员资料：昵称更新会员记录，经销商名称和客户单位分别同步对应的档案接口。 */
 export async function updateMemberInfo(data = {}) {
   const updates = [];
   if (Object.prototype.hasOwnProperty.call(data, 'nickname')) updates.push(['nickname', data.nickname]);
+  if (Object.prototype.hasOwnProperty.call(data, 'dealer_name')) {
+    const dealerName = String(data.dealer_name ?? '').trim();
+    if (!dealerName || dealerName.length > 200) throw new Error('经销商名称不能为空且不能超过200个字');
+    updates.push(['dealer_name', dealerName]);
+  }
   const avatar = data.headimg || data.avatar;
   if (avatar) updates.push(['headimg', avatar]);
   if (Object.prototype.hasOwnProperty.call(data, 'dealer_unit')) {
@@ -49,7 +54,10 @@ export async function updateMemberInfo(data = {}) {
   }
   // 同一会员的字段更新依次提交，避免并发写入在后端互相覆盖。
   for (const [field, value] of updates) {
-    if (field === 'dealer_unit') {
+    if (field === 'dealer_name') {
+      // 此接口只修改当前 token 绑定的经销商名称，不传会员 ID。
+      await apiPut('member/dealer/name', { dealer_name: value }, getMemberRequestOptions());
+    } else if (field === 'dealer_unit') {
       await apiPut('member/dealer/unit', { dealer_unit: value }, getMemberRequestOptions());
     } else {
       await modifyMemberField(field, value);
@@ -60,7 +68,7 @@ export async function updateMemberInfo(data = {}) {
   // PUT 成功与 GET 立即读到新值是两件事；短暂重试后仍不一致时返回待核对状态，不能误报写入失败。
   let member = null;
   let synced = false;
-  const checkedFields = ['dealer_unit'].filter(field => Object.prototype.hasOwnProperty.call(data, field));
+  const checkedFields = ['dealer_unit', 'dealer_name'].filter(field => Object.prototype.hasOwnProperty.call(data, field));
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (attempt) await new Promise(resolve => setTimeout(resolve, 400));
     try {

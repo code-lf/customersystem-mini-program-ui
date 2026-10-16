@@ -59,7 +59,7 @@ const navMetrics = computed(() => getNavMetrics());
 // 经销商和销售人员关系以会员接口的最新响应为准，不通过页面参数传递电话号码。
 const salesperson = computed(() => {
   const value = userStore.userInfo?.salesperson;
-  return userStore.isDealer && Number(value?.member_id) > 0 ? value : null;
+  return userStore.canUseBusinessFeatures && Number(value?.member_id) > 0 ? value : null;
 });
 const dealerUnit = computed(() => String(userStore.userInfo?.dealer_unit || '').trim());
 const mobile = computed(() => String(salesperson.value?.mobile || '').trim());

@@ -123,6 +123,7 @@
             <view class="product-info-col">
               <text class="product-name">{{ product.goods_name }}</text>
               <text class="model-name">型号：{{ product.model }}</text>
+              <ProductStock :product="product" />
               <text class="price-num">¥{{ formatPrice(product.price) }}</text>
             </view>
             <view class="product-action-col">
@@ -168,6 +169,7 @@
 import { computed, ref, watch, nextTick } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import ProductStock from '@/components/product-stock.vue';
 import { openPage } from '@/utils/pages';
 import { getProductCategories, getProductList } from '@/api/product';
 import { getCart, addCartItem, editCartItem, removeCartItem } from '@/api/solution';
@@ -572,66 +574,8 @@ const loadProducts = async () => {
     if (searchKeyword.value) params.keyword = searchKeyword.value.trim();
 
     const res = await getProductList(params);
-    let list = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
-
-    // 智能兜底 1: 中央空调第四级系列（如颐居、star等）在后端暂未直接挂载 category_id 时，查询三级父类并根据系列名称智能匹配
-    if (isCentralAC.value && list.length === 0 && activeL4.value !== '全部' && activeL3.value !== '全部') {
-      const parentRes = await getProductList({ limit: 100, category_id: activeL3.value });
-      const parentList = Array.isArray(parentRes) ? parentRes : (Array.isArray(parentRes.data) ? parentRes.data : (parentRes.data?.data || []));
-      if (parentList.length > 0) {
-        const l4Obj = currentL4List.value.find(c => c.id === activeL4.value);
-        const l4Name = (l4Obj?.category_name || '').replace('系列', '').trim().toLowerCase();
-        const matched = parentList.filter(g => {
-          const info = ((g.goods_name || '') + ' ' + (g.model || '')).toLowerCase();
-          return l4Name && info.includes(l4Name);
-        });
-        list = matched.length > 0 ? matched : parentList;
-      }
-    }
-
-    // 智能兜底 2：若后台新分类树节点暂未绑定数据，但全量库存在对应商品，做平滑回显
-    if (!isCentralAC.value && list.length === 0 && !searchKeyword.value) {
-      const allRes = await getProductList({ limit: 100 });
-      const rawAll = Array.isArray(allRes) ? allRes : (Array.isArray(allRes.data) ? allRes.data : (allRes.data?.data || []));
-      
-      if (currentRootId.value === 87) {
-        // 生活电器：空气能、冰箱、洗衣机、净水
-        list = rawAll.filter(g => 
-          [33, 46, 49, 25].includes(g.category_id) || 
-          ['冰箱', '洗衣机', '净水', '空气能', '电风扇', '电饭煲', '加湿器', '消毒液', '电火锅', '果汁机', '吸尘器'].some(k => (g.goods_name || '').includes(k))
-        );
-        if (activeL2.value !== '全部') {
-          const l2Obj = currentL2List.value.find(c => c.id === activeL2.value);
-          const l2Name = l2Obj?.category_name || '';
-          if (l2Name.includes('空气能')) {
-            list = list.filter(g => g.category_id === 33 || (g.goods_name || '').includes('空气能'));
-          } else if (l2Name.includes('冰箱')) {
-            list = list.filter(g => [46, 49].includes(g.category_id) || (g.goods_name || '').includes('冰箱'));
-          } else if (l2Name.includes('洗衣机')) {
-            list = list.filter(g => (g.goods_name || '').includes('洗衣机'));
-          } else if (l2Name.includes('净水')) {
-            list = list.filter(g => (g.goods_name || '').includes('净水') || (g.goods_name || '').includes('过滤'));
-          }
-        }
-      } else if (currentRootId.value === 86) {
-        // 分体式空调：挂机、柜机
-        list = rawAll.filter(g => 
-          [23, 21, 19, 17, 16].includes(g.category_id) ||
-          ((g.goods_name || '').includes('挂机') || (g.goods_name || '').includes('柜机') || (g.goods_name || '').includes('GW') || (g.goods_name || '').includes('LW'))
-        );
-        if (activeL2.value !== '全部') {
-          const l2Obj = currentL2List.value.find(c => c.id === activeL2.value);
-          const l2Name = l2Obj?.category_name || '';
-          if (l2Name.includes('挂机')) {
-            list = list.filter(g => (g.goods_name || '').includes('挂机') || (g.goods_name || '').includes('GW') || (g.goods_name || '').includes('G('));
-          } else if (l2Name.includes('柜机')) {
-            list = list.filter(g => (g.goods_name || '').includes('柜机') || (g.goods_name || '').includes('LW') || (g.goods_name || '').includes('L('));
-          }
-        }
-      }
-    }
-
-    products.value = list;
+    // 只展示当前分类接口返回的商品；空结果不再查询父分类或全量商品，避免串入其他分类。
+    products.value = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
   } catch (e) {
     console.error('[产品分类] 加载商品失败:', e);
   } finally {

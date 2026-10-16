@@ -11,7 +11,7 @@ export function getCampaignDetail(id) {
   return apiGet(`crm/marketing/campaign/${id}`, {}, { showError: false });
 }
 
-/** 提交营销活动报名 */
+/** 提交特惠货源活动报名；items 仅包含活动商品 ID 和选购组数。 */
 export function enrollCampaign(id, data) {
   return apiPost(`crm/marketing/campaign/${id}/enroll`, data, { showError: false });
 }

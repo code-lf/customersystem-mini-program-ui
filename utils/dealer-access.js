@@ -1,5 +1,6 @@
 import { getMemberInfo } from '../api/member';
 import { openPage } from './pages';
+import { canUseBusinessFeatures } from './member-role';
 
 const DEALER_PAGES = new Set([
   '/pages/solution/index',
@@ -9,7 +10,7 @@ const DEALER_PAGES = new Set([
   '/pages/message/index'
 ]);
 
-/** 判断三个经销商专享功能的入口；页面也可调用同一校验防止从 TabBar 直接进入。 */
+/** 判断业务功能入口；经销商和业务员从快捷入口、分享链接或 TabBar 进入时使用相同规则。 */
 export const isDealerPage = (path) => DEALER_PAGES.has(path);
 
 /** 每次使用前重新读取会员接口，以后端最新绑定关系判断，不信任本地缓存。 */
@@ -33,10 +34,11 @@ export async function requireDealerAccess(userStore, onDenied) {
   try {
     const response = await getMemberInfo({ showError: false });
     const member = response?.data && typeof response.data === 'object' ? response.data : response;
-    if (!member || typeof member !== 'object' || !Object.prototype.hasOwnProperty.call(member, 'is_dealer')) {
-      throw new Error('会员接口未返回经销商状态');
+    if (!member || typeof member !== 'object' || (!Object.prototype.hasOwnProperty.call(member, 'is_dealer') && !Object.prototype.hasOwnProperty.call(member, 'admin_account'))) {
+      throw new Error('会员接口未返回身份信息');
     }
-    userStore.setUserInfo({ ...userStore.userInfo, ...member });
+    // 权限字段必须使用本次响应；字段缺失时清空，避免沿用缓存中的旧业务员身份。
+    userStore.setUserInfo({ ...userStore.userInfo, ...member, is_dealer: member.is_dealer ?? 0, admin_account: member.admin_account ?? null });
   } catch (error) {
     uni.showModal({
       title: '暂无法验证身份',
@@ -47,10 +49,10 @@ export async function requireDealerAccess(userStore, onDenied) {
     return false;
   }
 
-  if (!userStore.isDealer) {
+  if (!canUseBusinessFeatures(userStore.userInfo)) {
     uni.showModal({
-      title: '经销商专享',
-      content: '该功能仅经销商用户可使用，请先绑定经销商账号。',
+      title: '业务功能',
+      content: '该功能面向经销商和业务员开放，请联系工作人员绑定账号。',
       showCancel: false,
       success: () => onDenied?.()
     });
@@ -59,7 +61,7 @@ export async function requireDealerAccess(userStore, onDenied) {
   return true;
 }
 
-/** 快捷入口统一走身份校验，非经销商停留原页并展示说明。 */
+/** 快捷入口统一校验经销商或业务员身份，普通会员停留原页并展示说明。 */
 export async function openDealerPage(userStore, path) {
   if (isDealerPage(path) && !(await requireDealerAccess(userStore))) return;
   openPage(path);

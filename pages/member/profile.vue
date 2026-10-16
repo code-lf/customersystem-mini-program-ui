@@ -229,6 +229,8 @@ const saveProfile = async () => {
     const current = userStore.userInfo || {};
     const payload = {};
     if (name !== (current.nickname || current.username || '')) payload.nickname = name;
+    // 与“我的”抽屉同步更新经销商档案名称，昵称与档案分别核对，便于失败后重试。
+    if (userStore.isDealer && name !== (current.dealer_name || '')) payload.dealer_name = name;
     if (form.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = form.avatar;
     if (userStore.isDealer && form.dealer_unit.trim() !== (current.dealer_unit || '')) payload.dealer_unit = form.dealer_unit.trim();
     // 修改接口成功后先展示本次填写内容；若 /member 仍读到旧值，明确提示待核对而非误报修改失败。

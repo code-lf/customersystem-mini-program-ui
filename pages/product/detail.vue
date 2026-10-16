@@ -15,6 +15,7 @@
       </view>
       <text class="title-card__model">{{ product.model }}</text>
       <text v-if="product.spec" class="title-card__spec">规格：{{ product.spec }}</text>
+      <ProductStock :product="product" full-name />
       <!-- 标签来自 tags/tag_list；卖点和关键词仅在接口确有内容时显示。 -->
       <view v-if="productTags.length" class="product-tags">
         <text v-for="tag in productTags" :key="tag" class="product-tag">{{ tag }}</text>
@@ -136,6 +137,7 @@
 import { computed, ref } from 'vue';
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import ProductStock from '@/components/product-stock.vue';
 import { addFavoriteProduct, getFavoriteProducts, getProductDetail, removeFavoriteProduct } from '@/api/product';
 import appConfig from '@/config/app';
 import { useUserStore } from '@/store/user';
@@ -392,7 +394,7 @@ const followPrice = async () => {
 
 /** 原文件通过客户经理获取；该页不暴露下载、分享或复制链接入口。 */
 const contactManager = () => {
-  if (userStore.isDealer && Number(userStore.userInfo?.salesperson?.member_id) > 0) {
+  if (userStore.canUseBusinessFeatures && Number(userStore.userInfo?.salesperson?.member_id) > 0) {
     openPage('/pages/member/salesperson');
     return;
   }

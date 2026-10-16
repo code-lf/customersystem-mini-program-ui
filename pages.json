@@ -44,7 +44,7 @@
     { "path": "pages/cooperation/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "合作申请" } },
     { "path": "pages/cooperation/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "申请详情" } },
     { "path": "pages/password/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "密码查询" } },
-    { "path": "pages/marketing/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "营销活动" } },
+    { "path": "pages/marketing/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "特惠货源活动" } },
     { "path": "pages/marketing/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "活动详情" } },
     { "path": "pages/marketing/enrollments", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的活动报名" } }
   ],

@@ -38,7 +38,8 @@
           <view class="card-head">
             <view class="card-title-group">
               <text class="hero-card__title">{{ cat.category_name }}</text>
-              <text class="hero-card__badge">{{ ['专业暖通', '全屋智能', '变频高效', '品质甄选'][index % 4] || '优选产品' }}</text>
+              <!-- 分类名称后的装饰标签暂不展示，保留原模板供后续恢复。 -->
+              <!-- <text class="hero-card__badge">{{ ['专业暖通', '全屋智能', '变频高效', '品质甄选'][index % 4] || '优选产品' }}</text> -->
             </view>
             <text class="card-sub-code">{{ ['HVAC', 'SMART LIVING', 'SPLIT AIRCON', 'PREMIUM'][index % 4] || 'PRODUCT' }}</text>
           </view>

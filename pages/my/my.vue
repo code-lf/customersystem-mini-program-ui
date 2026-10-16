@@ -36,7 +36,7 @@
       <view class="profile-info" @click="handleProfileClick">
         <view class="name-line">
           <text class="user-name">{{ userStore.isLoggedIn ? (userStore.userInfo.nickname || userStore.userInfo.username || '格宏用户') : '点击登录/注册' }}</text>
-          <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn, 'role-badge--normal': userStore.isLoggedIn && !userStore.isDealer }">
+          <view class="vip-role-badge" :class="{ 'role-badge--unlogin': !userStore.isLoggedIn, 'role-badge--normal': userStore.isLoggedIn && !userStore.canUseBusinessFeatures }">
             <text>{{ userStore.displayRole }}</text>
           </view>
         </view>
@@ -284,10 +284,10 @@ onShareTimeline(() => createShareTimelineOptions());
 const isLoading = ref(true);
 const isSaving = ref(false);
 const userStore = useUserStore();
-// CRM 未分配销售时返回 member_id=0；仅经销商且确有分配记录时展示联系入口。
+// 经销商或业务员确有分配的客户经理时展示联系入口。
 const assignedSalesperson = computed(() => {
   const salesperson = userStore.userInfo?.salesperson;
-  return userStore.isDealer && Number(salesperson?.member_id) > 0 ? salesperson : null;
+  return userStore.canUseBusinessFeatures && Number(salesperson?.member_id) > 0 ? salesperson : null;
 });
 
 // 个人中心里重复出现的报价、营销与价格监控入口使用同一经销商校验。
@@ -380,6 +380,8 @@ const handleSaveProfile = async () => {
     const current = userStore.userInfo || {};
     const payload = {};
     if (nickname !== (current.nickname || current.username || '')) payload.nickname = nickname;
+    // 经销商修改姓名时同步档案名称；单独比较可重试上次未同步的档案，普通会员不调用该接口。
+    if (userStore.isDealer && nickname !== (current.dealer_name || '')) payload.dealer_name = nickname;
     if (editForm.avatar !== (current.avatar || current.headimg || '/static/avatars/avatar-demo.png')) payload.headimg = editForm.avatar;
     if (userStore.isDealer && editForm.dealer_unit.trim() !== (current.dealer_unit || '')) payload.dealer_unit = editForm.dealer_unit.trim();
     // 修改接口成功与会员详情立即同步分开处理，避免成功写入却弹出失败提示。

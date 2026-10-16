@@ -34,7 +34,7 @@
           <!-- 头部：活动标题与状态标签 -->
           <view class="card-head">
             <view class="head-title-wrap" @click="openCampaign(item.campaign_id)">
-              <text class="campaign-title">{{ item.campaign_title_snapshot || '营销活动报名' }}</text>
+              <text class="campaign-title">{{ item.campaign_title_snapshot || '特惠货源活动报名' }}</text>
               <up-icon name="arrow-right" size="12" color="#94a3b8" />
             </view>
             <view class="status-pill" :class="item.enroll_status">
@@ -57,6 +57,8 @@
               <text class="info-val">{{ item.remark }}</text>
             </view>
 
+            <CampaignEnrollmentSummary :record="item" />
+
             <!-- 业务员对接进度卡 -->
             <view v-if="item.handled_remark || item.quote_id" class="salesman-box">
               <view class="salesman-left">
@@ -71,6 +73,7 @@
 
           <!-- 底部操作按钮 -->
           <view class="card-actions">
+            <button class="action-btn action-btn--secondary" @click="openEnrollmentDetail(item.enrollment_id)">报名明细</button>
             <button
               class="action-btn action-btn--secondary"
               @click="openCampaign(item.campaign_id)"
@@ -94,34 +97,84 @@
       <view v-else class="empty-state">
         <up-icon name="order" size="48" color="#cbd5e1" />
         <text class="empty-title">暂无相关报名记录</text>
-        <text class="empty-desc">您尚未报名此分类活动，立即前往浏览热门营销政策吧</text>
+        <text class="empty-desc">您尚未报名此类活动，前往看看特惠货源吧</text>
         <button class="go-marketing-btn" @click="openPage('/pages/marketing/index')">
-          去浏览热门营销活动
+          去浏览特惠货源活动
         </button>
       </view>
     </view>
+
+    <!-- 明细单独读取报名详情接口，历史数量和金额始终以该次报名快照为准。 -->
+    <up-popup :show="showDetail" mode="bottom" round="24" :closeable="true" @close="showDetail = false">
+      <view class="enrollment-detail-panel">
+        <text class="detail-title">报名详情</text>
+        <scroll-view class="detail-scroll" scroll-y>
+          <view v-if="detailLoading" class="detail-message">正在加载报名详情...</view>
+          <view v-else-if="detailError" class="detail-message">
+            <text>{{ detailError }}</text>
+            <button class="detail-retry" @click="openEnrollmentDetail(detailId)">重新加载</button>
+          </view>
+          <view v-else-if="enrollmentDetail">
+            <text class="detail-campaign-title">{{ enrollmentDetail.campaign_title_snapshot }}</text>
+            <text class="detail-message">报名编号：{{ enrollmentDetail.enrollment_no || enrollmentDetail.enrollment_id }}</text>
+            <text class="detail-message">状态：{{ formatStatusName(enrollmentDetail.enroll_status) }}</text>
+            <text class="detail-message">联系人：{{ enrollmentDetail.contact_name }} {{ enrollmentDetail.contact_mobile }}</text>
+            <CampaignEnrollmentSummary :record="enrollmentDetail" />
+            <text v-if="enrollmentDetail.remark" class="detail-message">需求备注：{{ enrollmentDetail.remark }}</text>
+            <text v-if="enrollmentDetail.handled_remark" class="detail-message">处理进度：{{ enrollmentDetail.handled_remark }}</text>
+          </view>
+        </scroll-view>
+      </view>
+    </up-popup>
   </view>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import { onPullDownRefresh, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
-import { getEnrollments, cancelEnrollment } from '@/api/marketing';
+import { getEnrollments, getEnrollmentDetail, cancelEnrollment } from '@/api/marketing';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
+import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.vue';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
 
-onShareAppMessage(() => createShareAppMessageOptions('格宏家电助手·营销活动专区', '', '/pages/marketing/index'));
-onShareTimeline(() => createShareTimelineOptions('格宏家电助手·营销活动专区', '', ''));
+onShareAppMessage(() => createShareAppMessageOptions('格宏家电助手·特惠货源活动', '', '/pages/marketing/index'));
+onShareTimeline(() => createShareTimelineOptions('格宏家电助手·特惠货源活动', '', ''));
 
 const currentStatus = ref('all');
 const loading = ref(false);
 const enrollmentList = ref([]);
+const showDetail = ref(false);
+const detailLoading = ref(false);
+const detailError = ref('');
+const detailId = ref(null);
+const enrollmentDetail = ref(null);
+let detailRequestVersion = 0;
+
+/** 快速切换记录时只展示最后一次点击的结果，失败时允许重试。 */
+const openEnrollmentDetail = async (id) => {
+  const version = ++detailRequestVersion;
+  detailId.value = id;
+  showDetail.value = true;
+  detailLoading.value = true;
+  detailError.value = '';
+  enrollmentDetail.value = null;
+  try {
+    const record = await getEnrollmentDetail(id);
+    if (version !== detailRequestVersion) return;
+    if (!record?.enrollment_id) throw new Error('未获取到报名详情');
+    enrollmentDetail.value = record;
+  } catch (error) {
+    if (version === detailRequestVersion) detailError.value = error?.message || '报名详情加载失败';
+  } finally {
+    if (version === detailRequestVersion) detailLoading.value = false;
+  }
+};
 
 const statusTabs = [
   { key: 'all', label: '全部' },
@@ -216,13 +269,19 @@ onPullDownRefresh(() => {
 
 onShow(async () => {
   showMiniProgramShareMenu();
-  // 报名记录属于营销活动功能，直接打开该页面时仍需验证经销商身份。
+  // 直接打开报名页时也校验经销商或业务员身份。
   if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) return;
   fetchList();
 });
 </script>
 
 <style lang="scss" scoped>
+.enrollment-detail-panel { padding: 36rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
+.detail-title { display: block; margin-bottom: 24rpx; color: #17233d; font-size: 32rpx; font-weight: 700; }
+.detail-scroll { height: 58vh; }
+.detail-campaign-title { display: block; font-size: 30rpx; color: #17233d; font-weight: 600; }
+.detail-message { display: block; margin: 16rpx 0; color: #64748b; font-size: 25rpx; line-height: 1.7; }
+.detail-retry { margin: 24rpx 0; color: #2563eb; background: #eff6ff; font-size: 26rpx; }
 .enrollments-page {
   min-height: 100vh;
   background-color: #f8fafc;

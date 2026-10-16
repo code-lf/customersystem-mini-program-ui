@@ -89,6 +89,7 @@
         <view class="home-product-info">
           <text class="home-product__name">{{ product.goods_name }}</text>
           <text class="home-product__model">{{ product.model || '-' }}</text>
+          <ProductStock :product="product" />
           <view class="home-product-bottom">
             <view class="home-product__price">
               <text class="symbol">¥</text>
@@ -116,6 +117,7 @@
             <text v-if="product.greenTag" class="green-tag">{{ product.greenTag }}</text>
           </view>
           <text class="list-product__model">型号：{{ product.model || '标准型号' }}</text>
+          <ProductStock :product="product" />
           <text class="list-product__spec">{{ (product.spec ? product.spec.split(" ") : [product.category_name || '空调设备']).slice(0, 2).join(' | ') }}</text>
           <view class="list-product__bottom">
             <view class="price-box">
@@ -142,6 +144,7 @@
 import { computed, ref, reactive } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import ProductStock from '@/components/product-stock.vue';
 import { openPage } from '@/utils/pages';
 import { getProductList, CATEGORY_IDS } from '@/api/product';
 

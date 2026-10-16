@@ -103,7 +103,7 @@
       <view class="hero-quote-card__bottom" @click="handleHistoryQuoteClick">
         <text class="hero-quote-card__history-label">全部报价单</text>
         <view class="hero-quote-card__history-right">
-          <text class="hero-quote-card__history-count">{{ !userStore.isLoggedIn ? '登录后查看' : (!userStore.isDealer ? '经销商专享' : (quoteSummaryLoading ? '加载中' : (historyTotal === null ? '暂不可用' : `${historyTotal} 笔`))) }}</text>
+          <text class="hero-quote-card__history-count">{{ !userStore.isLoggedIn ? '登录后查看' : (!userStore.canUseBusinessFeatures ? '经销商 / 业务员专享' : (quoteSummaryLoading ? '加载中' : (historyTotal === null ? '暂不可用' : `${historyTotal} 笔`))) }}</text>
           <up-icon name="arrow-right" size="13" color="#94a3b8" />
         </view>
       </view>
@@ -181,7 +181,7 @@ const loadQuoteSummary = async () => {
   latestQuote.value = null;
   historyTotal.value = null;
   quoteSummaryError.value = false;
-  if (!userStore.isDealer) {
+  if (!userStore.canUseBusinessFeatures) {
     quoteSummaryLoading.value = false;
     return;
   }
@@ -211,8 +211,8 @@ const activeQuoteDisplay = computed(() => {
   if (!userStore.isLoggedIn) {
     return { price: null, statusText: '登录后查看', desc: '登录后查看您的真实报价', actionPath: '/pages/auth/login' };
   }
-  if (!userStore.isDealer) {
-    return { price: null, statusText: '经销商专享', desc: '绑定经销商账号后查看报价', actionPath: '/pages/solution/index' };
+  if (!userStore.canUseBusinessFeatures) {
+    return { price: null, statusText: '经销商 / 业务员专享', desc: '绑定经销商或业务员账号后查看报价', actionPath: '/pages/solution/index' };
   }
   // 首页报价卡只使用正式报价的后端应付金额，不能拿暂存报价篮面价冒充。
   if (latestQuote.value) {
@@ -290,7 +290,7 @@ const handleGreetingClick = () => {
 const quickTools = [
   { title: '产品选型', icon: 'grid-fill', color: '#2563eb', bg: '#eff6ff', path: '/pages/product/category' },
   { title: '我的报价', icon: 'file-text-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/solution/index' },
-  { title: '营销活动', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
+  { title: '特惠货源', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
   { title: 'AI 小格', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },

@@ -1,7 +1,7 @@
 <template>
   <view class="marketing-page">
     <!-- 标准系统导航栏：避开微信小程序胶囊区域，右侧不堆放按钮 -->
-    <AppNavbar title="营销活动" bgColor="#ffffff" :border="true" />
+    <AppNavbar title="特惠货源活动" bgColor="#ffffff" :border="true" />
 
     <!-- 搜索与类型筛选项 -->
     <view class="sticky-filter">
@@ -64,7 +64,7 @@
       <!-- 加载中 -->
       <view v-if="loading" class="loading-state">
         <AppLoadingSpinner />
-        <text class="loading-text">正在获取最新营销活动...</text>
+        <text class="loading-text">正在获取最新特惠货源活动...</text>
       </view>
 
       <!-- 列表内容 -->
@@ -150,8 +150,8 @@
       <!-- 空状态 -->
       <view v-else class="empty-state">
         <up-icon name="order" size="48" color="#cbd5e1" />
-        <text class="empty-title">{{ allCampaigns.length ? '暂无相关营销活动' : '当前账号暂无可见活动' }}</text>
-        <text class="empty-desc">{{ allCampaigns.length ? '换个筛选类别或搜索关键词试试看吧' : '仅显示已发布、有效期内且面向当前经销商的活动' }}</text>
+        <text class="empty-title">{{ allCampaigns.length ? '暂无相关特惠货源活动' : '当前账号暂无可见活动' }}</text>
+        <text class="empty-desc">{{ allCampaigns.length ? '换个筛选类别或搜索关键词试试看吧' : '仅显示已发布、有效期内且当前账号可见的活动' }}</text>
         <button v-if="allCampaigns.length" class="empty-reset-btn" @click="resetFilter">重置筛选条件</button>
       </view>
     </view>
@@ -172,10 +172,10 @@ import { useUserStore } from '@/store/user';
 const userStore = useUserStore();
 
 onShareAppMessage(() => {
-  return createShareAppMessageOptions('格宏家电助手·营销活动专区', '', '/pages/marketing/index');
+  return createShareAppMessageOptions('格宏家电助手·特惠货源活动', '', '/pages/marketing/index');
 });
 
-onShareTimeline(() => createShareTimelineOptions('格宏家电助手·营销活动专区', '', ''));
+onShareTimeline(() => createShareTimelineOptions('格宏家电助手·特惠货源活动', '', ''));
 
 const keyword = ref('');
 const currentType = ref('all');
@@ -318,7 +318,7 @@ const fetchCampaigns = async () => {
     allCampaigns.value = rows;
     if (!typeTabs.value.some((tab) => tab.key === currentType.value)) currentType.value = 'all';
   } catch (error) {
-    console.warn('获取营销活动失败:', error);
+    console.warn('获取特惠货源活动失败:', error);
     allCampaigns.value = [];
     loadError.value = error?.message || '请检查网络后重试';
   } finally {

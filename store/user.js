@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from '../config/storage';
 import { getStorage, removeStorage, setStorage } from '../utils/storage';
 import config from '../config/app';
 import { getMemberInfo } from '../api/member';
+import { isDealerFlag, isSalespersonAccount, canUseBusinessFeatures, resolveMemberRole } from '../utils/member-role';
 
 // 登录、退出和资料保存都会使在途的旧会员请求失效，防止旧响应覆盖新账号资料。
 let userRevision = 0;
@@ -23,14 +24,9 @@ const demoUser = {
   commission: '12850.00'
 };
 
-// 后端的 is_dealer 可能由不同序列化方式返回布尔值、数字或字符串。
-export const isDealerFlag = (value) => value === true || value === 1 || value === '1' || value === 'true';
-
-// 会员等级以当前经销商分组为准，不再使用旧的 role_name / member_level_name 冒充价格等级。
-export const resolveDealerLevel = (user = {}) => {
-  if (!isDealerFlag(user.is_dealer)) return '普通用户';
-  return String(user.dealer_level || '').trim() || '经销商';
-};
+// 保留原导出供已有调用使用，身份展示统一由会员角色规则处理。
+export { isDealerFlag };
+export const resolveDealerLevel = resolveMemberRole;
 
 const normalizeUserData = (user = {}) => {
   const data = { ...user };
@@ -66,10 +62,12 @@ export const useUserStore = defineStore('user', {
     // 页面可以直接使用 userStore.isLoggedIn 判断登录状态。
     isLoggedIn: (state) => Boolean(state.token),
     isDealer: (state) => Boolean(state.token) && isDealerFlag(state.userInfo.is_dealer),
+    isSalesperson: (state) => Boolean(state.token) && isSalespersonAccount(state.userInfo),
+    canUseBusinessFeatures: (state) => Boolean(state.token) && canUseBusinessFeatures(state.userInfo),
     displayName: (state) => Boolean(state.token) ? (state.userInfo.nickname || state.userInfo.username || '格宏用户') : '请登录',
     // 企业展示统一使用后端经销商池客户单位，不回退旧的会员自填公司名。
     displayCompany: (state) => Boolean(state.token) ? (state.userInfo.dealer_unit || '未填写企业/门店名称') : '未登录',
-    displayRole: (state) => Boolean(state.token) ? resolveDealerLevel(state.userInfo) : '未登录'
+    displayRole: (state) => Boolean(state.token) ? resolveMemberRole(state.userInfo) : '未登录'
   },
   actions: {
     setToken(token) {

@@ -95,6 +95,10 @@
         </view>
       </view>
 
+      <view v-if="latestEnrollment && (latestEnrollment.items?.length || latestEnrollment.total_amount != null)" class="section-card">
+        <CampaignEnrollmentSummary :record="latestEnrollment" title="我的报名商品" />
+      </view>
+
       <!-- 活动特惠机型 -->
       <view v-if="campaign.items && campaign.items.length > 0" class="section-card">
         <view class="section-head">
@@ -121,6 +125,7 @@
             <view class="prod-detail">
               <text class="prod-name">{{ prod.goods_name_snapshot }}</text>
               <text class="prod-model">{{ prod.model_snapshot }}</text>
+              <text class="group-description">每套含 {{ getCampaignGroupQuantity(prod) }} {{ prod.unit_snapshot || '件' }}</text>
 
               <view class="price-row">
                 <view class="price-current">
@@ -174,7 +179,7 @@
       <up-icon name="info-circle" size="48" color="#94a3b8" />
       <text class="empty-title">暂未获取到活动内容</text>
       <text class="empty-desc">可能活动已结束或已被调整</text>
-      <button class="empty-btn" @click="handleBack">返回营销活动列表</button>
+      <button class="empty-btn" @click="handleBack">返回特惠货源活动列表</button>
     </view>
 
     <!-- 底部固定操作栏 -->
@@ -193,7 +198,7 @@
 
       <view class="bar-right">
         <button
-          v-if="isEnrolled"
+          v-if="isEnrolled && campaign.can_enroll !== true"
           class="btn-enrolled-status"
           @click="openPage('/pages/marketing/enrollments')"
         >
@@ -207,7 +212,7 @@
         >
           登录后报名参与
         </button>
-        <button v-else-if="campaign.can_enroll === false" class="btn-enrolled-status" disabled>
+        <button v-else-if="campaign.can_enroll === false || !enrollmentProducts.length" class="btn-enrolled-status" disabled>
           <text>暂不可报名</text>
         </button>
         <button
@@ -226,20 +231,41 @@
       mode="bottom"
       round="24"
       :closeable="true"
-      @close="showEnrollModal = false"
+      @close="closeEnrollModal"
     >
       <view class="enroll-form-panel">
         <view class="panel-header">
           <text class="panel-title">报名参加活动</text>
-          <text class="panel-sub">请填写真实联系人信息，以便后续跟进</text>
+          <text class="panel-sub">全部商品组成固定套餐，仅支持整套购买</text>
         </view>
 
         <scroll-view class="panel-scroll" scroll-y>
+          <!-- 套餐统一填写套数，所有商品按后台每套件数同步倍增。 -->
+          <view class="form-group">
+            <view class="group-selector-row">
+              <text class="field-label">购买套餐套数 <text class="req">*</text></text>
+              <view class="group-selector">
+                <button class="group-step" :disabled="submitting || Number(packageCount || 0) <= 1" @click="changePackageCount(-1)">−</button>
+                <input v-model="packageCount" class="group-input" type="number" :disabled="submitting" placeholder="1" />
+                <button class="group-step" :disabled="submitting" @click="changePackageCount(1)">+</button>
+              </view>
+            </view>
+            <text class="selection-hint">套餐包含以下全部商品，商品件数与单价由后台配置</text>
+            <view v-for="prod in enrollmentProducts" :key="prod.item_id" class="enroll-product">
+              <text class="enroll-product-name">{{ prod.goods_name_snapshot }}</text>
+              <text v-if="prod.model_snapshot" class="enroll-product-model">{{ prod.model_snapshot }}</text>
+              <text class="group-description">每套含 {{ getCampaignGroupQuantity(prod) }} {{ prod.unit_snapshot || '件' }} · 活动单价 ¥{{ Number(prod.campaign_price || 0).toLocaleString() }}</text>
+              <text class="selection-hint">实际数量：{{ selectedQuantity(prod) }} {{ prod.unit_snapshot || '件' }}</text>
+            </view>
+            <text class="selection-hint">最终数量和金额以提交后的核算结果为准</text>
+          </view>
+
           <view class="form-group">
             <text class="field-label">联系人姓名 <text class="req">*</text></text>
             <view class="input-wrap">
               <input
                 v-model="enrollForm.contact_name"
+                :disabled="submitting"
                 class="form-input"
                 placeholder="请输入联系人姓名"
                 maxlength="20"
@@ -252,6 +278,7 @@
             <view class="input-wrap">
               <input
                 v-model="enrollForm.contact_mobile"
+                :disabled="submitting"
                 class="form-input"
                 type="number"
                 placeholder="请输入手机号"
@@ -265,8 +292,9 @@
             <view class="textarea-wrap">
               <textarea
                 v-model="enrollForm.remark"
+                :disabled="submitting"
                 class="form-textarea"
-                placeholder="请填写您意向订购的机型、套数或交期要求等"
+                placeholder="请填写交期要求或其他需求"
                 maxlength="200"
               />
             </view>
@@ -298,6 +326,8 @@ import { openPage } from '@/utils/pages';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
+import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.vue';
+import { getCampaignGroupQuantity, getSelectableCampaignItems, buildCampaignEnrollmentItems } from '@/utils/marketing-enrollment';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
@@ -308,6 +338,30 @@ const loading = ref(true);
 const submitting = ref(false);
 const openingEnroll = ref(false);
 const showEnrollModal = ref(false);
+// 报名成功响应独立保存，即使后续刷新活动失败也能展示已提交的真实明细。
+const submittedEnrollment = ref(null);
+const packageCount = ref(1);
+const enrollmentProducts = computed(() => getSelectableCampaignItems(campaign.value?.items));
+const latestEnrollment = computed(() => submittedEnrollment.value || campaign.value?.my_latest_enrollment || campaign.value?.my_enrollments?.[0] || null);
+
+/** 套数只接受整数；界面预览数量不作为报名计价依据。 */
+const selectedQuantity = (item) => {
+  const count = Number(packageCount.value);
+  const quantity = count * getCampaignGroupQuantity(item);
+  return Number.isSafeInteger(count) && count >= 1 && Number.isSafeInteger(quantity) ? quantity : '—';
+};
+
+const changePackageCount = (delta) => {
+  if (submitting.value) return;
+  const current = Number(packageCount.value);
+  const next = Math.max(1, (Number.isSafeInteger(current) ? current : 1) + delta);
+  if (Number.isSafeInteger(next)) packageCount.value = next;
+};
+
+const closeEnrollModal = () => {
+  // 提交过程中保留当前表单，避免连续点击造成重复报名。
+  if (!submitting.value) showEnrollModal.value = false;
+};
 
 const enrollForm = reactive({
   contact_name: '',
@@ -321,7 +375,7 @@ onShow(() => {
 
 onShareAppMessage(() => {
   const c = campaign.value;
-  const title = c?.campaign_title ? `【营销活动】${c.campaign_title}` : '格宏营销活动详情';
+  const title = c?.campaign_title ? `【特惠货源活动】${c.campaign_title}` : '格宏特惠货源活动详情';
   const img = c?.cover_image || '';
   const path = `/pages/marketing/detail?id=${campaignId.value}`;
   return createShareAppMessageOptions(title, img, path);
@@ -329,7 +383,7 @@ onShareAppMessage(() => {
 
 onShareTimeline(() => {
   const c = campaign.value;
-  const title = c?.campaign_title ? `【营销活动】${c.campaign_title}` : '格宏营销活动详情';
+  const title = c?.campaign_title ? `【特惠货源活动】${c.campaign_title}` : '格宏特惠货源活动详情';
   const img = c?.cover_image || '';
   const query = `id=${campaignId.value}`;
   return createShareTimelineOptions(title, img, query);
@@ -390,7 +444,7 @@ const resolveCampaignId = (options = {}) => {
 };
 
 onLoad(async (options) => {
-  // 分享的活动详情也必须由已绑定经销商查看，不能仅靠列表入口限制。
+  // 分享链接同样校验经销商或业务员身份。
   if (!(await requireDealerAccess(userStore, () => openPage('/pages/index/index')))) {
     loading.value = false;
     return;
@@ -407,7 +461,7 @@ onLoad(async (options) => {
 });
 
 const isEnrolled = computed(() => {
-  const record = campaign.value?.my_latest_enrollment;
+  const record = latestEnrollment.value;
   return Boolean(record && record.enroll_status !== 'cancelled');
 });
 
@@ -490,7 +544,7 @@ const handleBack = () => {
 
 const handleNativeShare = () => {
   // #ifndef MP-WEIXIN
-  const title = campaign.value?.campaign_title || '格宏营销活动';
+  const title = campaign.value?.campaign_title || '格宏特惠货源活动';
   if (typeof uni.setClipboardData === 'function') {
     uni.setClipboardData({
       data: `【格宏家电助手】${title}`,
@@ -508,14 +562,15 @@ const handleProductClick = (prod) => {
   }
 };
 
-const fetchDetail = async (id) => {
+const fetchDetail = async (id, keepCurrent = false) => {
   loading.value = true;
   try {
     const res = await getCampaignDetail(id);
     campaign.value = res?.campaign_id ? res : null;
   } catch (error) {
     console.warn('获取活动详情失败:', error);
-    campaign.value = null;
+    // 报名已经成功后，刷新失败仍保留活动与本次报名响应，避免误导用户重复提交。
+    if (!keepCurrent) campaign.value = null;
     uni.showToast({ title: error?.message || '获取活动详情失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -524,7 +579,7 @@ const fetchDetail = async (id) => {
 
 // 联系人优先取会员资料中的姓名；账号编号不能冒充真实联系人姓名。
 const getMemberContactName = (member = {}) => {
-  const name = [member.realname, member.real_name, member.full_name, member.contact_name, member.name]
+  const name = [member.realname, member.real_name, member.full_name, member.contact_name, member.name, member.admin_account?.real_name]
     .map((value) => String(value || '').trim())
     .find(Boolean);
   if (name) return name;
@@ -541,14 +596,14 @@ const getMemberContactMobile = (member = {}) => {
 };
 
 const openEnrollModal = async () => {
-  if (!campaign.value?.campaign_id || campaign.value.can_enroll === false) {
+  if (!campaign.value?.campaign_id || campaign.value.can_enroll === false || !enrollmentProducts.value.length) {
     uni.showToast({ title: '当前活动暂不可报名', icon: 'none' });
     return;
   }
   if (!userStore.isLoggedIn) {
     uni.showModal({
       title: '温馨提示',
-      content: '请先登录后再报名参与营销活动',
+      content: '请先登录后再报名参与特惠货源活动',
       confirmText: '去登录',
       success: (res) => {
         if (res.confirm) openPage('/pages/auth/login');
@@ -557,7 +612,7 @@ const openEnrollModal = async () => {
     return;
   }
 
-  if (openingEnroll.value) return;
+  if (openingEnroll.value || submitting.value) return;
   openingEnroll.value = true;
   try {
     // 打开报名弹窗时重新读取会员资料；读取失败才回退到本地缓存，表单仍允许手动修改。
@@ -566,7 +621,7 @@ const openEnrollModal = async () => {
       const response = await getMemberInfo({ showError: false, timeout: 5000 });
       member = response?.data && typeof response.data === 'object' ? response.data : response || {};
     } catch (error) {
-      console.warn('[营销活动] 读取会员联系人信息失败，改用本地资料：', error);
+      console.warn('[特惠货源活动] 读取会员联系人信息失败，改用本地资料：', error);
     }
     const cachedMember = userStore.userInfo || {};
     enrollForm.contact_name = getMemberContactName(member) || getMemberContactName(cachedMember);
@@ -578,11 +633,19 @@ const openEnrollModal = async () => {
 };
 
 const handleSubmitEnroll = async () => {
+  if (submitting.value) return;
   if (!enrollForm.contact_name.trim()) {
     return uni.showToast({ title: '请填写联系人姓名', icon: 'none' });
   }
   if (!enrollForm.contact_mobile.trim() || !/^1\d{10}$/.test(enrollForm.contact_mobile.trim())) {
     return uni.showToast({ title: '请填写正确的11位手机号', icon: 'none' });
+  }
+
+  let items;
+  try {
+    items = buildCampaignEnrollmentItems(enrollmentProducts.value, packageCount.value);
+  } catch (error) {
+    return uni.showToast({ title: error.message, icon: 'none' });
   }
 
   submitting.value = true;
@@ -591,20 +654,26 @@ const handleSubmitEnroll = async () => {
     const payload = {
       contact_name: enrollForm.contact_name.trim(),
       contact_mobile: enrollForm.contact_mobile.trim(),
-      remark: enrollForm.remark.trim()
+      remark: enrollForm.remark.trim(),
+      items
     };
     const result = await enrollCampaign(campaignId.value, payload);
-    const enrollId = result?.enrollment_id || result?.id || (typeof result === 'number' ? result : null);
-    if (!enrollId && !result) throw new Error('报名接口未返回有效结果');
+    const enrollId = Number(result?.enrollment_id);
+    if (!Number.isSafeInteger(enrollId) || enrollId <= 0) throw new Error('报名结果缺少编号，请到我的报名核对');
+    submittedEnrollment.value = { ...result, enroll_status: 'submitted' };
+    // 成功后清空已提交套数；再次报名必须重新选择，避免无意重复提交。
+    packageCount.value = 1;
     uni.hideLoading();
     showEnrollModal.value = false;
 
     // 报名成功后重新获取后端状态，避免本地状态与实际记录不一致。
-    await fetchDetail(campaignId.value);
+    await fetchDetail(campaignId.value, true);
 
     uni.showModal({
       title: '报名提交成功',
-      content: '报名已提交，可前往“我的报名”查看处理进度。',
+      content: result.total_amount != null && result.total_quantity != null
+        ? `总数量 ${result.total_quantity}，合计 ¥${Number(result.total_amount).toLocaleString()}。可在“我的报名”查看明细。`
+        : '报名已提交，可前往“我的报名”查看处理进度。',
       confirmText: '查看进度',
       cancelText: '留在本页',
       success: (modalRes) => {
@@ -1304,7 +1373,8 @@ const handleSubmitEnroll = async () => {
   }
 
   .panel-scroll {
-    max-height: 60vh;
+    /* 明确滚动区高度，商品较多时让套数输入和联系人表单在弹窗内滚动。 */
+    height: 52vh;
   }
 
   .form-group {
@@ -1397,4 +1467,16 @@ const handleSubmitEnroll = async () => {
     }
   }
 }
+
+.group-description { display: block; margin-top: 10rpx; color: #2563eb; font-size: 23rpx; line-height: 1.6; }
+.selection-hint { display: block; margin: 10rpx 0; color: #64748b; font-size: 22rpx; line-height: 1.6; }
+.enroll-product { padding: 22rpx; margin: 16rpx 0; border: 1rpx solid #dbeafe; border-radius: 16rpx; background: #f8fbff; }
+.enroll-product-name { display: block; color: #1e293b; font-size: 26rpx; font-weight: 600; word-break: break-all; }
+.enroll-product-model { display: block; margin-top: 6rpx; color: #64748b; font-size: 22rpx; word-break: break-all; }
+.group-selector-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 18rpx; color: #334155; font-size: 24rpx; }
+.group-selector { display: flex; align-items: center; border: 1rpx solid #bfdbfe; border-radius: 10rpx; overflow: hidden; }
+.group-step { width: 64rpx; height: 60rpx; padding: 0; margin: 0; line-height: 60rpx; text-align: center; background: #eff6ff; color: #2563eb; font-size: 32rpx; border-radius: 0; }
+.group-step::after { border: none; }
+.group-step[disabled] { color: #b6c4d6; background: #f1f5f9; }
+.group-input { width: 116rpx; height: 60rpx; text-align: center; background: #fff; color: #1e293b; font-size: 26rpx; }
 </style>
