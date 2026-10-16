@@ -206,7 +206,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
@@ -517,7 +517,8 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
   scrollToBottom();
 
   // 先插入空的 AI 消息，后续每收到一个 delta 就原位追加，实现边生成边展示。
-  const aiMessage = {
+  // 回调必须修改响应式对象；直接修改 push 前的普通对象不会触发逐片刷新。
+  const aiMessage = reactive({
     id: Date.now() + 1,
     role: 'ai',
     text: '',
@@ -525,7 +526,7 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
     quotes: [],
     materials: [],
     isStreaming: true
-  };
+  });
   messages.value.push(aiMessage);
   isThinking.value = true;
 
@@ -538,8 +539,8 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
       scheduleScrollToBottom();
     },
     onFallback(reason) {
-      console.warn('[AI助手页面] 流式接收不可用，正在使用非流式打字机：', reason);
-      // 回退时清空流式阶段的半段内容，再从完整答案开头播放，避免重复文字。
+      console.warn('[AI助手页面] 流式接收不可用，正在请求完整答案：', reason);
+      // 回退时清空半段内容，完整答案返回后立即展示，避免重复文字。
       aiMessage.text = '';
       aiMessage.products = [];
       aiMessage.quotes = [];

@@ -39,8 +39,8 @@ const config = {
     // 微信小程序流式接口，后端以 text/event-stream 返回统一 SSE 事件。
     streamProxyPath: 'ai/ask-stream',
     timeout: 120000,
-    // 超过该时间仍未收到首个 delta 时，终止流请求并自动降级为普通接口。
-    streamFirstDeltaTimeout: 3000,
+    // 工具查询可能延迟首字；预留 30 秒等待，避免 3 秒即中止正常流式请求并重复生成。
+    streamFirstDeltaTimeout: 30000,
     // 发送给后端的历史消息上限，20 条大约对应 10 轮用户与助手对话。
     maxHistoryMessages: 20
   },

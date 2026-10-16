@@ -10,12 +10,12 @@ export const getSelectableCampaignItems = (items = []) => (Array.isArray(items) 
   return Number.isSafeInteger(id) && id > 0 && (item.item_status == null || Number(item.item_status) === 1);
 });
 
-/** 整套购买：所有启用商品使用同一套数，后台配置的每套件数和价格不允许拆改。 */
+/** 整组订购：所有启用商品提交相同组数，组内件数和价格由后台读取计算。 */
 export const buildCampaignEnrollmentItems = (campaignItems, packageCount) => {
   const text = String(packageCount ?? '').trim();
   const count = Number(text);
   if (!/^\d+$/.test(text) || !Number.isSafeInteger(count) || count < 1) {
-    throw new Error('购买套数请填写大于或等于 1 的整数');
+    throw new Error('订购组数请填写大于或等于 1 的整数');
   }
   const selected = [];
   const seen = new Set();

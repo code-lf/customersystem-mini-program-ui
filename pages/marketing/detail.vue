@@ -125,7 +125,8 @@
             <view class="prod-detail">
               <text class="prod-name">{{ prod.goods_name_snapshot }}</text>
               <text class="prod-model">{{ prod.model_snapshot }}</text>
-              <text class="group-description">每套含 {{ getCampaignGroupQuantity(prod) }} {{ prod.unit_snapshot || '件' }}</text>
+              <!-- 每组商品数量直接使用后台配置，不使用起订量替代。 -->
+              <text v-if="prod.group_quantity != null" class="group-description">每组含 {{ prod.group_quantity }} {{ prod.unit_snapshot || '件' }}</text>
 
               <view class="price-row">
                 <view class="price-current">
@@ -151,7 +152,8 @@
           </view>
         </view>
         <view class="policy-body">
-          <text class="policy-text">{{ campaign.content }}</text>
+          <!-- 富文本由小程序原生组件渲染，兼容旧活动的纯文字与换行。 -->
+          <rich-text class="policy-text" :nodes="campaignRichContent" />
         </view>
       </view>
 
@@ -236,26 +238,26 @@
       <view class="enroll-form-panel">
         <view class="panel-header">
           <text class="panel-title">报名参加活动</text>
-          <text class="panel-sub">全部商品组成固定套餐，仅支持整套购买</text>
+          <text class="panel-sub">全部商品组成一组，仅支持按整组订购</text>
         </view>
 
         <scroll-view class="panel-scroll" scroll-y>
-          <!-- 套餐统一填写套数，所有商品按后台每套件数同步倍增。 -->
+          <!-- 统一填写订购组数；组内商品配置由后台维护，不提供单品数量编辑。 -->
           <view class="form-group">
             <view class="group-selector-row">
-              <text class="field-label">购买套餐套数 <text class="req">*</text></text>
+              <text class="field-label">订购组数 <text class="req">*</text></text>
               <view class="group-selector">
                 <button class="group-step" :disabled="submitting || Number(packageCount || 0) <= 1" @click="changePackageCount(-1)">−</button>
                 <input v-model="packageCount" class="group-input" type="number" :disabled="submitting" placeholder="1" />
                 <button class="group-step" :disabled="submitting" @click="changePackageCount(1)">+</button>
               </view>
             </view>
-            <text class="selection-hint">套餐包含以下全部商品，商品件数与单价由后台配置</text>
+            <text class="selection-hint">每组包含以下全部商品，具体组成见活动说明</text>
             <view v-for="prod in enrollmentProducts" :key="prod.item_id" class="enroll-product">
               <text class="enroll-product-name">{{ prod.goods_name_snapshot }}</text>
               <text v-if="prod.model_snapshot" class="enroll-product-model">{{ prod.model_snapshot }}</text>
-              <text class="group-description">每套含 {{ getCampaignGroupQuantity(prod) }} {{ prod.unit_snapshot || '件' }} · 活动单价 ¥{{ Number(prod.campaign_price || 0).toLocaleString() }}</text>
-              <text class="selection-hint">实际数量：{{ selectedQuantity(prod) }} {{ prod.unit_snapshot || '件' }}</text>
+              <text v-if="prod.group_quantity != null" class="group-description">每组含 {{ prod.group_quantity }} {{ prod.unit_snapshot || '件' }}</text>
+              <text class="group-description">活动单价 ¥{{ Number(prod.campaign_price || 0).toLocaleString() }}</text>
             </view>
             <text class="selection-hint">最终数量和金额以提交后的核算结果为准</text>
           </view>
@@ -327,13 +329,30 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
 import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.vue';
-import { getCampaignGroupQuantity, getSelectableCampaignItems, buildCampaignEnrollmentItems } from '@/utils/marketing-enrollment';
+import { getSelectableCampaignItems, buildCampaignEnrollmentItems } from '@/utils/marketing-enrollment';
 import { useUserStore } from '@/store/user';
+import appConfig from '@/config/app';
 
 const userStore = useUserStore();
 
 const campaignId = ref(null);
 const campaign = ref(null);
+/** 活动说明支持 HTML；旧纯文本转义后保留换行，图片补齐资源域名并适配容器宽度。 */
+const campaignRichContent = computed(() => {
+  const content = String(campaign.value?.content || '');
+  if (!/<\/?[a-z][^>]*>/i.test(content)) {
+    return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\r\n|\r|\n/g, '<br/>');
+  }
+  const serverBase = String(appConfig.baseUrl || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return content.replace(/<img\b[^>]*>/gi, (tag) => tag
+    .replace(/\sstyle\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+    .replace(/\bsrc\s*=\s*(['"])(.*?)\1/i, (_, quote, value) => {
+      const path = value.trim().replace(/\\/g, '/');
+      const url = path.startsWith('//') ? `https:${path}` : (/^(?:https?:|data:)/i.test(path) ? path : `${serverBase}/${path.replace(/^\/+/, '')}`);
+      return `src=${quote}${url}${quote}`;
+    })
+    .replace(/<img\b/i, '<img style="max-width:100%;height:auto;display:block;margin:12px 0;"'));
+});
 const loading = ref(true);
 const submitting = ref(false);
 const openingEnroll = ref(false);
@@ -344,13 +363,7 @@ const packageCount = ref(1);
 const enrollmentProducts = computed(() => getSelectableCampaignItems(campaign.value?.items));
 const latestEnrollment = computed(() => submittedEnrollment.value || campaign.value?.my_latest_enrollment || campaign.value?.my_enrollments?.[0] || null);
 
-/** 套数只接受整数；界面预览数量不作为报名计价依据。 */
-const selectedQuantity = (item) => {
-  const count = Number(packageCount.value);
-  const quantity = count * getCampaignGroupQuantity(item);
-  return Number.isSafeInteger(count) && count >= 1 && Number.isSafeInteger(quantity) ? quantity : '—';
-};
-
+/** 订购组数仅接受正整数，组内实际件数与金额由服务端计算。 */
 const changePackageCount = (delta) => {
   if (submitting.value) return;
   const current = Number(packageCount.value);
@@ -1187,11 +1200,13 @@ const handleSubmitEnroll = async () => {
 }
 
 .policy-body {
+  overflow-x: auto;
   .policy-text {
+    display: block;
     font-size: 26rpx;
     color: #475569;
     line-height: 1.7;
-    white-space: pre-line;
+    overflow-wrap: anywhere;
   }
 }
 

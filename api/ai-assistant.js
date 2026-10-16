@@ -250,14 +250,13 @@ export async function askAi(question, history = [], options = {}) {
 
 /**
  * 检测当前运行环境是否具备微信小程序分块响应能力。
- * 非微信平台直接返回 false，由统一入口走非流式打字机降级。
+ * 非微信平台直接返回 false；微信平台以实际 RequestTask 能力为准。
  */
 export function supportAiChunked() {
   // #ifdef MP-WEIXIN
   try {
     return typeof uni !== 'undefined'
-      && typeof uni.request === 'function'
-      && (typeof uni.canIUse !== 'function' || uni.canIUse('requestTask.onChunkReceived'));
+      && typeof uni.request === 'function';
   } catch (error) {
     console.warn('[AI流式请求] 分块能力检测异常，将由运行时降级兜底：', error);
     return true;
@@ -457,31 +456,6 @@ function createStreamResult(text, meta = {}, fallbackResult = null) {
   };
 }
 
-function playTypewriter(text, onDelta, options = {}) {
-  const content = String(text || '');
-  const step = Number(options.step || 2);
-  const interval = Number(options.interval || 20);
-
-  return new Promise((resolve) => {
-    let index = 0;
-    const timer = setInterval(() => {
-      if (options.isCancelled?.()) {
-        clearInterval(timer);
-        resolve();
-        return;
-      }
-      const delta = content.slice(index, index + step);
-      if (!delta) {
-        clearInterval(timer);
-        resolve();
-        return;
-      }
-      index += step;
-      onDelta?.(delta, content.slice(0, index));
-    }, interval);
-  });
-}
-
 /**
  * 以流式方式发送 AI 问题；能力不足、首字超时或流中断时自动调用 askAi 降级。
  * 返回控制器而不是单独 Promise，页面退出时可调用 abort() 释放网络请求。
@@ -537,10 +511,8 @@ export function askAiStream(question, history = [], options = {}, handler = {}) 
           idempotencyKey
         });
         if (cancelled) throw createCancelledError();
-        await playTypewriter(result.text, handler.onDelta, {
-          isCancelled: () => cancelled
-        });
-        if (cancelled) throw createCancelledError();
+        // 普通接口已返回完整答案，无需额外模拟打字增加等待时间。
+        handler.onDelta?.(result.text, result.text);
         handler.onMeta?.({
           session_id: result.sessionId,
           quote_id: result.quoteId,
@@ -650,7 +622,7 @@ export function askAiStream(question, history = [], options = {}, handler = {}) 
       if (receivedDelta || settled || cancelled || fallbackStarted) return;
       requestTask?.abort?.();
       runFallback('超过首字等待时间');
-    }, Number(aiConfig.streamFirstDeltaTimeout || 3000));
+    }, Number(aiConfig.streamFirstDeltaTimeout || 30000));
   });
 
   return {

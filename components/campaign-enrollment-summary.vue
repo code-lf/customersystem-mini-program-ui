@@ -4,7 +4,7 @@
     <text class="summary-title">{{ title }}</text>
     <view v-for="item in rows" :key="item.campaign_item_id" class="summary-product">
       <text class="product-name">{{ item.goods_name_snapshot || '活动商品' }}</text>
-      <text class="product-quantity">每套 {{ formatNumber(item.group_quantity) }} · 购买 {{ formatNumber(item.group_count) }} 套 · 实际数量 {{ formatNumber(item.quantity) }}</text>
+      <text class="product-quantity">订购 {{ formatNumber(item.group_count) }} 组 · 该商品总数量 {{ formatNumber(item.quantity) }}</text>
       <view class="product-amount-row">
         <text>活动单价 ¥{{ formatMoney(item.campaign_price) }}</text>
         <text class="product-amount">小计 ¥{{ formatMoney(item.line_amount) }}</text>

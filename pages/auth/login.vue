@@ -95,6 +95,7 @@
 
       <!-- 2. 手机号快捷登录 / 注册 -->
       <view v-else-if="activeTab === 'mobile'" class="tab-pane">
+        <text v-if="!mobileLoginEnabled" class="login-method-tip">{{ loginConfigError || (loginConfigLoading ? '正在读取登录配置…' : '后台暂未开启手机号验证码登录，请使用微信或账号登录') }}</text>
         <view class="input-field">
           <view class="input-icon">
             <up-icon name="phone" size="18" color="#7a8b9e" />
@@ -114,7 +115,7 @@
             <up-icon name="lock" size="18" color="#7a8b9e" />
           </view>
           <input
-            v-model="mobileForm.code"
+            v-model="mobileForm.mobile_code"
             type="number"
             maxlength="6"
             class="uni-input"
@@ -123,7 +124,7 @@
           />
           <button
             class="send-code-btn"
-            :disabled="countdown > 0 || isSendingCode"
+            :disabled="countdown > 0 || isSendingCode || !mobileLoginEnabled"
             @click="handleSendCode"
           >
             {{ countdown > 0 ? `${countdown}s 后重发` : '获取验证码' }}
@@ -133,6 +134,7 @@
         <button
           class="primary-submit-btn"
           :loading="loading"
+          :disabled="loading || !mobileLoginEnabled"
           @click="handleMobileLogin"
         >
           一键登录 / 自动注册
@@ -197,19 +199,32 @@
     <view class="login-footer">
       <text>格宏家电助手 浙江格宏电器有限公司</text>
     </view>
+
+    <!-- 参考 niucloud：发送短信前先完成图形验证码校验，发送成功再开始倒计时。 -->
+    <up-popup :show="showCaptcha" mode="center" round="20" :closeable="true" @close="showCaptcha = false">
+      <view class="captcha-panel">
+        <text class="captcha-title">图形验证码</text>
+        <view class="captcha-row">
+          <input v-model="captchaForm.captcha_code" class="captcha-input" placeholder="请输入图形验证码" maxlength="8" />
+          <image v-if="captchaImage" class="captcha-image" :src="captchaImage" mode="aspectFit" @click="refreshCaptcha" />
+          <button v-else class="captcha-refresh" @click="refreshCaptcha">点击加载</button>
+        </view>
+        <text class="captcha-hint">点击图片可更换验证码</text>
+        <button class="primary-submit-btn" :loading="isSendingCode" :disabled="isSendingCode || captchaLoading" @click="confirmSendCode">确认发送短信</button>
+      </view>
+    </up-popup>
   </view>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
-import { login, mobileLogin, weappLogin, sendMobileCode } from '@/api/auth';
+import { computed, reactive, ref, watch } from 'vue';
+import { login, mobileLogin, weappLogin, sendMobileCode, getCaptcha, getLoginConfig } from '@/api/auth';
 import { bindMemberMobile } from '@/api/member';
 import { useUserStore } from '@/store/user';
-import appConfig from '@/config/app';
 import { openPage, replacePage } from '@/utils/pages';
 import AppWatermark from '@/components/app-watermark.vue';
 
-import { onLoad } from '@dcloudio/uni-app';
+import { onLoad, onUnload } from '@dcloudio/uni-app';
 
 const userStore = useUserStore();
 
@@ -225,6 +240,7 @@ onLoad((options) => {
   if (options?.username) {
     accountForm.username = options.username;
   }
+  loadLoginConfig();
 });
 
 const countdown = ref(0);
@@ -234,8 +250,52 @@ let timer = null;
 // 表单数据
 const mobileForm = reactive({
   mobile: '',
-  code: ''
+  mobile_code: '',
+  mobile_key: ''
 });
+const loginConfig = ref(null);
+const loginConfigLoading = ref(true);
+const loginConfigError = ref('');
+const mobileLoginEnabled = computed(() => Number(loginConfig.value?.is_mobile) === 1 || Number(loginConfig.value?.is_bind_mobile) === 1);
+const showCaptcha = ref(false);
+const captchaImage = ref('');
+const captchaLoading = ref(false);
+const captchaForm = reactive({ captcha_key: '', captcha_code: '' });
+let smsMobile = '';
+
+/** 登录方式按服务端配置展示，读取失败允许用户再次点击重试，不推断开放状态。 */
+const loadLoginConfig = async () => {
+  loginConfigLoading.value = true;
+  loginConfigError.value = '';
+  try { loginConfig.value = await getLoginConfig(); }
+  catch (error) { loginConfigError.value = error?.message || '登录配置加载失败，请重新进入登录页'; }
+  finally { loginConfigLoading.value = false; }
+};
+
+/** 更换手机号后旧短信凭证失效，不能把上一号码的验证码提交给新号码。 */
+watch(() => mobileForm.mobile, () => {
+  mobileForm.mobile_key = '';
+  mobileForm.mobile_code = '';
+  if (timer) clearInterval(timer);
+  timer = null;
+  countdown.value = 0;
+});
+onUnload(() => { if (timer) clearInterval(timer); });
+
+const refreshCaptcha = async () => {
+  if (captchaLoading.value) return;
+  captchaLoading.value = true;
+  captchaForm.captcha_key = '';
+  captchaForm.captcha_code = '';
+  captchaImage.value = '';
+  try {
+    const result = await getCaptcha();
+    if (!result?.captcha_key || !result.img) throw new Error('未获取到图形验证码');
+    captchaForm.captcha_key = result.captcha_key;
+    captchaImage.value = String(result.img).replace(/[\r\n]/g, '');
+  } catch (error) { uni.showToast({ title: error?.message || '图形验证码加载失败', icon: 'none' }); }
+  finally { captchaLoading.value = false; }
+};
 
 const accountForm = reactive({
   username: '',
@@ -342,29 +402,7 @@ const handleWechatLogin = async (mobileCode = '') => {
     }
     // #endif
 
-    // 仅 Mock 开发环境可生成演示会员，正式环境不伪造登录状态。
-    if (appConfig.apiMode !== 'mock') throw new Error('微信登录接口暂不可用');
-    setTimeout(() => {
-      const mockToken = 'wx_token_' + Date.now();
-      const mockMember = {
-        member_id: Math.floor(10000 + Math.random() * 90000),
-        nickname: '微信认证用户',
-        mobile: '139****' + Math.floor(1000 + Math.random() * 9000),
-        avatar: '/static/avatars/avatar-demo.png',
-        position: '客户经理',
-        role_name: '普通会员',
-        is_verified: 0
-      };
-
-      userStore.setToken(mockToken);
-      userStore.setUserInfo(mockMember);
-
-      uni.showToast({
-        title: '已自动注册并登录普通会员',
-        icon: 'none'
-      });
-      setTimeout(() => replacePage('/pages/index/index'), 800);
-    }, 600);
+    throw new Error('请在微信小程序内使用微信登录，或选择其他登录方式');
   } catch (err) {
     uni.showToast({ title: err.message || '微信登录失败', icon: 'none' });
   } finally {
@@ -374,21 +412,40 @@ const handleWechatLogin = async (mobileCode = '') => {
 
 // 2. 发送手机验证码
 const handleSendCode = async () => {
+  if (!validateAgreement() || countdown.value > 0 || isSendingCode.value) return;
+  if (!mobileLoginEnabled.value) {
+    uni.showToast({ title: '后台暂未开启手机号登录', icon: 'none' });
+    return;
+  }
   if (!mobileForm.mobile || !/^1\d{10}$/.test(mobileForm.mobile)) {
     uni.showToast({ title: '请输入正确的11位手机号', icon: 'none' });
     return;
   }
 
+  smsMobile = mobileForm.mobile;
+  showCaptcha.value = true;
+  await refreshCaptcha();
+};
+
+/** 短信验证码只从用户手机读取；发送失败保留错误提示，不填入模拟码或启动倒计时。 */
+const confirmSendCode = async () => {
+  if (!validateAgreement() || isSendingCode.value || captchaLoading.value || countdown.value > 0) return;
+  if (!mobileLoginEnabled.value) return;
+  if (smsMobile !== mobileForm.mobile) {
+    showCaptcha.value = false;
+    return uni.showToast({ title: '手机号已变更，请重新获取验证码', icon: 'none' });
+  }
+  if (!captchaForm.captcha_key || !captchaForm.captcha_code.trim()) {
+    return uni.showToast({ title: '请填写图形验证码', icon: 'none' });
+  }
   isSendingCode.value = true;
   try {
-    await sendMobileCode({ mobile: mobileForm.mobile, type: 'login' });
+    const result = await sendMobileCode({ mobile: smsMobile, type: 'login', ...captchaForm });
+    if (!result?.key) throw new Error('短信接口未返回验证码凭证');
+    if (smsMobile !== mobileForm.mobile) throw new Error('手机号已变更，请重新获取验证码');
+    mobileForm.mobile_key = result.key;
+    showCaptcha.value = false;
     uni.showToast({ title: '验证码已发送至您的手机', icon: 'none' });
-  } catch (e) {
-    // 降级提示
-    uni.showToast({ title: '模拟验证码已发送：123456', icon: 'none' });
-    mobileForm.code = '123456';
-  } finally {
-    isSendingCode.value = false;
     countdown.value = 60;
     if (timer) clearInterval(timer);
     timer = setInterval(() => {
@@ -398,18 +455,25 @@ const handleSendCode = async () => {
         timer = null;
       }
     }, 1000);
+  } catch (e) {
+    uni.showToast({ title: e?.message || '短信发送失败，请稍后重试', icon: 'none' });
+    await refreshCaptcha();
+  } finally {
+    isSendingCode.value = false;
   }
 };
 
 // 3. 手机号快捷登录 / 注册
 const handleMobileLogin = async () => {
-  if (!validateAgreement()) return;
+  if (!validateAgreement() || loading.value) return;
+  if (!mobileLoginEnabled.value) return uni.showToast({ title: '后台暂未开启手机号登录', icon: 'none' });
 
   if (!mobileForm.mobile || !/^1\d{10}$/.test(mobileForm.mobile)) {
     uni.showToast({ title: '请输入正确的手机号', icon: 'none' });
     return;
   }
-  if (!mobileForm.code) {
+  if (!mobileForm.mobile_key) return uni.showToast({ title: '请先获取手机验证码', icon: 'none' });
+  if (!/^\d{4,6}$/.test(mobileForm.mobile_code)) {
     uni.showToast({ title: '请输入验证码', icon: 'none' });
     return;
   }
@@ -419,6 +483,7 @@ const handleMobileLogin = async () => {
     try {
       const res = await mobileLogin(mobileForm);
       const token = res?.token || res?.access_token || res?.data?.token;
+      if (!token) throw new Error('登录接口未返回有效凭证');
       if (token) {
         userStore.setToken(token);
         userStore.setUserInfo(res.user || res.member || {
@@ -434,13 +499,11 @@ const handleMobileLogin = async () => {
       console.warn('mobileLogin API error:', apiErr);
       const errMsg = apiErr?.message || '手机快捷登录未开启';
       uni.showToast({
-        title: errMsg + '，请使用账号密码登录',
+        title: errMsg,
         icon: 'none',
         duration: 2500
       });
-      // 自动将手机号填入账号密码表单并切到账号登录
-      accountForm.username = mobileForm.mobile;
-      activeTab.value = 'account';
+      // 失败留在当前表单，用户可重填验证码；不假定新注册会员具有账号密码。
       return;
     }
   } finally {
@@ -450,7 +513,7 @@ const handleMobileLogin = async () => {
 
 // 4. 账号密码登录
 const handleAccountLogin = async () => {
-  if (!validateAgreement()) return;
+  if (!validateAgreement() || loading.value) return;
 
   if (!accountForm.username) {
     uni.showToast({ title: '请输入账号或手机号', icon: 'none' });
@@ -466,6 +529,7 @@ const handleAccountLogin = async () => {
     try {
       const res = await login(accountForm);
       const token = res?.token || res?.access_token || res?.data?.token;
+      if (!token) throw new Error('登录接口未返回有效凭证');
       if (token) {
         userStore.setToken(token);
         // 同步拉取后台完整会员资料
@@ -492,36 +556,10 @@ const handleAccountLogin = async () => {
         uni.showToast({ title: errorMsg, icon: 'none' });
         return;
       }
-      if (appConfig.apiMode !== 'mock') {
-        uni.showToast({ title: errorMsg, icon: 'none' });
-        return;
-      }
+      uni.showToast({ title: errorMsg, icon: 'none' });
+      return;
     }
 
-    // 演示账号密码兜底匹配
-    if (appConfig.apiMode === 'mock' && (accountForm.username === 'demo' || accountForm.username.includes('admin') || accountForm.password === '123456')) {
-      userStore.setToken('account_token_demo');
-      userStore.setUserInfo({
-        member_id: 10001,
-        member_no: '0001',
-        nickname: accountForm.username,
-        mobile: '13800000000',
-        avatar: '/static/avatars/avatar-demo.png',
-        company_name: '格宏电器科技有限公司',
-        position: '销售工程师',
-        role_name: '认证服务商',
-        balance: '3600.00',
-        money: '12850.00'
-      });
-      uni.showToast({ title: '登录成功', icon: 'success' });
-      setTimeout(() => {
-        uni.switchTab({ url: '/pages/index/index' }).catch(() => {
-          replacePage('/pages/index/index');
-        });
-      }, 500);
-    } else {
-      uni.showToast({ title: '账号或密码错误', icon: 'none' });
-    }
   } finally {
     loading.value = false;
   }
@@ -538,6 +576,14 @@ const openAgreement = (type) => {
 </script>
 
 <style lang="scss" scoped>
+.login-method-tip { display: block; margin-bottom: 24rpx; color: #64748b; font-size: 24rpx; line-height: 1.7; }
+.captcha-panel { width: 580rpx; padding: 36rpx 28rpx; box-sizing: border-box; background: #fff; }
+.captcha-title { display: block; margin-bottom: 28rpx; font-size: 30rpx; font-weight: 600; color: #17233d; }
+.captcha-row { display: flex; align-items: center; gap: 16rpx; }
+.captcha-input { flex: 1; min-width: 0; height: 78rpx; padding: 0 16rpx; background: #f4f7fc; font-size: 26rpx; }
+.captcha-image { width: 200rpx; height: 78rpx; flex-shrink: 0; }
+.captcha-refresh { width: 200rpx; padding: 0; font-size: 24rpx; }
+.captcha-hint { display: block; margin: 18rpx 0 28rpx; font-size: 22rpx; color: #64748b; }
 .login-wrapper {
   min-height: 100vh;
   padding: 0 36rpx 60rpx;
