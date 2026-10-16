@@ -56,7 +56,7 @@
           </view>
         </view>
         <view class="enroll-bar-right">
-          <text class="enroll-bar-link">跟进进度</text>
+          <text class="enroll-bar-link">查看报名</text>
           <up-icon name="arrow-right" size="13" color="#2563eb" />
         </view>
       </view>
@@ -127,7 +127,7 @@
               <view class="action-btn-wrap">
                 <view v-if="item.my_latest_enrollment && item.my_latest_enrollment.enroll_status !== 'cancelled'" class="status-enrolled">
                   <up-icon name="checkmark-circle-fill" size="14" color="#10b981" />
-                  <text>已报名 · 查看</text>
+                  <text>{{ formatEnrollmentStatus(item.my_latest_enrollment.enroll_status) }} · 查看</text>
                 </view>
                 <view v-else class="btn-enroll-now">
                   <text>查看详情</text>
@@ -164,6 +164,7 @@ import { onPullDownRefresh, onShareAppMessage, onShareTimeline, onShow } from '@
 import { getCampaigns, getEnrollments } from '@/api/marketing';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
+import { formatEnrollmentStatus } from '@/utils/marketing-status';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';

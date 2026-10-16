@@ -37,7 +37,7 @@
               <text class="campaign-title">{{ item.campaign_title_snapshot || '特惠货源活动报名' }}</text>
               <up-icon name="arrow-right" size="12" color="#94a3b8" />
             </view>
-            <view class="status-pill" :class="item.enroll_status">
+            <view class="status-pill" :class="normalizeEnrollmentStatus(item.enroll_status)">
               {{ formatStatusName(item.enroll_status) }}
             </view>
           </view>
@@ -82,7 +82,7 @@
             </button>
 
             <button
-              v-if="item.enroll_status === 'submitted' || item.enroll_status === 'followed'"
+              v-if="canCancelEnrollment(item.enroll_status)"
               class="action-btn action-btn--cancel"
               @click="handleCancelEnrollment(item)"
             >
@@ -139,6 +139,7 @@ import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgr
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
 import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.vue';
+import { normalizeEnrollmentStatus, formatEnrollmentStatus as formatStatusName, canCancelEnrollment } from '@/utils/marketing-status';
 import { useUserStore } from '@/store/user';
 
 const userStore = useUserStore();
@@ -178,21 +179,9 @@ const openEnrollmentDetail = async (id) => {
 
 const statusTabs = [
   { key: 'all', label: '全部' },
-  { key: 'submitted', label: '待跟进' },
-  { key: 'followed', label: '已跟进' },
-  { key: 'quoted', label: '已出报价' },
-  { key: 'cancelled', label: '已取消' }
+  { key: 'submitted', label: '已报名' },
+  { key: 'approved', label: '已通过' }
 ];
-
-const formatStatusName = (status) => {
-  const map = {
-    submitted: '待跟进',
-    followed: '已跟进',
-    quoted: '已出报价',
-    cancelled: '已取消'
-  };
-  return map[status] || '已提交';
-};
 
 // 接口以秒级时间戳返回创建时间，作为未提供文本字段时的展示兜底。
 const formatTime = (value) => value ? new Date(Number(value) * 1000).toLocaleString() : '';
@@ -242,7 +231,7 @@ const fetchList = async () => {
 const handleCancelEnrollment = (item) => {
   uni.showModal({
     title: '确认取消报名？',
-    content: `确定取消“${item.campaign_title_snapshot || '该活动'}”的报名吗？`,
+    content: `确定取消“${item.campaign_title_snapshot || '该活动'}”的报名吗？取消后记录将显示为已作废。`,
     confirmText: '确定取消',
     confirmColor: '#ef4444',
     cancelText: '再想想',
@@ -392,12 +381,7 @@ onShow(async () => {
           color: #d97706;
         }
 
-        &.followed {
-          background: #eff6ff;
-          color: #2563eb;
-        }
-
-        &.quoted {
+        &.approved {
           background: #ecfdf5;
           color: #059669;
         }

@@ -86,11 +86,11 @@
           <up-icon name="checkmark-circle-fill" size="24" color="#10b981" />
         </view>
         <view class="enrolled-info">
-          <text class="enrolled-title">您已成功报名此活动</text>
+          <text class="enrolled-title">{{ formatEnrollmentStatus(latestEnrollment.enroll_status) }}</text>
           <text class="enrolled-desc">您可在“我的报名”中查看报名状态。</text>
         </view>
         <view class="enrolled-action" @click="openPage('/pages/marketing/enrollments')">
-          <text>查看进度</text>
+          <text>查看报名</text>
           <up-icon name="arrow-right" size="12" color="#2563eb" />
         </view>
       </view>
@@ -205,7 +205,7 @@
           @click="openPage('/pages/marketing/enrollments')"
         >
           <up-icon name="checkmark" size="16" color="#ffffff" />
-          <text>已报名 · 查看跟进</text>
+          <text>{{ formatEnrollmentStatus(latestEnrollment.enroll_status) }} · 查看报名</text>
         </button>
         <button
           v-else-if="!userStore.isLoggedIn"
@@ -332,6 +332,7 @@ import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.
 import { getSelectableCampaignItems, buildCampaignEnrollmentItems } from '@/utils/marketing-enrollment';
 import { useUserStore } from '@/store/user';
 import appConfig from '@/config/app';
+import { formatEnrollmentStatus } from '@/utils/marketing-status';
 
 const userStore = useUserStore();
 
