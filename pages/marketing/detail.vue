@@ -115,13 +115,7 @@
             class="prod-card"
             @click="handleProductClick(prod)"
           >
-            <!-- 活动商品没有快照图片时只显示文字，不借用无关商品图片。 -->
-            <image
-              v-if="prod.image_snapshot"
-              class="prod-thumb"
-              :src="prod.image_snapshot"
-              mode="aspectFit"
-            />
+            <!-- 活动商品统一使用文字明细，即使有图片也不展示缩略图和占位。 -->
             <view class="prod-detail">
               <text class="prod-name">{{ prod.goods_name_snapshot }}</text>
               <text class="prod-model">{{ prod.model_snapshot }}</text>
@@ -1121,14 +1115,6 @@ const handleSubmitEnroll = async () => {
     padding: 16rpx;
     background: #f8fafc;
     border-radius: 14rpx;
-
-    .prod-thumb {
-      width: 160rpx;
-      height: 160rpx;
-      border-radius: 10rpx;
-      background: #ffffff;
-      flex-shrink: 0;
-    }
 
     .prod-detail {
       flex: 1;

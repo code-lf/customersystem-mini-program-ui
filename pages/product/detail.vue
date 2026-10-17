@@ -122,8 +122,8 @@
         <text>{{ isFav ? '已收藏' : '收藏' }}</text>
       </button>
       <button class="btn-sub-action" :disabled="monitorBusy" @click="followPrice">
-        <up-icon name="eye" size="18" color="#586477" />
-        <text>{{ monitorBusy ? '监控中' : '价格监控' }}</text>
+        <up-icon name="eye" size="18" :color="isMonitored ? '#2468e8' : '#586477'" />
+        <text>{{ isMonitored ? '已监控' : (monitorBusy ? '提交中' : '价格监控') }}</text>
       </button>
       <button class="btn-sub-action btn-share-action" open-type="share">
         <up-icon name="share-square" size="18" color="#586477" />
@@ -138,12 +138,12 @@ import { computed, ref } from 'vue';
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import ProductStock from '@/components/product-stock.vue';
-import { addFavoriteProduct, getFavoriteProducts, getProductDetail, removeFavoriteProduct } from '@/api/product';
+import { addFavoriteProduct, getProductDetail, removeFavoriteProduct } from '@/api/product';
 import appConfig from '@/config/app';
 import { useUserStore } from '@/store/user';
 import { openPage } from '@/utils/pages';
 import { getNavMetrics } from '@/utils/system';
-import { watchMonitorGoods } from '@/api/monitor';
+import { watchMonitorGoods, getMonitorList, cancelMonitor } from '@/api/monitor';
 import { requireDealerAccess } from '@/utils/dealer-access';
 
 const product = ref(null);
@@ -152,6 +152,7 @@ const navMetrics = computed(() => getNavMetrics());
 // 保存 onLoad 中解析出的商品 ID，供详情请求和分享路径共同使用。
 const productId = ref('');
 const isFav = ref(false);
+const isMonitored = ref(false);
 const favoriteBusy = ref(false);
 const monitorBusy = ref(false);
 const previewImageUrl = ref('');
@@ -171,31 +172,13 @@ const loadDetail = async (goodsId) => {
   try {
     const res = await getProductDetail(goodsId);
     product.value = res;
-    if (res?.is_favorite !== undefined) isFav.value = Number(res.is_favorite) === 1;
-    else if (userStore.isLoggedIn) await loadFavoriteState(goodsId, res);
+    // 详情接口统一返回当前会员状态，兼容数字和字符串；分类监控也由服务端合并判断。
+    isFav.value = userStore.isLoggedIn && Number(res?.is_favorite) === 1;
+    isMonitored.value = userStore.isLoggedIn && Number(res?.is_price_monitor) === 1;
   } catch (e) {
     console.error('[商品详情] 加载失败：', e);
   } finally {
     isLoading.value = false;
-  }
-};
-
-/** 详情未返回 is_favorite 时，按名称检索收藏列表并逐页核对 goods_id。 */
-const loadFavoriteState = async (goodsId, detail) => {
-  try {
-    let currentPage = 1;
-    let found = false;
-    let lastPage = 1;
-    do {
-      const result = await getFavoriteProducts({ keyword: detail?.goods_name || detail?.sku || '', page: currentPage, limit: 100 });
-      const rows = Array.isArray(result) ? result : (result?.data || []);
-      found = rows.some((item) => Number(item.goods_id) === Number(goodsId));
-      lastPage = Number(result?.last_page || 1);
-      currentPage += 1;
-    } while (!found && currentPage <= lastPage);
-    isFav.value = found;
-  } catch (error) {
-    console.warn('[商品收藏] 查询收藏状态失败：', error);
   }
 };
 
@@ -220,7 +203,12 @@ const toggleFavorite = async () => {
 };
 
 onShow(() => {
-  if (product.value && userStore.isLoggedIn) loadFavoriteState(productId.value, product.value);
+  // 从收藏或监控页面返回时刷新详情，确保取消监控、分类监控和登录变化均同步显示。
+  if (!userStore.isLoggedIn) {
+    isFav.value = false;
+    isMonitored.value = false;
+  }
+  if (product.value) loadDetail(productId.value);
 });
 
 onLoad((query = {}) => {
@@ -377,16 +365,70 @@ const getFileTypeClass = (title = '') => {
 
 const money = (value) => Number(value || 0).toLocaleString();
 
-/** 商品详情的价格监控按钮先校验经销商身份，再按接口创建或更新真实关注。 */
+/** 已监控时按关注记录 ID 取消，不能把商品 ID 当作关注记录 ID。 */
+const cancelProductMonitor = async () => {
+  const confirmed = await new Promise((resolve) => uni.showModal({
+    title: '取消价格监控', content: '确定取消该商品的价格监控吗？',
+    success: ({ confirm }) => resolve(confirm), fail: () => resolve(false)
+  }));
+  if (!confirmed) return;
+  const goodsId = Number(product.value?.goods_id || productId.value);
+  const matches = [];
+  let page = 1;
+  let lastPage = 1;
+  // 关注列表没有按商品查询的参数，必须逐页精确核对商品，不能取消同分类其他商品。
+  do {
+    const result = await getMonitorList({ watch_status: 'active', page, limit: 100 });
+    const rows = Array.isArray(result) ? result : result?.data;
+    if (!Array.isArray(rows)) throw new Error('监控列表格式不正确');
+    matches.push(...rows.filter((row) => row.watch_status === 'active' &&
+      row.watch_target_type === 'goods' &&
+      Number(row.watch_target_value || row.goods_id) === goodsId));
+    lastPage = Number(result?.last_page || 1);
+    page++;
+  } while (page <= lastPage);
+  if (!matches.length) {
+    // 分类监控可能覆盖多个商品，不能把取消单个商品的意图扩大为取消整个分类。
+    uni.showModal({
+      title: '请到监控管理查看',
+      content: '未找到该商品的独立监控记录，可能由所属分类监控覆盖。请到监控管理确认后取消分类监控，该操作会影响分类内其他商品。',
+      confirmText: '监控管理',
+      success: ({ confirm }) => { if (confirm) openPage('/pages/monitor/index'); }
+    });
+    await loadDetail(goodsId);
+    return;
+  }
+  for (const row of matches) {
+    if (!(Number(row.watch_id) > 0)) throw new Error('缺少监控记录ID，无法取消');
+    await cancelMonitor(row.watch_id);
+  }
+  // 取消商品监控后分类监控可能仍然生效，状态必须重新读取服务端，不能直接置为未监控。
+  try {
+    const detail = await getProductDetail(goodsId);
+    product.value = detail;
+    isFav.value = userStore.isLoggedIn && Number(detail?.is_favorite) === 1;
+    isMonitored.value = userStore.isLoggedIn && Number(detail?.is_price_monitor) === 1;
+    uni.showToast({ title: isMonitored.value ? '商品监控已取消，仍有分类监控' : '已取消监控', icon: 'none' });
+  } catch (error) {
+    uni.showToast({ title: '已取消商品监控，请刷新确认状态', icon: 'none' });
+  }
+};
+
+/** 商品详情的价格监控按钮先校验身份，再按当前状态添加或取消。 */
 const followPrice = async () => {
   if (monitorBusy.value || !(await requireDealerAccess(userStore))) return;
   monitorBusy.value = true;
   try {
+    if (isMonitored.value) {
+      await cancelProductMonitor();
+      return;
+    }
     await watchMonitorGoods(product.value?.goods_id || productId.value);
+    isMonitored.value = true;
     uni.showToast({ title: '已加入价格监控', icon: 'success' });
   } catch (error) {
-    // 统一请求层已提示接口错误，这里只记录原因，避免连续出现两个错误弹窗。
-    console.error('[价格监控] 添加商品失败：', error);
+    // 包括记录 ID 缺失等本地校验错误，失败时不提前切换监控状态。
+    uni.showToast({ title: error?.message || '监控操作失败，请重试', icon: 'none' });
   } finally {
     monitorBusy.value = false;
   }
