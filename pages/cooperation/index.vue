@@ -11,6 +11,9 @@
       <view class="hero-content">
         <text class="hero-title">成为我们的合作伙伴</text>
         <text class="hero-subtitle">共享行业资源，开启合作共赢新篇章</text>
+        <view class="hero-brand-link" @click="openPage('/pages/brand/index')">
+          <text>查看已合作 30+ 品牌与头部企业矩阵 ›</text>
+        </view>
       </view>
     </view>
 
@@ -285,6 +288,26 @@ onShareTimeline(() => ({ title: '诚邀合作 - 欢迎申请成为我们的合�
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.85);
   letter-spacing: 1rpx;
+}
+
+.hero-brand-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1rpx solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.28);
+  }
 }
 
 /* 表单主体区 */

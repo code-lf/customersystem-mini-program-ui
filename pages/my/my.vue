@@ -509,6 +509,7 @@ const handleLogout = () => {
 
 // 首页工作台已有报价、价格监控、收藏和反馈入口；“我的”不再重复展示，调阅资料入口也隐藏。
 const menus = [
+  { title: '品牌集与供应链', desc: '查看格力、大金等30+战略合作品牌全景墙', icon: 'integral-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/brand/index' },
   { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },

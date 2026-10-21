@@ -109,6 +109,24 @@
       </view>
     </view>
 
+    <!-- 品牌集与战略合作伙伴全景横幅 -->
+    <view class="brand-entry-banner" @click="openPage('/pages/brand/index')">
+      <view class="brand-entry-banner__left">
+        <view class="brand-entry-banner__badge">
+          <up-icon name="integral-fill" size="12" color="#2468e8" />
+          <text>品牌集展示</text>
+        </view>
+        <text class="brand-entry-banner__title">战略合作品牌 · 领军供应链矩阵</text>
+        <text class="brand-entry-banner__desc">格力、大金、中国电信、阿里巴巴等 30+ 战略合作品牌</text>
+      </view>
+      <view class="brand-entry-banner__right">
+        <view class="brand-entry-banner__btn">
+          <text>全屏流动</text>
+          <up-icon name="arrow-right" size="12" color="#ffffff" />
+        </view>
+      </view>
+    </view>
+
     <!-- 快捷工作台固定为四列两行；入口均指向已注册页面，不放无效占位按钮。 -->
     <view class="section-head section-head--compact">
       <text>快捷工作台</text>
@@ -297,7 +315,7 @@ const quickTools = [
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   // 降价通知入口已并入价格监控；这里改用现有收藏页补齐快捷区的四列排版。
   { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
-  { title: '意见反馈', icon: 'edit-pen', color: '#8b5cf6', bg: '#f3edff', path: '/pages/feedback/index' }
+  { title: '品牌展示', icon: 'integral-fill', color: '#8b5cf6', bg: '#f3edff', path: '/pages/brand/index' }
 ];
 
 // 三个经销商专享入口点击时先读取会员最新绑定状态，其余入口保持原跳转行为。
@@ -831,6 +849,71 @@ onMounted(async () => {
   font-size: 22rpx;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.brand-entry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20rpx 0 10rpx;
+  padding: 24rpx 24rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #eef2ff 100%);
+  border: 1rpx solid #bfdbfe;
+  box-shadow: 0 8rpx 24rpx rgba(37, 99, 235, 0.06);
+
+  &__left {
+    flex: 1;
+    min-width: 0;
+
+    .brand-entry-banner__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 4rpx 14rpx;
+      border-radius: 20rpx;
+      background: #e0edff;
+      color: #2468e8;
+      font-size: 20rpx;
+      font-weight: 700;
+    }
+
+    .brand-entry-banner__title {
+      display: block;
+      margin-top: 10rpx;
+      font-size: 28rpx;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .brand-entry-banner__desc {
+      display: block;
+      margin-top: 6rpx;
+      font-size: 22rpx;
+      color: #64748b;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__right {
+    flex-shrink: 0;
+    margin-left: 16rpx;
+
+    .brand-entry-banner__btn {
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 12rpx 20rpx;
+      border-radius: 30rpx;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-size: 22rpx;
+      font-weight: 700;
+      box-shadow: 0 4rpx 14rpx rgba(37, 99, 235, 0.28);
+    }
+  }
 }
 
 .tabbar-space {
