@@ -86,6 +86,24 @@
       <button class="withdraw-btn" @click="handleWithdrawClick">{{ userStore.isLoggedIn ? '提现' : '去登录' }}</button>
     </view>
 
+    <!-- 战略合作品牌集全屏流动入口（位于金额与功能菜单之间） -->
+    <view class="brand-entry-banner" @click="openPage('/pages/brand/index')">
+      <view class="brand-entry-banner__left">
+        <view class="brand-entry-banner__badge">
+          <up-icon name="integral-fill" size="12" color="#2468e8" />
+          <text>品牌集展示</text>
+        </view>
+        <text class="brand-entry-banner__title">战略合作品牌 · 领军供应链矩阵</text>
+        <text class="brand-entry-banner__desc">格力、大金、中国电信、阿里巴巴等 30+ 战略品牌</text>
+      </view>
+      <view class="brand-entry-banner__right">
+        <view class="brand-entry-banner__btn">
+          <text>全屏流动</text>
+          <up-icon name="arrow-right" size="12" color="#ffffff" />
+        </view>
+      </view>
+    </view>
+
     <!-- 辅助功能列表 -->
     <view class="menu-card">
       <view
@@ -509,7 +527,6 @@ const handleLogout = () => {
 
 // 首页工作台已有报价、价格监控、收藏和反馈入口；“我的”不再重复展示，调阅资料入口也隐藏。
 const menus = [
-  { title: '品牌集与供应链', desc: '查看格力、大金等30+战略合作品牌全景墙', icon: 'integral-fill', color: '#6366f1', bg: '#eef2ff', path: '/pages/brand/index' },
   { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
@@ -856,6 +873,71 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   color: #17233d;
   font-size: 25rpx;
   font-weight: 700;
+}
+
+.brand-entry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #eef2ff 100%);
+  border: 1rpx solid #bfdbfe;
+  box-shadow: 0 8rpx 28rpx rgba(37, 99, 235, 0.08);
+
+  &__left {
+    flex: 1;
+    min-width: 0;
+
+    .brand-entry-banner__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 4rpx 14rpx;
+      border-radius: 20rpx;
+      background: #e0edff;
+      color: #2468e8;
+      font-size: 20rpx;
+      font-weight: 700;
+    }
+
+    .brand-entry-banner__title {
+      display: block;
+      margin-top: 10rpx;
+      font-size: 28rpx;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .brand-entry-banner__desc {
+      display: block;
+      margin-top: 6rpx;
+      font-size: 22rpx;
+      color: #64748b;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__right {
+    flex-shrink: 0;
+    margin-left: 16rpx;
+
+    .brand-entry-banner__btn {
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 12rpx 22rpx;
+      border-radius: 30rpx;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-size: 22rpx;
+      font-weight: 700;
+      box-shadow: 0 4rpx 14rpx rgba(37, 99, 235, 0.28);
+    }
+  }
 }
 
 .menu-card {

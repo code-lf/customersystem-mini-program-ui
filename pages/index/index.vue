@@ -109,24 +109,6 @@
       </view>
     </view>
 
-    <!-- 品牌集与战略合作伙伴全景横幅 -->
-    <view class="brand-entry-banner" @click="openPage('/pages/brand/index')">
-      <view class="brand-entry-banner__left">
-        <view class="brand-entry-banner__badge">
-          <up-icon name="integral-fill" size="12" color="#2468e8" />
-          <text>品牌集展示</text>
-        </view>
-        <text class="brand-entry-banner__title">战略合作品牌 · 领军供应链矩阵</text>
-        <text class="brand-entry-banner__desc">格力、大金、中国电信、阿里巴巴等 30+ 战略合作品牌</text>
-      </view>
-      <view class="brand-entry-banner__right">
-        <view class="brand-entry-banner__btn">
-          <text>全屏流动</text>
-          <up-icon name="arrow-right" size="12" color="#ffffff" />
-        </view>
-      </view>
-    </view>
-
     <!-- 快捷工作台固定为四列两行；入口均指向已注册页面，不放无效占位按钮。 -->
     <view class="section-head section-head--compact">
       <text>快捷工作台</text>
