@@ -1,8 +1,13 @@
 <template>
-  <view class="cash-page" v-if="!pageLoading">
+  <view class="cash-page">
     <AppNavbar title="申请提现" />
 
-    <view v-if="config.is_open === 1" class="cash-scroll">
+    <view v-if="pageLoading" class="empty-wrap">正在加载提现设置...</view>
+    <view v-else-if="loadError" class="empty-wrap">
+      <text>{{ loadError }}</text>
+      <button @click="loadSettings">重新加载</button>
+    </view>
+    <view v-else-if="Number(config.is_open) === 1" class="cash-scroll">
       <view class="amount-card">
         <text class="amount-title">最小提现金额为</text>
 
@@ -27,6 +32,8 @@
 
       <view class="transfer-card">
         <text class="transfer-title">到账方式</text>
+        <text v-if="wechatLoginRequired" class="channel-tip">微信零钱提现需先使用微信登录绑定当前账号</text>
+        <text v-if="!transferCards.length" class="channel-tip">当前没有可用的提现方式，请联系平台确认配置或微信绑定状态</text>
 
         <view
           v-for="item in transferCards"
@@ -79,18 +86,25 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { cashOutApply, cashOutConfig, getBalance, getCashoutAccountInfo, getFirstCashOutAccountInfo } from '@/api/member';
 import { getPageOptions, openPage } from '@/utils/pages';
+import { useUserStore } from '@/store/user';
 
 // 中文说明：
 // 这页按 niucloud 的提现字段来组织数据：
 // apply_money=金额，transfer_type=提现渠道，account_type=余额/佣金账户，account_id=提现账号。
 // 后续如果你把账号管理页接进来，这里只需要继续复用 account_id，不用重写提交逻辑。
 const pageLoading = ref(true);
+const userStore = useUserStore();
 const loading = ref(false);
+const loadError = ref('');
+const openId = ref('');
+const wechatLoginRequired = ref(false);
 const query = reactive(getPageOptions());
+// 与原项目一致，从 onLoad 获取真实路由参数，避免 setup 读到上一页参数。
+onLoad((options = {}) => Object.assign(query, options));
 
 const balance = reactive({
   money: 0,
@@ -141,6 +155,11 @@ watch(() => applyData.transfer_type, (value) => {
 
 const transferCards = computed(() => {
   const list = [];
+  // niucloud 的微信零钱渠道为 wechatpay，不能与微信收款码 wechat_code 混淆。
+  if (config.transfer_type.includes('wechatpay') && openId.value) {
+    list.push({ transfer_type: 'wechatpay', title: '提现至微信零钱', desc: '提现至当前微信账号零钱',
+      icon: 'weixin-fill', iconColor: '#00c800', activeClass: applyData.transfer_type === 'wechatpay' ? 'is-wechat' : '' });
+  }
 
   if (config.transfer_type.includes('wechat_code')) {
     list.push({
@@ -202,6 +221,11 @@ const clearMoney = () => {
 };
 
 const verify = () => {
+  if (pageLoading.value || loadError.value || Number(config.is_open) !== 1) return false;
+  if (!transferCards.value.some((item) => item.transfer_type === applyData.transfer_type)) {
+    uni.showToast({ title: '请选择可用的提现方式', icon: 'none' });
+    return false;
+  }
   if (!applyData.transfer_type) {
     uni.showToast({ title: '没有可用的提现方式', icon: 'none' });
     return false;
@@ -268,20 +292,42 @@ const cashOut = async () => {
   }
 };
 
-onMounted(async () => {
-  applyData.account_type = uni.getStorageSync('cashOutAccountType') || 'money';
-  await fetchBalance();
-  Object.assign(config, await cashOutConfig() || {});
-
-  bankAccountInfo.value = await loadAccountInfo('bank');
-  alipayAccountInfo.value = await loadAccountInfo('alipay');
-  wechatCodeInfo.value = await loadAccountInfo('wechat_code');
-
-  applyData.transfer_type = query.type || config.transfer_type[0] || '';
-  pageLoading.value = false;
-});
-
-onShow(fetchBalance);
+/** 按 niucloud 配置初始化：兼容字符串开关，未绑定微信不开放零钱，加载失败不能冒充关闭。 */
+const loadSettings = async () => {
+  if (loading.value) return;
+  pageLoading.value = true;
+  loadError.value = '';
+  try {
+    const accountType = uni.getStorageSync('cashOutAccountType') || 'money';
+    if (!['money', 'commission'].includes(accountType)) throw new Error('提现账户类型无效');
+    applyData.account_type = accountType;
+    // 原项目从会员 weapp_openid 初始化微信绑定；直接读取当前会员，避免旧账号缓存串用。
+    const member = await userStore.fetchUserInfo();
+    openId.value = member?.weapp_openid || '';
+    // #ifdef H5
+    openId.value = member?.wx_openid || '';
+    // #endif
+    const settings = await cashOutConfig();
+    if (!settings || ![0, 1].includes(Number(settings.is_open))) throw new Error('提现配置格式不正确');
+    const types = Array.isArray(settings.transfer_type) ? settings.transfer_type : [];
+    wechatLoginRequired.value = types.includes('wechatpay') && !openId.value;
+    Object.assign(config, settings, { is_open: Number(settings.is_open),
+      transfer_type: types.filter((type) => type !== 'wechatpay' || Boolean(openId.value)) });
+    if (config.is_open !== 1) return;
+    await fetchBalance();
+    bankAccountInfo.value = await loadAccountInfo('bank');
+    alipayAccountInfo.value = await loadAccountInfo('alipay');
+    wechatCodeInfo.value = await loadAccountInfo('wechat_code');
+    applyData.transfer_type = transferCards.value.some((item) => item.transfer_type === query.type)
+      ? query.type : (transferCards.value[0]?.transfer_type || '');
+  } catch (error) {
+    loadError.value = error?.message || '提现设置加载失败，请重试';
+  } finally {
+    pageLoading.value = false;
+  }
+};
+// 返回页面时也重新读配置，后台调整后无需重新打开小程序。
+onShow(loadSettings);
 </script>
 
 <style lang="scss" scoped>
@@ -289,6 +335,7 @@ onShow(fetchBalance);
   min-height: 100vh;
   background: #f3f7fd;
 }
+.channel-tip { display: block; margin: 20rpx 0; color: #8b95a7; font-size: 24rpx; line-height: 1.6; }
 
 .cash-scroll {
   padding: 0 24rpx 34rpx;

@@ -30,8 +30,12 @@ export const resolveDealerLevel = resolveMemberRole;
 
 const normalizeUserData = (user = {}) => {
   const data = { ...user };
-  if (!data.avatar && data.headimg) {
-    data.avatar = data.headimg;
+  // 后端 headimg 是会员头像的正式字段，避免旧 avatar 覆盖新头像；相对路径补齐资源域名。
+  const avatar = data.headimg || data.avatar;
+  if (avatar) {
+    const path = String(avatar).trim();
+    const base = String(config.memberBaseUrl || config.baseUrl || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+    data.avatar = /^(https?:|wxfile:|data:|blob:)/i.test(path) ? path : path.startsWith('//') ? `https:${path}` : `${base}/${path.replace(/^\/+/, '')}`;
   }
   // 客户单位以经销商池返回的 dealer_unit 为准；空值可能是用户主动清空，不覆盖为示例公司。
   if (!data.nickname) {

@@ -5,11 +5,17 @@
     <view class="qr-card">
       <text>关注「格宏助手」服务号</text>
       <text>获取最新产品资讯与专属服务</text>
-      <view class="qr-box">
+      <!-- 微信原生组件由小程序后台配置的公众号决定，不能填写任意公众号或绕过场景限制。 -->
+      <!-- #ifdef MP-WEIXIN -->
+      <view v-if="!qrOnly" class="official-follow"><official-account @load="onOfficialLoad" @error="onOfficialError" /></view>
+      <text v-if="!showQrFallback" class="follow-tip">请在上方微信关注卡片中直接关注，无需再次扫码</text>
+      <text v-if="!showQrFallback" class="fallback-link" @click="showQrFallback = true">没有显示关注卡片？查看备用方式</text>
+      <!-- #endif -->
+      <view v-if="showQrFallback" class="qr-box">
         <!-- 服务号二维码直接读取 OSS 链接，不再占用小程序包体积。 -->
         <image class="qr-image" src="https://gehong-ai-knowledge-bj-20260829.oss-cn-beijing.aliyuncs.com/upload/attachment/image/202609/27/179050600978c2d5798e29674397fd0010309a1114_aliyun.jpg?x-oss-process=image/resize,h_200,w_200" mode="aspectFit" show-menu />
       </view>
-      <text>微信扫一扫，关注服务号</text>
+      <text v-if="showQrFallback">当前入口若不支持关注卡片，可使用二维码关注服务号</text>
     </view>
 
     <view class="service-card">
@@ -27,6 +33,24 @@
 
 <script setup>
 import AppNavbar from '@/components/app-navbar.vue';
+import { ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+
+// 非微信平台保留二维码；微信优先展示官方组件，错误或用户主动选择时才展示备用二维码。
+const showQrFallback = ref(true);
+const qrOnly = ref(false);
+// #ifdef MP-WEIXIN
+showQrFallback.value = false;
+// #endif
+// 从失败兜底入口进入时立即显示二维码，不再次尝试原生关注，避免重复失败或循环跳转。
+onLoad((query = {}) => {
+  if (query.mode === 'qr') {
+    qrOnly.value = true;
+    showQrFallback.value = true;
+  }
+});
+const onOfficialLoad = () => { showQrFallback.value = false; };
+const onOfficialError = () => { showQrFallback.value = true; };
 
 const services = [
   { icon: 'clock', title: '价格变动提醒', desc: '第一时间获取价格调整通知' },
@@ -42,6 +66,9 @@ const services = [
   padding: 0 24rpx 36rpx;
   background: #f3f7fd;
 }
+.official-follow { margin-top: 28rpx; }
+.follow-tip { display: block; margin-top: 20rpx; color: #6482a7; font-size: 24rpx; line-height: 1.6; }
+.fallback-link { display: block; padding: 20rpx 0; color: #2468e8; font-size: 23rpx; }
 
 .qr-card,
 .service-card {

@@ -17,7 +17,7 @@
     </view>
 
     <view v-for="product in uiProducts" :key="product.id" class="add-row">
-      <image class="add-row-img" :src="product.image" mode="aspectFit" />
+      <!-- 添加报价商品时统一不显示商品缩略图。 -->
       <view class="add-row-info">
         <text class="add-row__model">{{ product.model }}</text>
         <text class="add-row__spec">{{ product.specs.slice(0, 3).join(' | ') }}</text>

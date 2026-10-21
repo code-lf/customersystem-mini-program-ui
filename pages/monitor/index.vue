@@ -98,6 +98,14 @@
       </view>
       <view v-if="isLoadingMore" class="load-more">正在加载更多...</view>
     </view>
+    <!-- 优先直接打开服务号主页，不支持时回退二维码页。 -->
+    <view class="service-follow-float">
+      <view class="service-follow-copy">
+        <text class="service-follow-title">关注服务号，完成监控设置</text>
+        <text class="service-follow-desc">及时接收商品价格变动提醒</text>
+      </view>
+      <button class="service-follow-button" @click="openServiceAccount">去关注 ›</button>
+    </view>
   </view>
 </template>
 
@@ -108,9 +116,12 @@ import AppNavbar from '@/components/app-navbar.vue';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { useUserStore } from '@/store/user';
+import { openOfficialAccount } from '@/utils/official-account';
 import { getMonitorList, getRecentPriceDrops, getPriceFluctuations } from '@/api/monitor';
 
 const userStore = useUserStore();
+// 与个人中心共用原生主页跳转及二维码兜底，避免两个入口行为不一致。
+const openServiceAccount = () => openOfficialAccount();
 const tabs = [
   { label: '我关注的', value: 'watches' },
   { label: '近期降价', value: 'drops' },
@@ -228,7 +239,8 @@ const formatTime = (value) => {
 .monitor-page {
   min-height: 100vh;
   background-color: #f4f7fb;
-  padding-bottom: 40rpx;
+  // 为悬浮提示和底部安全区留白，最后一张卡片可完整滚动到提示上方。
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
 }
 
 .header-section {
@@ -458,6 +470,61 @@ const formatTime = (value) => {
 }
 .retry-link { color: #2468e8; font-size: 25rpx; }
 .load-more { padding: 20rpx; text-align: center; color: #94a3b8; font-size: 23rpx; }
+
+// 固定底部而非覆盖卡片中部，兼容 iPhone 底部手势区域。
+.service-follow-float {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(24rpx + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #cbdfff;
+  border-radius: 24rpx;
+  background: #edf5ff;
+  box-shadow: 0 8rpx 28rpx rgba(36, 104, 232, 0.14);
+}
+.service-follow-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.service-follow-title { color: #174b94; font-size: 25rpx; font-weight: 700; }
+.service-follow-desc { color: #6482a7; font-size: 21rpx; }
+.service-follow-button {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 24rpx;
+  border-radius: 32rpx;
+  background: #2468e8;
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 64rpx;
+  &::after { border: none; }
+}
+
+// 原地弹层预留至少 300px 的原生组件宽度，不压缩微信关注卡片。
+.official-account-mask {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-end;
+  background: rgba(15, 23, 42, 0.35);
+}
+.official-account-panel {
+  width: 100%; box-sizing: border-box;
+  padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0; background: #fff;
+}
+.official-account-heading {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 28rpx; color: #174b94; font-size: 28rpx; font-weight: 700;
+}
+.official-account-close { padding: 8rpx; color: #718098; font-size: 24rpx; font-weight: 400; }
+.official-account-tip { display: block; margin-top: 24rpx; color: #6482a7; font-size: 24rpx; line-height: 1.7; }
 .skeleton-block {
   background: #e2e8f0;
   background-image: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);

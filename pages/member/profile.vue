@@ -170,7 +170,7 @@ import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { useUserStore } from '@/store/user';
 import { updateMemberInfo } from '@/api/member';
-import { uploadFile } from '@/api/common';
+import { persistMemberAvatar } from '@/api/member';
 import { openPage, replacePage } from '@/utils/pages';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 
@@ -199,6 +199,7 @@ const openEditModal = () => {
 };
 
 const chooseAvatar = () => {
+  if (avatarUploading.value || isSaving.value) return;
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
@@ -206,18 +207,23 @@ const chooseAvatar = () => {
     success: async (res) => {
       const tempPath = res.tempFilePaths[0];
       if (!tempPath) return;
-      form.avatar = tempPath;
+      avatarUploading.value = true;
       try {
-        const uploadRes = await uploadFile(tempPath).catch(() => null);
-        if (uploadRes && (uploadRes.url || uploadRes.file_path)) {
-          form.avatar = uploadRes.url || uploadRes.file_path;
-        }
-      } catch(e) {}
+        form.avatar = await persistMemberAvatar(tempPath);
+      } catch(e) {
+        form.avatar = userStore.userInfo.avatar || userStore.userInfo.headimg || '';
+        uni.showToast({ title: e?.message || '头像上传失败，请重试', icon: 'none' });
+      } finally {
+        avatarUploading.value = false;
+      }
     }
   });
 };
 
+const avatarUploading = ref(false);
 const saveProfile = async () => {
+  if (avatarUploading.value) return uni.showToast({ title: '头像上传中，请稍候保存', icon: 'none' });
+  if (isSaving.value) return;
   const name = form.nickname.trim();
   if (!name) {
     uni.showToast({ title: '请输入昵称', icon: 'none' });
@@ -249,7 +255,7 @@ const saveProfile = async () => {
     } else {
       uni.showModal({
         title: '修改请求已成功',
-        content: '修改接口已成功，但会员资料暂未回读到新的客户单位。请稍后重新进入核对。',
+        content: '修改接口已成功，但会员资料暂未回读到最新内容。请稍后重新进入核对。',
         showCancel: false
       });
     }

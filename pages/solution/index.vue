@@ -371,7 +371,7 @@
         <scroll-view class="panel-product-list" scroll-y>
           <!-- 空状态 -->
           <view v-if="filteredCandidates.length === 0" class="panel-empty-box">
-            <image class="empty-icon-img" src="http://gh.starall.cn/static/resource/aircon/central-default.png" mode="aspectFit" />
+            <!-- 空状态也不使用商品占位图，保留文字与重置操作。 -->
             <text class="empty-text">未找到符合该分类条件的设备</text>
             <button class="empty-reset-btn" @click="resetCandidateFilters">查看全部设备</button>
           </view>
@@ -383,14 +383,9 @@
             class="panel-product-item"
             :class="{ 'is-selected-card': getItemCountInQuote(item) > 0 }"
           >
-            <view class="panel-p-img-wrap">
-              <image class="panel-p-img" :src="item.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
-              <text class="p-type-badge" :class="getTypeBadgeClass(item)">
-                {{ getProductTypeTag(item) }}
-              </text>
-            </view>
-
+            <!-- 移除图片容器和占位，商品类型标识移入正文，避免图片区域留白。 -->
             <view class="panel-p-info">
+              <text class="p-type-badge" :class="getTypeBadgeClass(item)">{{ getProductTypeTag(item) }}</text>
               <view class="panel-p-model-row">
                 <text class="panel-p-model">{{ item.model || '标准型号' }}</text>
               </view>
@@ -2164,9 +2159,9 @@ const checkPendingProduct = async () => {
 }
 
 .p-type-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
+  // 商品类型标签不再依附缩略图，按正文流排版。
+  display: inline-block;
+  margin-bottom: 8rpx;
   padding: 2rpx 10rpx;
   border-bottom-right-radius: 12rpx;
   font-size: 18rpx;

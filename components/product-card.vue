@@ -1,6 +1,6 @@
 <template>
   <view class="product-card" @click="$emit('click', product)">
-    <image class="product-card__image" :src="product.image" mode="aspectFit" />
+    <!-- 公共商品卡片统一隐藏缩略图，避免其他入口重新出现图片。 -->
     <view class="product-card__body">
       <view class="product-card__title">{{ product.name }}</view>
       <view class="product-card__model">{{ product.model }}</view>
@@ -21,7 +21,7 @@ defineEmits(['click', 'add']);
 <style lang="scss" scoped>
 .product-card { display: flex; padding: 22rpx; margin-bottom: 20rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 8rpx 24rpx rgba(31, 64, 120, .05); }
 .product-card__image { flex: 0 0 180rpx; width: 180rpx; height: 180rpx; border-radius: 16rpx; background: #f4f8ff; }
-.product-card__body { flex: 1; min-width: 0; padding-left: 20rpx; }
+.product-card__body { flex: 1; min-width: 0; }
 .product-card__title { color: #17233d; font-size: 29rpx; font-weight: 600; line-height: 42rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .product-card__model { margin-top: 4rpx; color: #8b95a7; font-size: 23rpx; }
 .product-card__tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin: 14rpx 0; }

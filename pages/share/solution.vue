@@ -27,7 +27,7 @@
     <view class="customer-card">
       <text class="section-title">配置清单</text>
       <view class="item-row" v-for="item in solution.items" :key="item.id">
-        <image :src="item.image" mode="aspectFit" />
+        <!-- 分享清单与报价列表保持一致，只显示商品文字信息。 -->
         <view>
           <text>{{ item.model }}</text>
           <text>{{ specText(item) }}</text>

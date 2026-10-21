@@ -1,5 +1,51 @@
 import config from '../config/app';
 import { apiDelete, apiGet, apiPost, apiPut } from '../utils/api';
+import request from '../utils/request';
+
+/** 微信头像是临时文件，必须上传获得持久地址，禁止直接把临时路径写入会员资料。 */
+export async function persistMemberAvatar(value, { wechat = false } = {}) {
+  let path = String(value || '').trim();
+  if (!path) throw new Error('请选择头像');
+  // 预设头像为内嵌 SVG，先生成本地文件再上传，不把长 data URI 当作头像地址存入数据库。
+  let temporaryPreset = '';
+  if (/^data:/i.test(path)) {
+    // #ifdef MP-WEIXIN
+    const match = path.match(/^data:image\/(svg\+xml|png|jpe?g|webp)(;[^,]*)?,([\s\S]*)$/i);
+    if (!match) throw new Error('头像格式不支持，请重新选择');
+    temporaryPreset = `${wx.env.USER_DATA_PATH}/member-avatar-${Date.now()}.${match[1] === 'svg+xml' ? 'svg' : match[1]}`;
+    await new Promise((resolve, reject) => wx.getFileSystemManager().writeFile({
+      filePath: temporaryPreset, data: /;base64/i.test(match[2] || '') ? match[3] : decodeURIComponent(match[3]),
+      encoding: /;base64/i.test(match[2] || '') ? 'base64' : 'utf8', success: resolve, fail: reject
+    }));
+    path = temporaryPreset;
+    // #endif
+    if (!temporaryPreset) throw new Error('当前平台不支持保存预设头像，请使用相册图片');
+  }
+  if (/^(https?:\/\/|\/\/|\/?uploads?\/|\/static\/)/i.test(path) && !/^https?:\/\/tmp[/.]/i.test(path)) return path;
+  let result;
+  try {
+    // 与 niucloud personal.vue 一致：微信 chooseAvatar 临时图片读取为纯 Base64 上传。
+    // 普通相册/拍照图片走 multipart 图片上传，不再使用示例 /common/upload。
+    const options = { ...getMemberRequestOptions(), apiMode: 'api', showError: false };
+    if (wechat) {
+      const content = await new Promise((resolve, reject) => uni.getFileSystemManager().readFile({
+        filePath: path, encoding: 'base64', success: (res) => resolve(res.data), fail: reject
+      }));
+      if (!content) throw new Error('读取微信头像失败，请重新选择');
+      result = await apiPost('file/image/base64', { content }, options);
+    } else {
+      result = await request.upload({ ...options, url: 'file/image', filePath: path, name: 'file' });
+    }
+  } finally {
+    // 仅清理本次生成的预设临时文件，不删除用户相册原文件。
+    // #ifdef MP-WEIXIN
+    if (temporaryPreset) wx.getFileSystemManager().unlink({ filePath: temporaryPreset, fail: () => {} });
+    // #endif
+  }
+  const url = String(result?.url || result?.file_path || '').trim();
+  if (!url || /^(wxfile:|file:|blob:|data:)|^https?:\/\/tmp[/.]/i.test(url)) throw new Error('头像上传未返回有效地址，请重新选择');
+  return url;
+}
 
 // 中文说明：
 // 会员、余额、提现链路优先按 niucloud-admin 的真实接口字段来写。
@@ -47,7 +93,12 @@ export async function updateMemberInfo(data = {}) {
     updates.push(['dealer_name', dealerName]);
   }
   const avatar = data.headimg || data.avatar;
-  if (avatar) updates.push(['headimg', avatar]);
+  // 上传失败直接中止，不产生“本地看似保存成功、重进页面头像丢失”的假成功。
+  if (avatar) {
+    const persistentAvatar = await persistMemberAvatar(avatar);
+    data.headimg = persistentAvatar;
+    updates.push(['headimg', persistentAvatar]);
+  }
   if (Object.prototype.hasOwnProperty.call(data, 'dealer_unit')) {
     if (String(data.dealer_unit).length > 100) throw new Error('企业/门店名称不能超过100个字');
     updates.push(['dealer_unit', data.dealer_unit]);
@@ -68,7 +119,7 @@ export async function updateMemberInfo(data = {}) {
   // PUT 成功与 GET 立即读到新值是两件事；短暂重试后仍不一致时返回待核对状态，不能误报写入失败。
   let member = null;
   let synced = false;
-  const checkedFields = ['dealer_unit', 'dealer_name'].filter(field => Object.prototype.hasOwnProperty.call(data, field));
+  const checkedFields = ['dealer_unit', 'dealer_name', 'headimg'].filter(field => Object.prototype.hasOwnProperty.call(data, field));
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (attempt) await new Promise(resolve => setTimeout(resolve, 400));
     try {

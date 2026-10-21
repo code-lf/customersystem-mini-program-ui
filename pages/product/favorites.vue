@@ -9,7 +9,7 @@
     <view v-else-if="error && !items.length" class="status">{{ error }}<text class="retry" @click="reload">重试</text></view>
     <view v-else-if="!items.length" class="status">暂无收藏商品，去商品详情点击“收藏”试试</view>
     <view v-for="item in items" :key="item.goods_id" class="favorite-card" @click="openDetail(item)">
-      <image v-if="item.image" :src="imageUrl(item.image)" mode="aspectFit" class="product-image" />
+      <!-- 收藏商品统一不显示缩略图，不保留图片占位。 -->
       <view class="product-info">
         <text class="name">{{ item.goods_name || item.model || item.sku }}</text>
         <text class="model">{{ item.model || item.sku || '暂无型号' }}</text>

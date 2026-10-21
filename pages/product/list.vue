@@ -85,7 +85,7 @@
         @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
       >
         <text v-if="product.comment" class="hot-tag">{{ product.comment }}</text>
-        <image class="home-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/home-green.png'" mode="aspectFit" />
+        <!-- 搜索结果统一展示文字信息，不显示商品图片或默认占位图。 -->
         <view class="home-product-info">
           <text class="home-product__name">{{ product.goods_name }}</text>
           <text class="home-product__model">{{ product.model || '-' }}</text>
@@ -109,7 +109,7 @@
         class="list-product-card"
         @click="openPage('/pages/product/detail', { id: (product.goods_id || product.id) })"
       >
-        <image class="list-product-img" :src="product.image || 'http://gh.starall.cn/static/resource/aircon/outdoor-unit.png'" mode="aspectFit" />
+        <!-- 中央空调搜索结果同样移除缩略图，正文占满卡片宽度。 -->
         <view class="list-product__body">
           <view class="list-product__title-row">
             <text class="list-product__name-sub">{{ product.goods_name }}</text>
@@ -604,15 +604,6 @@ const addToSolution = (product) => {
   box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
 }
 
-.list-product-img {
-  width: 168rpx;
-  height: 168rpx;
-  margin-right: 22rpx;
-  border-radius: 16rpx;
-  background: #f7f9fc;
-  flex-shrink: 0;
-}
-
 .list-product__body {
   flex: 1;
   min-width: 0;
@@ -731,10 +722,8 @@ const addToSolution = (product) => {
 }
 
 .hot-tag {
-  position: absolute;
-  top: 12rpx;
-  left: 12rpx;
-  z-index: 2;
+  // 移除商品图片后标签参与正常排版，避免覆盖商品名称。
+  align-self: flex-start;
   max-width: calc(100% - 24rpx);
   padding: 2rpx 10rpx;
   border-radius: 6rpx;
@@ -745,14 +734,6 @@ const addToSolution = (product) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-sizing: border-box;
-}
-
-.home-product-img {
-  width: 100%;
-  height: 160rpx;
-  border-radius: 12rpx;
-  background: #f7f9fc;
   box-sizing: border-box;
 }
 

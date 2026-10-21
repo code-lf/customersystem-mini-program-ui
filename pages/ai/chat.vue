@@ -94,7 +94,7 @@
                 >
                   <view class="rec-badge">商品 0{{ idx + 1 }} · {{ product.series || '家电产品' }}</view>
                   <view class="rec-body">
-                    <image v-if="product.image" class="rec-img" :src="product.image" mode="aspectFit" />
+                    <!-- AI 推荐商品只显示文字明细，不展示缩略图。 -->
                     <view class="rec-info">
                       <text class="rec-model">{{ product.model }} {{ product.name }}</text>
                       <text class="rec-spec">{{ (product.specs || []).slice(0, 2).join(' | ') }}</text>
@@ -128,17 +128,9 @@
       </view>
     </scroll-view>
 
-    <!-- 快捷预设提问标签 -->
+    <!-- 取消预设快捷问题，仅保留新对话入口，提问由用户自行输入。 -->
     <view class="quick-questions-scroll">
       <view class="quick-chip new-session-chip" @click="startNewChat"><text>＋ 新对话</text></view>
-      <view
-        v-for="item in quickChips"
-        :key="item"
-        class="quick-chip"
-        @click="sendMessage(item)"
-      >
-        <text>{{ item }}</text>
-      </view>
     </view>
 
     <!-- 未登录提示条 -->
@@ -235,13 +227,6 @@ const sessionLoading = ref(false);
 const sessionError = ref('');
 // 首次进入新会话只发送这一句问候，回复正文完全由后端 AI 接口返回。
 const DEFAULT_GREETING = '你好';
-
-const quickChips = [
-  '120㎡ 办公室中央空调方案',
-  '多联机与一拖一风管机对比',
-  '客厅 3匹 柜机与风管机推荐',
-  '中央空调安装配比与造价'
-];
 
 // 对话消息列表
 const messages = ref([]);

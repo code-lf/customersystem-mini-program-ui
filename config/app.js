@@ -17,6 +17,9 @@ const config = {
   // 应用的基础信息，可用于页面标题、日志和埋点。
   appName: '格宏家电助手',
   appVersion: '1.0.0',
+  // 服务号原始 ID（gh_ 开头），不是 AppID、显示名称或普通微信号。
+  // 在微信公众平台“账号详情”中获取；未配置时直接使用真实二维码页兜底，不填演示 ID。
+  officialAccount: { originalId: 'gh_20f063b3e60a' },
 
   // 接口模式：mock 用于前端独立开发，api 用于后续切换真实后台接口。
   apiMode: 'api',

@@ -1,6 +1,6 @@
 <template>
   <view class="monitor-card" @click="$emit('click', item)">
-    <image :src="item.product.image" mode="aspectFit" />
+    <!-- 监控卡片只展示型号与价格，不显示商品图片。 -->
     <view class="monitor-card__body"><text class="name">{{ item.product.model }}</text><text class="desc">当前价格 {{ item.currentPrice ? `¥${item.currentPrice.toLocaleString()}` : '待询价' }}</text><text class="date">{{ item.updatedAt }}</text></view>
     <view class="monitor-card__right"><text v-if="item.changed" class="change">↓ ¥{{ Math.max(item.previousPrice - item.currentPrice, 0).toLocaleString() }}</text><text v-else class="stable">价格暂无变化</text><text class="link">查看详情 ›</text></view>
   </view>

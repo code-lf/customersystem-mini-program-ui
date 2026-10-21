@@ -269,13 +269,14 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { getBalance, updateMemberInfo } from '@/api/member';
-import { uploadFile } from '@/api/common';
+import { persistMemberAvatar } from '@/api/member';
 import { openPage, replacePage } from '@/utils/pages';
 import { openDealerPage } from '@/utils/dealer-access';
 import { AVATAR_CATEGORIES, PRESET_AVATAR_GROUPS } from '@/utils/avatar-presets';
 import { getNavMetrics } from '@/utils/system';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppWatermark from '@/components/app-watermark.vue';
+import { openOfficialAccount } from '@/utils/official-account';
 
 const metrics = computed(() => getNavMetrics());
 // “我的”页面仅提供分享入口，不把个人账户信息带入分享参数。
@@ -283,6 +284,7 @@ onShareAppMessage(() => createShareAppMessageOptions());
 onShareTimeline(() => createShareTimelineOptions());
 const isLoading = ref(true);
 const isSaving = ref(false);
+const avatarUploading = ref(false);
 const userStore = useUserStore();
 // 经销商或业务员确有分配的客户经理时展示联系入口。
 const assignedSalesperson = computed(() => {
@@ -291,7 +293,13 @@ const assignedSalesperson = computed(() => {
 });
 
 // 个人中心里重复出现的报价、营销与价格监控入口使用同一经销商校验。
-const handleMenuNavigation = (path) => openDealerPage(userStore, path);
+// 官方公众号直接打开服务号主页；不支持时由统一方法回退二维码页，其他入口保持原权限校验。
+const handleMenuNavigation = (path) => {
+  if (path === '/pages/wechat/index') {
+    return openOfficialAccount();
+  }
+  return openDealerPage(userStore, path);
+};
 const balance = reactive({ money: 0, balance: 0 });
 
 const showEditProfileModal = ref(false);
@@ -329,16 +337,26 @@ const openEditProfileModal = () => {
 };
 
 // 微信小程序 chooseAvatar 快速获取
-const onChooseWxAvatar = (e) => {
+const onChooseWxAvatar = async (e) => {
   const avatarUrl = e?.detail?.avatarUrl;
-  if (avatarUrl) {
-    editForm.avatar = avatarUrl;
-    uni.showToast({ title: '已选择微信头像', icon: 'none' });
+  if (!avatarUrl || avatarUploading.value || isSaving.value) return;
+  avatarUploading.value = true;
+  uni.showLoading({ title: '正在上传头像...' });
+  try {
+    // 只有服务端返回持久地址后才更新表单，不能将微信临时文件视为已保存头像。
+    editForm.avatar = await persistMemberAvatar(avatarUrl, { wechat: true });
+    uni.showToast({ title: '头像已上传，请保存资料', icon: 'none' });
+  } catch (error) {
+    uni.showToast({ title: error?.message || '微信头像上传失败，请重试', icon: 'none' });
+  } finally {
+    avatarUploading.value = false;
+    uni.hideLoading();
   }
 };
 
 // 从手机相册或拍照选择
 const chooseAvatarImage = () => {
+  if (avatarUploading.value || isSaving.value) return;
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
@@ -347,18 +365,16 @@ const chooseAvatarImage = () => {
       const tempFilePath = res.tempFilePaths[0];
       if (!tempFilePath) return;
 
-      editForm.avatar = tempFilePath;
+      avatarUploading.value = true;
       uni.showLoading({ title: '正在上传头像...' });
       try {
-        const uploadRes = await uploadFile(tempFilePath).catch(() => null);
-        if (uploadRes && (uploadRes.url || uploadRes.file_path)) {
-          editForm.avatar = uploadRes.url || uploadRes.file_path;
-        }
+        editForm.avatar = await persistMemberAvatar(tempFilePath);
         uni.showToast({ title: '头像已就绪', icon: 'success' });
       } catch (err) {
-        // 本地预览仍保留
-        uni.showToast({ title: '已选择图片', icon: 'none' });
+        editForm.avatar = userStore.userInfo.avatar || userStore.userInfo.headimg || '';
+        uni.showToast({ title: err?.message || '头像上传失败，请重试', icon: 'none' });
       } finally {
+        avatarUploading.value = false;
         uni.hideLoading();
       }
     }
@@ -367,6 +383,8 @@ const chooseAvatarImage = () => {
 
 // 保存修改
 const handleSaveProfile = async () => {
+  if (avatarUploading.value) return uni.showToast({ title: '头像上传中，请稍候保存', icon: 'none' });
+  if (isSaving.value) return;
   const nickname = editForm.nickname.trim();
   if (!nickname) {
     uni.showToast({ title: '请输入姓名或昵称', icon: 'none' });
@@ -399,7 +417,7 @@ const handleSaveProfile = async () => {
     } else {
       uni.showModal({
         title: '修改请求已成功',
-        content: '修改接口已成功，但会员资料暂未回读到新的客户单位。请稍后重新进入核对。',
+        content: '修改接口已成功，但会员资料暂未回读到最新内容。请稍后重新进入核对。',
         showCancel: false
       });
     }

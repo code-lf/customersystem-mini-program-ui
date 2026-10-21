@@ -34,6 +34,8 @@
         <button @click="copyCode(item.value)">复制</button>
       </view>
     </view>
+    <!-- 无记录时保留明确提示，不让短暂 toast 消失后页面看起来毫无反馈。 -->
+    <view v-if="noResult" class="result-card empty-result">密码未录入平台，请联系业务经理或是平台反馈</view>
     <text class="tips">密码仅供授权人员使用，请妥善保管，切勿泄露给他人。</text>
   </view>
 </template>
@@ -48,6 +50,7 @@ const barcode = ref('');
 const showResult = ref(false);
 const querying = ref(false);
 const result = ref({});
+const noResult = ref(false);
 
 // 查询结果完全取自后端，避免继续展示演示密码和虚构的商品资料。
 const codes = computed(() => [
@@ -57,8 +60,11 @@ const codes = computed(() => [
 ]);
 
 const handleQuery = async (scannedBarcode = '') => {
+  if (querying.value) return;
   const code = String(scannedBarcode || barcode.value || '').trim();
   showResult.value = false;
+  noResult.value = false;
+  result.value = {};
   if (!code) {
     uni.showToast({ title: '请输入内机条码', icon: 'none' });
     return;
@@ -67,12 +73,21 @@ const handleQuery = async (scannedBarcode = '') => {
   uni.showLoading({ title: '查询中...' });
   try {
     const data = await queryBarcodePassword(code);
-    if (!data || !data.password) throw new Error('未查询到密码');
+    if (!data || !String(data.password ?? '').trim()) {
+      noResult.value = true;
+      return;
+    }
     result.value = data;
     barcode.value = code;
     showResult.value = true;
   } catch (error) {
-    uni.showToast({ title: error?.message || '查询失败', icon: 'none' });
+    // 仅明确的未收录业务提示转为空结果，网络、权限等错误仍按真实原因反馈。
+    const message = error?.message || '查询失败';
+    if (/未查询到密码|密码未录入|未找到.*(?:条码|密码)|(?:条码|密码).*(?:不存在|未录入|未收录)/.test(message)) {
+      noResult.value = true;
+    } else {
+      uni.showToast({ title: message, icon: 'none' });
+    }
   } finally {
     querying.value = false;
     uni.hideLoading();
@@ -251,6 +266,13 @@ const copyCode = (value) => {
   font-size: 30rpx;
   font-weight: 800;
   margin-bottom: 16rpx;
+}
+
+.empty-result {
+  color: #64748b;
+  font-size: 28rpx;
+  line-height: 1.7;
+  text-align: center;
 }
 
 .product-info {
