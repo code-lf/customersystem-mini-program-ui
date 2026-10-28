@@ -62,23 +62,23 @@
       </view>
       
       <!-- 品牌分组展示 -->
-      <view class="brand-group">
+      <view class="brand-group" v-for="group in brandGroups" :key="group.name">
         <view class="brand-header">
           <view class="brand-head-top">
-            <text class="brand-name">{{ brandName }}</text>
-            <text class="brand-total">共计：¥ {{ money(finalTotalPrice) }}</text>
+            <text class="brand-name">{{ group.name }}</text>
+            <text class="brand-total">设备折后：¥ {{ money(group.total) }}</text>
           </view>
-          <view class="brand-head-bottom">
+          <view v-if="brandGroups.length === 1" class="brand-head-bottom">
             设备折后 {{ money(goodsPayableAmount) }}元  安装 {{ money(installationAmount) }}元  增项 {{ money(additionAmount) }}元
           </view>
         </view>
         
-        <!-- 系列展示 (由于数据可能没按系列分，这里做个假分组或统一样式) -->
+        <!-- 品牌内统一展示全部系列，不伪造服务端未提供的系列分组。 -->
         <view class="series-group">
           <view class="series-header" @click="toggleSeries">
             <text class="series-name">全部系列</text>
             <view class="series-right">
-              <text class="series-total">{{ money(goodsPayableAmount) }}元</text>
+              <text class="series-total">{{ money(group.total) }}元</text>
               <up-icon :name="seriesExpanded ? 'arrow-up' : 'arrow-down'" size="14" color="#999" />
             </view>
           </view>
@@ -91,8 +91,11 @@
               <text class="th-total">总价</text>
             </view>
             
-            <view class="table-row" v-for="(product, idx) in quoteData.items" :key="idx">
-              <text class="td-model">{{ product.model_snapshot || product.model }}</text>
+            <view class="table-row" v-for="(product, idx) in group.items" :key="idx">
+              <view class="td-model">
+                <text>{{ product.model_snapshot || product.model }}</text>
+                <text class="product-name">{{ product.goods_name_snapshot || product.goods_name || product.name }}</text>
+              </view>
               <text class="td-price">{{ money(product.quote_price ?? product.unitPrice ?? product.price ?? 0) }}元</text>
               <text class="td-qty">{{ product.quantity }}</text>
               <text class="td-total">{{ money(getItemSubtotal(product)) }}元</text>
@@ -131,6 +134,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
+import { groupQuoteItems } from '@/utils/quote-brands';
 import { openPage } from '@/utils/pages';
 import { requireDealerAccess } from '@/utils/dealer-access';
 import { useUserStore } from '@/store/user';
@@ -239,12 +243,8 @@ const quoteStatusText = computed(() => ({
   void: '报价已作废'
 }[quoteData.value.quote_status] || ''));
 
-const brandName = computed(() => {
-  if (quoteData.value.items && quoteData.value.items.length > 0) {
-     return quoteData.value.items[0].category_name || '格力';
-  }
-  return '格力';
-});
+// 按每条商品的真实品牌分组，不再把所有商品归到第一条分类或默认“格力”。
+const brandGroups = computed(() => groupQuoteItems(quoteData.value.items || []));
 
 const getItemSubtotal = (product) => {
   if (product.line_amount !== undefined && product.line_amount !== null) {
@@ -680,6 +680,7 @@ const confirmQuote = (status) => {
 }
 
 .th-model, .td-model { flex: 2; word-break: break-all; padding-right: 10rpx; }
+.product-name { display: block; margin-top: 8rpx; color: #8692a3; font-size: 22rpx; line-height: 1.5; }
 .th-price, .td-price { flex: 1; text-align: right; }
 .th-qty, .td-qty { flex: 0.8; text-align: center; }
 .th-total, .td-total { flex: 1; text-align: right; }

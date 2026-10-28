@@ -6,13 +6,13 @@ import request from '../utils/request';
 export async function persistMemberAvatar(value, { wechat = false } = {}) {
   let path = String(value || '').trim();
   if (!path) throw new Error('请选择头像');
-  // 预设头像为内嵌 SVG，先生成本地文件再上传，不把长 data URI 当作头像地址存入数据库。
+  // 兼容位图 data URI；SVG 不符合图片上传白名单，系统预设已改为打包的 PNG。
   let temporaryPreset = '';
   if (/^data:/i.test(path)) {
     // #ifdef MP-WEIXIN
-    const match = path.match(/^data:image\/(svg\+xml|png|jpe?g|webp)(;[^,]*)?,([\s\S]*)$/i);
+    const match = path.match(/^data:image\/(png|jpe?g|webp)(;[^,]*)?,([\s\S]*)$/i);
     if (!match) throw new Error('头像格式不支持，请重新选择');
-    temporaryPreset = `${wx.env.USER_DATA_PATH}/member-avatar-${Date.now()}.${match[1] === 'svg+xml' ? 'svg' : match[1]}`;
+    temporaryPreset = `${wx.env.USER_DATA_PATH}/member-avatar-${Date.now()}.${match[1]}`;
     await new Promise((resolve, reject) => wx.getFileSystemManager().writeFile({
       filePath: temporaryPreset, data: /;base64/i.test(match[2] || '') ? match[3] : decodeURIComponent(match[3]),
       encoding: /;base64/i.test(match[2] || '') ? 'base64' : 'utf8', success: resolve, fail: reject
@@ -21,16 +21,27 @@ export async function persistMemberAvatar(value, { wechat = false } = {}) {
     // #endif
     if (!temporaryPreset) throw new Error('当前平台不支持保存预设头像，请使用相册图片');
   }
-  if (/^(https?:\/\/|\/\/|\/?uploads?\/|\/static\/)/i.test(path) && !/^https?:\/\/tmp[/.]/i.test(path)) return path;
+  // 安装包内预设图片不是服务器地址，必须先上传，不能直接保存 /static 路径。
+  const packagedAvatar = /^\/?static\/avatars\//i.test(path);
+  if (!packagedAvatar && /^(https?:\/\/|\/\/|\/?uploads?\/|\/static\/)/i.test(path) && !/^https?:\/\/tmp[/.]/i.test(path)) return path;
   let result;
   try {
     // 与 niucloud personal.vue 一致：微信 chooseAvatar 临时图片读取为纯 Base64 上传。
     // 普通相册/拍照图片走 multipart 图片上传，不再使用示例 /common/upload。
     const options = { ...getMemberRequestOptions(), apiMode: 'api', showError: false };
-    if (wechat) {
-      const content = await new Promise((resolve, reject) => uni.getFileSystemManager().readFile({
-        filePath: path, encoding: 'base64', success: (res) => resolve(res.data), fail: reject
-      }));
+    if (wechat || packagedAvatar) {
+      // 小程序读取代码包内 PNG；H5 读取静态资源，统一上传真实图片 Base64。
+      const content = typeof uni.getFileSystemManager === 'function'
+        ? await new Promise((resolve, reject) => uni.getFileSystemManager().readFile({
+          filePath: packagedAvatar ? path.replace(/^\/+/, '') : path,
+          encoding: 'base64', success: (res) => resolve(res.data), fail: reject
+        }))
+        : await new Promise((resolve, reject) => uni.request({
+          url: path, responseType: 'arraybuffer',
+          success: (res) => res.statusCode === 200 && res.data?.byteLength
+            ? resolve(uni.arrayBufferToBase64(res.data)) : reject(new Error('读取系统头像失败，请重新选择')),
+          fail: reject
+        }));
       if (!content) throw new Error('读取微信头像失败，请重新选择');
       result = await apiPost('file/image/base64', { content }, options);
     } else {
@@ -142,6 +153,7 @@ export function modifyMemberField(field, value) {
   return apiPut(`member/modify/${field}`, { value }, getMemberRequestOptions());
 }
 
+/** 普通余额流水（分页），不是余额总览；当前余额读取 getMemberInfo() 的 money/balance 字段。 */
 export function getBalance() {
   return apiGet('member/account/balance', {}, getMemberRequestOptions());
 }
@@ -183,6 +195,11 @@ export function getCashOutList(params = {}) {
 
 export function getCashOutDetail(id) {
   return apiGet(`member/cash_out/${id}`, {}, getMemberRequestOptions());
+}
+
+/** 审核通过后由用户主动发起转账，返回微信确认收款参数；禁止在页面加载或轮询中调用。 */
+export function getCashOutTransfer(data) {
+  return apiPost(`member/cash_out/transfer/${data.id}`, data, getMemberRequestOptions());
 }
 
 export function memberCancel(params = {}) {

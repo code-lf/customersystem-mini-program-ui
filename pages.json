@@ -14,7 +14,7 @@
     { "path": "pages/product/list", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品列表" } },
     { "path": "pages/product/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "产品详情" } },
     { "path": "pages/product/favorites", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的收藏" } },
-    { "path": "pages/brand/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "品牌集展示" } },
+    { "path": "pages/brand/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "品牌集展示", "pageOrientation": "portrait", "disableScroll": true } },
     { "path": "pages/monitor/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "价格监控" } },
     { "path": "pages/monitor/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "价格变化" } },
     { "path": "pages/solution/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价单" } },
@@ -47,6 +47,8 @@
     { "path": "pages/password/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "密码查询" } },
     { "path": "pages/marketing/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "特惠货源活动" } },
     { "path": "pages/marketing/detail", "style": { "navigationStyle": "custom", "navigationBarTitleText": "活动详情" } },
+    { "path": "pages/marketing/colleague-invite", "style": { "navigationStyle": "custom", "navigationBarTitleText": "邀请同事" } },
+    { "path": "pages/marketing/colleague-bind", "style": { "navigationStyle": "custom", "navigationBarTitleText": "加入团队" } },
     { "path": "pages/marketing/enrollments", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的活动报名" } }
   ],
   "globalStyle": {

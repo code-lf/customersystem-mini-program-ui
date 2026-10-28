@@ -1,5 +1,6 @@
 <template>
-  <view class="crm-page history-page">
+  <AiComingSoon v-if="!aiAvailable" />
+  <view v-else class="crm-page history-page">
     <AppNavbar title="AI 小格会话记录" />
     <view class="page-actions">
       <text>历史会话</text>
@@ -25,6 +26,9 @@
 </template>
 
 <script setup>
+import AiComingSoon from '@/components/ai-coming-soon.vue';
+import { isAiAvailable } from '@/utils/ai-access';
+const aiAvailable = isAiAvailable();
 import { ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
@@ -45,6 +49,7 @@ const openSession = (item) => openPage('/pages/ai/chat', { session_id: item.sess
 
 /** 按后端分页加载会话；返回结构为 data.data，会由统一请求层先解开外层 data。 */
 const loadPage = async (targetPage) => {
+  if (!aiAvailable) return;
   if (loading.value) return;
   loading.value = true;
   error.value = '';
@@ -86,6 +91,7 @@ const confirmDelete = (item) => {
 };
 
 onShow(() => {
+  if (!aiAvailable) return;
   if (!userStore.isLoggedIn) {
     openPage('/pages/auth/login');
     return;

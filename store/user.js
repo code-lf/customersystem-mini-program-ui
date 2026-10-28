@@ -107,6 +107,10 @@ export const useUserStore = defineStore('user', {
         const raw = (res && typeof res === 'object' && res.data) ? res.data : res;
         if (raw && typeof raw === 'object') {
           const merged = { ...this.userInfo, ...raw };
+          // 每次刷新以本次返回的业务权限为准，缺失时不能沿用旧团队权限。
+          for (const field of ['can_use_dealer_features', 'can_manage_colleagues', 'account_type', 'effective_role', 'relation_status']) {
+            if (!Object.prototype.hasOwnProperty.call(raw, field)) delete merged[field];
+          }
           this.setUserInfo(merged);
           return merged;
         }

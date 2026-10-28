@@ -59,8 +59,10 @@
 
       <view class="footer-space" />
       <view class="submit-bar">
+        <!-- 提现主操作固定深蓝色，避免组件默认浅蓝降低对比度；禁用态仍交由组件处理。 -->
         <up-button
           type="primary"
+          color="#1e40af"
           shape="circle"
           text="立即提现"
           :disabled="applyData.apply_money === '' || Number(applyData.apply_money) === 0"
@@ -85,10 +87,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { onShow, onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { cashOutApply, cashOutConfig, getBalance, getCashoutAccountInfo, getFirstCashOutAccountInfo } from '@/api/member';
+import { cashOutApply, cashOutConfig, getMemberInfo, getCashoutAccountInfo, getFirstCashOutAccountInfo } from '@/api/member';
+import { readMemberAmount } from '@/utils/member-account';
 import { getPageOptions, openPage } from '@/utils/pages';
 import { useUserStore } from '@/store/user';
 
@@ -270,7 +273,11 @@ const selectTransfer = (item) => {
 };
 
 const fetchBalance = async () => {
-  Object.assign(balance, await getBalance() || {});
+  // 直接读真实会员接口，失败上抛，不使用 fetchUserInfo 的缓存兜底参与提现校验。
+  const member = await getMemberInfo();
+  balance[applyData.account_type] = readMemberAmount(member, applyData.account_type);
+  userStore.setUserInfo({ ...userStore.userInfo, ...member });
+  return member;
 };
 
 const cashOut = async () => {
@@ -302,7 +309,7 @@ const loadSettings = async () => {
     if (!['money', 'commission'].includes(accountType)) throw new Error('提现账户类型无效');
     applyData.account_type = accountType;
     // 原项目从会员 weapp_openid 初始化微信绑定；直接读取当前会员，避免旧账号缓存串用。
-    const member = await userStore.fetchUserInfo();
+    const member = await fetchBalance();
     openId.value = member?.weapp_openid || '';
     // #ifdef H5
     openId.value = member?.wx_openid || '';
@@ -314,7 +321,6 @@ const loadSettings = async () => {
     Object.assign(config, settings, { is_open: Number(settings.is_open),
       transfer_type: types.filter((type) => type !== 'wechatpay' || Boolean(openId.value)) });
     if (config.is_open !== 1) return;
-    await fetchBalance();
     bankAccountInfo.value = await loadAccountInfo('bank');
     alipayAccountInfo.value = await loadAccountInfo('alipay');
     wechatCodeInfo.value = await loadAccountInfo('wechat_code');

@@ -13,6 +13,20 @@ let apiBaseUrl = 'https://gh.starall.cn/api';
 apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 // #endif
 
+// 渠道必须与 niucloud ChannelDict 对齐，不能使用数字客户端编号。
+// 后端支付驱动根据 weapp 选择小程序 AppID，否则可能误用公众号 AppID。
+let clientChannel = 'h5';
+// #ifdef MP-WEIXIN
+clientChannel = 'weapp';
+// #endif
+// #ifdef APP-PLUS
+clientChannel = 'app';
+// #endif
+// #ifdef H5
+// 微信内网页与普通浏览器分开，保持与参考项目 getAppChannel 一致。
+clientChannel = typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent) ? 'wechat' : 'h5';
+// #endif
+
 const config = {
   // 应用的基础信息，可用于页面标题、日志和埋点。
   appName: '格宏家电助手',
@@ -51,8 +65,8 @@ const config = {
   memberApiMode: 'inherit',
   memberBaseUrl: '',
 
-  // 请求头中的客户端标识，后端可以据此区分 App、H5 和小程序请求。
-  clientType: '1',
+  // 通用请求/文件上传使用的 channel 请求头：小程序 weapp，微信网页 wechat，普通网页 h5，App app。
+  clientType: clientChannel,
 
   // 响应数据约定。不同后端只需要调整字段名和成功码，不必重写请求封装。
   response: {

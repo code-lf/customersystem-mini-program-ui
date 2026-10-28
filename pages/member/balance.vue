@@ -6,8 +6,8 @@
       <text class="hero-label">账户总余额</text>
       <view class="hero-money">
         <text>¥</text>
-        <text>{{ moneyParts.integer }}</text>
-        <text>.{{ moneyParts.decimal }}</text>
+        <text>{{ summaryReady ? moneyParts.integer : '--' }}</text>
+        <text v-if="summaryReady">.{{ moneyParts.decimal }}</text>
       </view>
     </view>
 
@@ -16,11 +16,12 @@
         <text>可提现余额（元）</text>
         <view>
           <text>¥</text>
-          <text>{{ withdrawMoneyParts.integer }}</text>
-          <text>.{{ withdrawMoneyParts.decimal }}</text>
+          <text>{{ summaryReady ? withdrawMoneyParts.integer : '--' }}</text>
+          <text v-if="summaryReady">.{{ withdrawMoneyParts.decimal }}</text>
         </view>
       </view>
 
+      <view v-if="summaryError" class="summary-error" @click="fetchSummary">{{ summaryError }}，点击重试</view>
       <view class="summary-actions">
         <view class="summary-btn summary-btn--outline" @click="openPage('/pages/member/cash-out')">
           <up-icon name="file-text" size="18" color="#2468e8" />
@@ -52,7 +53,9 @@
         </view>
         <view class="log-main">
           <text>{{ item.from_type_name || '账户变动' }}</text>
-          <text>{{ item.create_time || '--' }}</text>
+          <text class="log-time">{{ item.create_time || '--' }}</text>
+          <!-- 直接展示流水接口 memo，区分申请扣款、拒绝退回等明细原因；空备注不占位。 -->
+          <text v-if="item.memo && String(item.memo).trim()" class="log-memo">备注：{{ item.memo }}</text>
         </view>
         <view class="log-side">
           <text :class="logTextClass(item)">{{ formatChange(item.account_data) }}</text>
@@ -73,15 +76,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getBalance, getBalanceListAll } from '@/api/member';
+import { getMemberInfo, getBalanceListAll } from '@/api/member';
+import { readMemberAmount } from '@/utils/member-account';
 import { openPage } from '@/utils/pages';
 
 // 中文说明：
 // 余额页字段和 niucloud-admin 对齐：
-// 1. 余额总览使用 money + balance。
+// 1. 余额总览从会员资料读取 money + balance，流水接口不提供余额总览。
 // 2. 流水使用 member/account/balance_list 返回的 from_type_name、account_data、create_time。
 // 3. 提现入口会把 cashOutAccountType 写入本地，申请提现页直接复用这个字段。
 const summary = reactive({
@@ -90,6 +94,8 @@ const summary = reactive({
 });
 
 const list = ref([]);
+const summaryReady = ref(false);
+const summaryError = ref('');
 const tradeType = ref('');
 
 const typeTabs = [
@@ -115,12 +121,14 @@ const moneyParts = computed(() => splitMoney(totalMoney.value));
 const withdrawMoneyParts = computed(() => splitMoney(summary.money));
 
 const logSymbol = (item) => {
-  if (item.account_type === 'money' || item.from_type === 'cash_out') return '提';
+  // money 仅代表可提现账户，不代表提现行为；活动奖励等收入仍显示“收”。
+  if (item.from_type === 'cash_out') return '提';
   return Number(item.account_data || 0) > 0 ? '收' : '支';
 };
 
 const logColorClass = (item) => {
-  if (item.account_type === 'money' || item.from_type === 'cash_out') return 'is-blue';
+  // 只有提现业务使用蓝色图标，其他账户流水按收支方向配色。
+  if (item.from_type === 'cash_out') return 'is-blue';
   return Number(item.account_data || 0) > 0 ? 'is-red' : 'is-green';
 };
 
@@ -135,7 +143,17 @@ const formatChange = (value) => {
 };
 
 const fetchSummary = async () => {
-  Object.assign(summary, await getBalance() || {});
+  summaryReady.value = false;
+  summaryError.value = '';
+  try {
+    const member = await getMemberInfo();
+    const money = readMemberAmount(member, 'money');
+    const balance = readMemberAmount(member, 'balance');
+    Object.assign(summary, { money, balance });
+    summaryReady.value = true;
+  } catch (error) {
+    summaryError.value = error?.message || '账户余额读取失败';
+  }
 };
 
 const fetchList = async () => {
@@ -157,14 +175,9 @@ const goCashOut = () => {
   openPage('/pages/member/apply-cash-out');
 };
 
-onMounted(async () => {
-  await fetchSummary();
-  await fetchList();
-});
-
+// 只在 onShow 刷新，避免首次进入时 onMounted 与 onShow 重复请求。
 onShow(async () => {
-  await fetchSummary();
-  await fetchList();
+  await Promise.all([fetchSummary(), fetchList()]);
 });
 </script>
 
@@ -282,7 +295,8 @@ onShow(async () => {
 }
 
 .summary-btn--primary {
-  background: linear-gradient(94deg, #fb7939 0%, #fe120e 99%);
+  /* 提现相关主操作统一深蓝色，提高白色文字对比度。 */
+  background: #1e40af;
 }
 
 .summary-btn--primary text {
@@ -315,6 +329,7 @@ onShow(async () => {
 }
 
 .log-icon {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -343,7 +358,9 @@ onShow(async () => {
 
 .log-main {
   flex: 1;
+  min-width: 0;
   margin-left: 18rpx;
+  margin-right: 16rpx;
 }
 
 .log-main text {
@@ -356,11 +373,23 @@ onShow(async () => {
   font-weight: 800;
 }
 
-.log-main text:last-child {
+.log-main .log-time {
   margin-top: 10rpx;
   color: #8b95a7;
   font-size: 22rpx;
 }
+
+/* 备注完整换行，不截断；金额固定在右侧，避免长说明挤压金额。 */
+.log-main .log-memo {
+  margin-top: 10rpx;
+  color: #667286;
+  font-size: 22rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.log-side { flex-shrink: 0; }
 
 .log-side text {
   font-size: 30rpx;

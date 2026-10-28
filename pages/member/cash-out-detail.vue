@@ -1,10 +1,13 @@
 <template>
-  <view class="detail-page" v-if="detail">
+  <view class="detail-page">
     <AppNavbar title="提现详情" />
+    <view class="refresh-tip" @click="refresh">{{ loadError || '点击刷新提现状态' }}</view>
 
+    <template v-if="detail">
     <view class="status-card">
       <text class="status-money">¥{{ Number(detail.apply_money || 0).toFixed(2) }}</text>
-      <text class="status-name">{{ detail.status_name || currentStatusDesc(detail.status) }}</text>
+      <text class="status-name">{{ cashOutStatus(detail) }}</text>
+      <text v-if="canConfirm" class="refresh-tip">审核已通过，请确认提现；到账结果以后端状态为准</text>
     </view>
 
     <view class="info-card">
@@ -50,55 +53,90 @@
     </view>
 
     <view v-if="[1, 2, 4].includes(Number(detail.status))" class="bottom-bar">
-      <up-button plain type="primary" shape="circle" text="取消提现" @click="cancelCashOut" />
+      <up-button :disabled="operating" plain type="primary" shape="circle" text="取消提现" @click="cancelCashOut" />
+      <!-- 确认操作与提现入口统一深蓝底白字，取消仍使用描边次要样式。 -->
+      <up-button v-if="canConfirm" :loading="operating" color="#1e40af" type="primary" shape="circle" text="确认提现" @click="confirmTransfer" />
     </view>
+    </template>
   </view>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
-import { getCashOutDetail, memberCancel } from '@/api/member';
+import { getCashOutDetail, getCashOutTransfer, getMemberInfo, memberCancel } from '@/api/member';
+import { cashOutStatus, merchantTransferOptions, openMerchantTransfer } from '@/utils/cash-out';
+import { useCashOutRefresh } from '@/hooks/use-cash-out-refresh';
 import { getPageOptions } from '@/utils/pages';
 
 // 中文说明：
 // 提现详情页尽量复用 niucloud 返回的标准字段。
 // 如果后端直接返回 status_name，这里优先展示；否则再用本地映射兜底。
 const detail = ref(null);
+const operating = ref(false);
+const loadError = ref('');
+const detailId = ref('');
+onLoad(options => { detailId.value = options.id || ''; });
+const canConfirm = computed(() => detail.value?.transfer_type === 'wechatpay' && [2, 4].includes(Number(detail.value?.status)));
 
-const currentStatusDesc = (status) => {
-  switch (Number(status)) {
-    case 1:
-      return '待审核';
-    case 2:
-      return '待转账';
-    case 3:
-      return '已转账';
-    case 4:
-      return '转账处理中';
-    case -2:
-      return '已取消';
-    case -1:
-      return '已拒绝';
-    default:
-      return '处理中';
+const fetchDetail = async () => {
+  try {
+    const id = detailId.value || getPageOptions().id;
+    if (!id) throw new Error('缺少提现记录编号');
+    detail.value = await getCashOutDetail(id);
+    loadError.value = '';
+    return [1, 2, 4].includes(Number(detail.value?.status));
+  } catch (error) {
+    loadError.value = '状态读取失败，点击重试';
+    throw error;
+  }
+};
+const { refresh } = useCashOutRefresh(fetchDetail);
+
+/** 仅用户点击后发起：状态2创建转账，状态4复用已有签名包，避免重复发起。 */
+const confirmTransfer = async () => {
+  if (operating.value) return;
+  operating.value = true;
+  try {
+    let client;
+    // #ifdef MP-WEIXIN
+    client = wx;
+    // #endif
+    // 先检查客户端能力，避免不支持的环境先创建真实转账。
+    if (!client || typeof client.requestMerchantTransfer !== 'function') throw new Error('请在新版微信小程序中确认提现');
+    await fetchDetail();
+    if (!canConfirm.value) return;
+    let transfer = detail.value.transfer;
+    if (Number(detail.value.status) === 2) {
+      const member = await getMemberInfo();
+      if (!member?.weapp_openid) throw new Error('请先使用微信登录后再确认提现');
+      transfer = await getCashOutTransfer({ id: detail.value.id, open_id: member.weapp_openid });
+    }
+    await openMerchantTransfer(merchantTransferOptions(transfer), client);
+    uni.showToast({ title: '请以最新到账状态为准', icon: 'none' });
+  } catch (error) {
+    const message = error?.message || error?.errMsg || '确认收款失败，请刷新后重试';
+    uni.showToast({ title: /cancel/i.test(message) ? '已取消确认收款' : message, icon: 'none' });
+  } finally {
+    operating.value = false;
+    await refresh();
   }
 };
 
-const fetchDetail = async () => {
-  const options = getPageOptions();
-  if (!options.id) return;
-  detail.value = await getCashOutDetail(options.id);
-};
-
 const cancelCashOut = async () => {
-  if (!detail.value?.id) return;
-  await memberCancel({ id: detail.value.id });
-  uni.showToast({ title: '提现已取消', icon: 'success' });
-  await fetchDetail();
+  if (!detail.value?.id || operating.value) return;
+  const result = await new Promise(resolve => uni.showModal({ title: '取消提现', content: '确定取消这笔提现吗？', success: resolve, fail: () => resolve({ confirm: false }) }));
+  if (!result.confirm) return;
+  operating.value = true;
+  try {
+    await memberCancel({ id: detail.value.id });
+    uni.showToast({ title: '提现已取消', icon: 'success' });
+  } finally {
+    operating.value = false;
+    await refresh();
+  }
 };
-
-onMounted(fetchDetail);
 </script>
 
 <style lang="scss" scoped>
@@ -162,6 +200,8 @@ onMounted(fetchDetail);
 }
 
 .bottom-bar {
+  display: flex;
+  gap: 20rpx;
   position: fixed;
   left: 0;
   right: 0;
@@ -169,6 +209,7 @@ onMounted(fetchDetail);
   padding: 18rpx 24rpx calc(env(safe-area-inset-bottom) + 24rpx);
   background: #f3f7fd;
 }
+.refresh-tip { display: block; margin-top: 16rpx; color: #667286; font-size: 24rpx; line-height: 1.6; }
 
 .bottom-bar :deep(.u-button) {
   height: 78rpx;

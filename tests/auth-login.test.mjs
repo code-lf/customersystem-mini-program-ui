@@ -20,13 +20,15 @@ const createPage = (overrides = {}) => {
     uni: { showToast: (value) => notices.push(value) }, ...overrides
   };
   const script = page.match(/<script setup>([\s\S]*?)<\/script>/)[1].replace(/^import .*;\r?$/gm, '');
-  runInNewContext(`${script}\nglobalThis.form = { mobileForm, loginConfig, captchaForm, countdown, handleSendCode, confirmSendCode, handleMobileLogin };`, context);
+  runInNewContext(`${script}\nglobalThis.form = { isAgreed, mobileForm, loginConfig, captchaForm, countdown, handleSendCode, confirmSendCode, handleMobileLogin };`, context);
   return { form: context.form, requests, notices, intervals: () => intervals };
 };
 
 test('图形验证码发送成功后保存短信key并倒计时，登录提交真实验证码', async () => {
   let loginPayload;
   const view = createPage({ mobileLogin: async (data) => { loginPayload = JSON.parse(JSON.stringify(data)); return { token: 'test-token' }; } });
+  // 正常短信链路测试显式模拟用户主动勾选，不依赖默认同意。
+  view.form.isAgreed.value = true;
   view.form.loginConfig.value = { is_mobile: 1 };
   view.form.mobileForm.mobile = '13800000000';
   await nextTick();
@@ -49,11 +51,13 @@ test('图形验证码发送成功后保存短信key并倒计时，登录提交�
 
 test('后台未开放时不发送短信；发送失败不伪造验证码、不启动倒计时', async () => {
   const disabled = createPage();
+  disabled.form.isAgreed.value = true;
   disabled.form.loginConfig.value = { is_mobile: 0, is_bind_mobile: 0 };
   disabled.form.mobileForm.mobile = '13800000000';
   await disabled.form.handleSendCode();
   assert.equal(disabled.requests.length, 0);
   const failed = createPage({ sendMobileCode: async () => { throw new Error('短信未配置'); } });
+  failed.form.isAgreed.value = true;
   failed.form.loginConfig.value = { is_mobile: 1 };
   failed.form.mobileForm.mobile = '13800000000';
   await nextTick();
@@ -64,6 +68,19 @@ test('后台未开放时不发送短信；发送失败不伪造验证码、不�
   assert.equal(failed.form.mobileForm.mobile_key, '');
   assert.equal(failed.intervals(), 0);
   assert.ok(failed.notices.some((value) => value.title === '短信未配置'));
+});
+
+test('未主动同意协议时不发送验证码或提交登录请求', async () => {
+  let logins = 0;
+  const view = createPage({ mobileLogin: async () => { logins++; return {}; } });
+  view.form.loginConfig.value = { is_mobile: 1 };
+  view.form.mobileForm.mobile = '13800000000';
+  assert.equal(view.form.isAgreed.value, false);
+  await view.form.handleSendCode();
+  await view.form.handleMobileLogin();
+  assert.equal(view.requests.length, 0);
+  assert.equal(logins, 0);
+  assert.ok(view.notices.some(value => value.title.includes('请先勾选')));
 });
 
 test('认证API使用真实请求模式、场景短信路径以及mobile_key/mobile_code协议', async () => {

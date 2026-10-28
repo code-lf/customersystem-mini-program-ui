@@ -70,6 +70,8 @@ const handleQuery = async (scannedBarcode = '') => {
     return;
   }
   querying.value = true;
+  // 查询结束后统一弹提示，避免先 showToast 后 hideLoading 在真机上把提示一并关闭。
+  let feedbackMessage = '';
   uni.showLoading({ title: '查询中...' });
   try {
     const data = await queryBarcodePassword(code);
@@ -81,16 +83,20 @@ const handleQuery = async (scannedBarcode = '') => {
     barcode.value = code;
     showResult.value = true;
   } catch (error) {
-    // 仅明确的未收录业务提示转为空结果，网络、权限等错误仍按真实原因反馈。
+    // 同时覆盖后端实际返回的“未查询到该条形码信息”，条形码与条码都属于明确无记录。
+    // 只匹配明确的无记录业务提示，网络、权限等错误仍按真实原因反馈。
     const message = error?.message || '查询失败';
-    if (/未查询到密码|密码未录入|未找到.*(?:条码|密码)|(?:条码|密码).*(?:不存在|未录入|未收录)/.test(message)) {
+    if (/未查询到(?:该)?(?:条形码|条码|密码)(?:信息)?|密码未录入|未找到.*(?:条形码|条码|密码)|(?:条形码|条码|密码).*(?:不存在|未录入|未收录)/.test(message)) {
       noResult.value = true;
     } else {
-      uni.showToast({ title: message, icon: 'none' });
+      feedbackMessage = message;
     }
   } finally {
+    // 等待原生 loading 关闭后才弹出结果，保证扫码和手动查询使用相同的提示顺序。
+    await new Promise(resolve => uni.hideLoading({ complete: resolve }));
+    if (noResult.value) feedbackMessage = '密码未录入平台，请联系业务经理或是平台反馈';
+    if (feedbackMessage) uni.showToast({ title: feedbackMessage, icon: 'none', duration: 3500 });
     querying.value = false;
-    uni.hideLoading();
   }
 };
 

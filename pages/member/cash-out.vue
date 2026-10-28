@@ -1,6 +1,7 @@
 <template>
   <view class="record-page">
     <AppNavbar title="提现记录" />
+    <view class="record-desc" @click="refresh">{{ loadError || '点击刷新提现状态' }}</view>
 
     <view v-if="cashOutList.length" class="record-list">
       <view
@@ -11,12 +12,13 @@
       >
         <view class="record-head">
           <text class="record-money">{{ moneyFormat(item.apply_money) }}</text>
-          <text class="record-status">{{ item.status_name || currentStatusDesc(item.status) }}</text>
+          <text class="record-status">{{ cashOutStatus(item) }}</text>
         </view>
 
         <text class="record-line">提现方式：{{ item.transfer_type_name || '--' }}</text>
         <text class="record-line">申请时间：{{ item.create_time || '--' }}</text>
-        <text class="record-desc">{{ Number(item.status) !== -1 ? currentStatusDesc(item.status) : item.refuse_reason }}</text>
+        <text class="record-desc">{{ Number(item.status) !== -1 ? cashOutStatus(item) : item.refuse_reason }}</text>
+        <text v-if="item.transfer_type === 'wechatpay' && [2, 4].includes(Number(item.status))" class="record-action">查看详情并确认提现 ›</text>
       </view>
     </view>
 
@@ -33,8 +35,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { ref } from 'vue';
+import { cashOutStatus } from '@/utils/cash-out';
+import { useCashOutRefresh } from '@/hooks/use-cash-out-refresh';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getCashOutList } from '@/api/member';
 import { openPage } from '@/utils/pages';
@@ -43,29 +46,12 @@ import { openPage } from '@/utils/pages';
 // 记录列表对齐 niucloud 的提现记录字段：apply_money、status_name、transfer_type_name、create_time、refuse_reason。
 // 这里保留了 status 数字到文案的兜底映射，避免某些环境只返回状态码没有返回 status_name。
 const cashOutList = ref([]);
+const loadError = ref('');
 
 const moneyFormat = (value) => `¥${Number(value || 0).toFixed(2)}`;
 
-const currentStatusDesc = (status) => {
-  switch (Number(status)) {
-    case 1:
-      return '待审核';
-    case 2:
-      return '待转账';
-    case 3:
-      return '已转账';
-    case 4:
-      return '转账处理中';
-    case -2:
-      return '已取消';
-    case -1:
-      return '已拒绝';
-    default:
-      return '处理中';
-  }
-};
-
 const fetchList = async () => {
+  try {
   const accountType = uni.getStorageSync('cashOutAccountType') || 'money';
   const result = await getCashOutList({
     page: 1,
@@ -73,10 +59,15 @@ const fetchList = async () => {
     account_type: accountType
   });
   cashOutList.value = result?.data || result?.list || [];
+  loadError.value = '';
+  return cashOutList.value.some(item => [1, 2, 4].includes(Number(item.status)));
+  } catch (error) {
+    loadError.value = '状态刷新失败，点击重试';
+    throw error;
+  }
 };
 
-onMounted(fetchList);
-onShow(fetchList);
+const { refresh } = useCashOutRefresh(fetchList);
 </script>
 
 <style lang="scss" scoped>
@@ -131,4 +122,5 @@ onShow(fetchList);
   font-size: 22rpx;
   line-height: 32rpx;
 }
+.record-action { display: block; margin-top: 16rpx; color: #2468e8; font-size: 24rpx; }
 </style>

@@ -1,5 +1,6 @@
 <template>
-  <view class="chat-page">
+  <AiComingSoon v-if="!aiAvailable" />
+  <view v-else class="chat-page">
     <AppNavbar title="AI 小格 · 家电助理" bg-color="#f4f7fc" />
     <!-- 长标题与微信胶囊占据导航栏空间，会话入口独立放在下方，避免互相遮挡。 -->
     <view class="history-toolbar">
@@ -38,6 +39,8 @@
             <image class="avatar ai-avatar" :src="xiaogeAvatar" mode="aspectFit" />
             <view class="ai-content">
               <view class="ai-bubble" :class="{ 'error-bubble': msg.isError }">
+                <!-- 在每条 AI 回答正文前标注来源，历史消息和流式回答同样显示；接口错误提示不作生成内容标注。 -->
+                <text v-if="!msg.isError" class="ai-generated-label">AI生成</text>
                 <view v-if="msg.isStreaming && !msg.text" class="stream-thinking">
                   <view class="dot" />
                   <view class="dot" />
@@ -142,7 +145,7 @@
       <text class="unlogin-tip-btn">立即登录 ›</text>
     </view>
 
-    <!-- 录音草稿期间保留输入区和操作区；语音必须经用户确认才会发送给 AI。 -->
+    <!-- 录音结束后自动发送最终识别文本；取消录音或退出页面时不发送。 -->
     <view class="input-bar" :class="{ 'voice-mode': hasVoiceDraft }">
       <view class="composer-main">
         <button
@@ -188,16 +191,19 @@
           <up-icon name="arrow-up" size="22" color="#fff" />
         </button>
       </view>
-      <!-- 录音时“发送”先停止识别并等待最终结果；“取消”丢弃语音草稿。 -->
+      <!-- 可主动结束录音并自动发送，取消仍丢弃整段语音。 -->
       <view v-if="hasVoiceDraft" class="voice-actions">
         <button class="voice-cancel-btn" :disabled="isVoiceStopping" @click="cancelVoiceDraft">取消</button>
-        <button class="voice-send-btn" :disabled="isVoiceStopping || (!isRecording && !inputContent.trim())" @click="sendVoiceDraft">发送</button>
+        <button class="voice-send-btn" :disabled="isVoiceStopping || (!isRecording && !inputContent.trim())" @click="sendVoiceDraft">结束并发送</button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
+import AiComingSoon from '@/components/ai-coming-soon.vue';
+import { isAiAvailable } from '@/utils/ai-access';
+const aiAvailable = isAiAvailable();
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
@@ -235,7 +241,7 @@ const visibleMessages = computed(() => messages.value.filter((item) => !item.isH
 
 // 微信同声传译录音识别管理器，仅在微信小程序平台初始化。
 let recognitionManager = null;
-// stop 是异步的：用意图区分“仅停止”“发送”和“取消”，避免 onStop 擅自发消息。
+// stop 是异步的：结束后自动发送，只有取消或离开页面才丢弃识别结果。
 let pendingVoiceAction = '';
 let isPageLeaving = false;
 let activeAiRequest = null;
@@ -272,16 +278,13 @@ const initVoiceRecognition = () => {
       // 页面退出触发的停止只负责释放麦克风，不应把半段识别结果继续发送。
       if (isPageLeaving || action === 'cancel' || !hasVoiceDraft.value) return;
 
-      // 最终识别结果可能比实时结果更完整；只在明确点“发送”后提交。
-      if (text) inputContent.value = text;
-      if (action === 'send') {
-        if (inputContent.value.trim()) {
-          hasVoiceDraft.value = false;
-          sendMessage(inputContent.value);
-        } else {
-          uni.showToast({ title: '没有识别到文字，请重试', icon: 'none' });
-        }
-      } else if (!text) {
+      // 手动结束、录音到时都使用最终识别文本自动发送；先清草稿标记防止重复回调。
+      hasVoiceDraft.value = false;
+      if (text) {
+        inputContent.value = text;
+        sendMessage(text);
+      } else {
+        inputContent.value = '';
         uni.showToast({ title: '没有识别到文字，请重试', icon: 'none' });
       }
     };
@@ -314,7 +317,7 @@ const initVoiceRecognition = () => {
 };
 
 const toggleVoiceRecord = () => {
-  // 再点麦克风只结束录音，不自动发送；操作区会继续显示识别出的草稿。
+  // 再点麦克风结束录音，等待 onStop 的最终识别结果后自动发送。
   if (isRecording.value) {
     pendingVoiceAction = 'stop';
     isVoiceStopping.value = true;
@@ -466,6 +469,7 @@ const startNewChat = async () => {
 };
 
 const sendMessage = async (text, { hideUserMessage = false } = {}) => {
+  if (!aiAvailable) return;
   if (!text || !text.trim() || isThinking.value || sessionLoading.value || sessionError.value) return;
 
   const userText = text.trim();
@@ -579,12 +583,14 @@ const sendMessage = async (text, { hideUserMessage = false } = {}) => {
 };
 
 onMounted(() => {
+  if (!aiAvailable) return;
   // #ifdef MP-WEIXIN
   initVoiceRecognition();
   // #endif
 });
 
 onLoad((pageOptions = {}) => {
+  if (!aiAvailable) return;
   // 必须用 onLoad 的实参读取路由，setup 阶段 getCurrentPages 可能仍是上一页。
   requestedSessionId.value = pageOptions.session_id || '';
   if (requestedSessionId.value) {
@@ -784,6 +790,15 @@ onUnload(() => {
   box-shadow: 0 6rpx 22rpx rgba(23, 35, 61, 0.04);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 使用小字号和清晰对比度标注生成来源，独立显示在回答正文上方。 */
+.ai-generated-label {
+  display: block;
+  margin-bottom: 10rpx;
+  color: #64748b;
+  font-size: 22rpx;
+  line-height: 1.4;
 }
 
 .recommend-cards-wrap {

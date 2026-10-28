@@ -17,6 +17,7 @@ const createStream = () => {
   const timers = new Map();
   const chunks = [];
   const context = {
+    isAiAvailable: () => true,
     console: { warn() {} }, TextDecoder,
     config: { baseUrl: 'https://example.test/api', aiAssistant: {} },
     STORAGE_KEYS: { token: 'token' }, getStorage: () => 'test-session',

@@ -1,4 +1,5 @@
 import config from '../config/app';
+import { isAiAvailable } from '../utils/ai-access';
 import request from '../utils/request';
 import { getStorage } from '../utils/storage';
 import { STORAGE_KEYS } from '../config/storage';
@@ -202,6 +203,8 @@ function generateExpertAdvice(question, isGuest = false) {
  * @param {object} options 可选会话参数
  */
 export async function askAi(question, history = [], options = {}) {
+  // 正式版即使绕过页面调用方法，也不发送 AI 请求。
+  if (!isAiAvailable()) throw new Error('AI 助手暂未开放，敬请期待');
   const content = String(question || '').trim();
   if (!content) throw new Error('请输入要咨询的问题');
 
@@ -461,6 +464,8 @@ function createStreamResult(text, meta = {}, fallbackResult = null) {
  * 返回控制器而不是单独 Promise，页面退出时可调用 abort() 释放网络请求。
  */
 export function askAiStream(question, history = [], options = {}, handler = {}) {
+  // 保持流式控制器协议，关闭时立即拒绝且不初始化网络、计时器或降级请求。
+  if (!isAiAvailable()) return { promise: Promise.reject(new Error('AI 助手暂未开放，敬请期待')), abort() {} };
   const content = String(question || '').trim();
   let requestTask = null;
   let cancelled = false;

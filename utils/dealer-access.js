@@ -38,7 +38,10 @@ export async function requireDealerAccess(userStore, onDenied) {
       throw new Error('会员接口未返回身份信息');
     }
     // 权限字段必须使用本次响应；字段缺失时清空，避免沿用缓存中的旧业务员身份。
-    userStore.setUserInfo({ ...userStore.userInfo, ...member, is_dealer: member.is_dealer ?? 0, admin_account: member.admin_account ?? null });
+    const current = { ...userStore.userInfo, ...member, is_dealer: member.is_dealer ?? 0, admin_account: member.admin_account ?? null };
+    // 新接口权限字段缺失时不得沿用旧缓存。
+    if (!Object.prototype.hasOwnProperty.call(member, 'can_use_dealer_features')) delete current.can_use_dealer_features;
+    userStore.setUserInfo(current);
   } catch (error) {
     uni.showModal({
       title: '暂无法验证身份',

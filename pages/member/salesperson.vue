@@ -19,7 +19,11 @@
           <view class="manager-identity">
             <text class="manager-label">您的专属客户经理</text>
             <text class="manager-name">{{ salesperson.name || '客户经理' }}</text>
-            <text v-if="dealerUnit" class="dealer-unit">服务单位：{{ dealerUnit }}</text>
+          </view>
+          <!-- 展示 CRM 业务员关联小程序会员的头像，不使用当前登录用户自己的头像。 -->
+          <view class="manager-avatar">
+            <image v-if="managerAvatar && !avatarFailed" :src="managerAvatar" mode="aspectFill" @click="previewManagerAvatar" @error="avatarFailed = true" />
+            <up-icon v-else name="account" size="36" color="#7594c4" />
           </view>
         </view>
         <view class="divider" />
@@ -43,7 +47,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import config from '@/config/app';
 import { onShow } from '@dcloudio/uni-app';
 import AppWatermark from '@/components/app-watermark.vue';
 import { requireDealerAccess } from '@/utils/dealer-access';
@@ -61,7 +66,24 @@ const salesperson = computed(() => {
   const value = userStore.userInfo?.salesperson;
   return userStore.canUseBusinessFeatures && Number(value?.member_id) > 0 ? value : null;
 });
-const dealerUnit = computed(() => String(userStore.userInfo?.dealer_unit || '').trim());
+const avatarFailed = ref(false);
+// mini_member_headimg 是业务员资料字段；兼容绝对地址、协议相对地址及站点上传路径。
+const managerAvatar = computed(() => {
+  const value = String(salesperson.value?.mini_member_headimg || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('//')) return `https:${value}`;
+  const origin = String(config.memberBaseUrl || config.baseUrl || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+  return `${origin}/${value.replace(/^\//, '')}`;
+});
+// 后台更换头像后允许新地址重新加载，失败时使用本地通用图标兜底。
+watch(managerAvatar, () => { avatarFailed.value = false; });
+
+/** 点击业务员真实头像打开原生图片预览；空头像和加载失败的占位图不参与预览。 */
+const previewManagerAvatar = () => {
+  if (!managerAvatar.value || avatarFailed.value) return;
+  uni.previewImage({ current: managerAvatar.value, urls: [managerAvatar.value] });
+};
 const mobile = computed(() => String(salesperson.value?.mobile || '').trim());
 const canCall = computed(() => /^\+?\d[\d\s-]{5,19}$/.test(mobile.value));
 
@@ -108,10 +130,11 @@ const goBack = () => {
 .card-glow { position: absolute; top: -80rpx; right: -70rpx; width: 330rpx; height: 330rpx; border-radius: 50%; background: radial-gradient(circle, #dfebff 0%, rgba(223, 235, 255, 0) 72%); pointer-events: none; }
 .manager-badge { position: relative; display: inline-flex; padding: 8rpx 18rpx; border-radius: 100rpx; background: #e7f0ff; color: #2468e8; font-size: 22rpx; font-weight: 700; }
 .manager-main { position: relative; display: flex; align-items: center; margin-top: 24rpx; }
-.manager-identity { display: flex; flex-direction: column; min-width: 0; gap: 6rpx; }
+.manager-identity { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 6rpx; }
+.manager-avatar { position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 120rpx; height: 120rpx; margin-left: 24rpx; border-radius: 50%; overflow: hidden; background: #edf4ff; border: 4rpx solid #fff; box-shadow: 0 4rpx 18rpx rgba(36, 104, 232, .12); }
+.manager-avatar image { width: 100%; height: 100%; }
 .manager-label { color: #718098; font-size: 23rpx; }
 .manager-name { color: #17233d; font-size: 42rpx; font-weight: 800; }
-.dealer-unit { color: #7d8ca4; font-size: 22rpx; word-break: break-all; }
 .divider { height: 1rpx; margin: 28rpx 0 24rpx; background: #edf2f9; }
 .contact-row { display: flex; align-items: center; }
 .contact-copy { display: flex; flex-direction: column; gap: 4rpx; }

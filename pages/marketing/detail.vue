@@ -61,43 +61,7 @@
         </view>
       </view>
 
-      <!-- 页面内部专属分享卡片（按需求：将分享功能集中在活动详情页面内做分享） -->
-      <view class="share-promo-card">
-        <view class="share-promo-content">
-          <view class="share-promo-left">
-            <view class="share-icon-wrap">
-              <up-icon name="share" size="20" color="#2563eb" />
-            </view>
-            <view class="share-text-wrap">
-              <text class="share-main-title">分享特惠活动给同行或团队</text>
-              <text class="share-sub-title">分享活动详情给同行或团队</text>
-            </view>
-          </view>
-          <button class="share-card-btn" open-type="share" @click="handleNativeShare">
-            <up-icon name="share" size="14" color="#ffffff" />
-            <text>立即分享</text>
-          </button>
-        </view>
-      </view>
-
-      <!-- 已报名状态横幅 -->
-      <view v-if="isEnrolled" class="enrolled-status-card">
-        <view class="enrolled-icon">
-          <up-icon name="checkmark-circle-fill" size="24" color="#10b981" />
-        </view>
-        <view class="enrolled-info">
-          <text class="enrolled-title">{{ formatEnrollmentStatus(latestEnrollment.enroll_status) }}</text>
-          <text class="enrolled-desc">您可在“我的报名”中查看报名状态。</text>
-        </view>
-        <view class="enrolled-action" @click="openPage('/pages/marketing/enrollments')">
-          <text>查看报名</text>
-          <up-icon name="arrow-right" size="12" color="#2563eb" />
-        </view>
-      </view>
-
-      <view v-if="latestEnrollment && (latestEnrollment.items?.length || latestEnrollment.total_amount != null)" class="section-card">
-        <CampaignEnrollmentSummary :record="latestEnrollment" title="我的报名商品" />
-      </view>
+      <!-- 分享和报名状态集中在底部操作栏，报名明细仍可从“我的报名”查看。 -->
 
       <!-- 活动特惠机型 -->
       <view v-if="campaign.items && campaign.items.length > 0" class="section-card">
@@ -322,7 +286,6 @@ import { openPage } from '@/utils/pages';
 import { createShareAppMessageOptions, createShareTimelineOptions, showMiniProgramShareMenu } from '@/utils/share';
 import AppNavbar from '@/components/app-navbar.vue';
 import AppLoadingSpinner from '@/components/app-loading-spinner.vue';
-import CampaignEnrollmentSummary from '@/components/campaign-enrollment-summary.vue';
 import { getSelectableCampaignItems, buildCampaignEnrollmentItems } from '@/utils/marketing-enrollment';
 import { useUserStore } from '@/store/user';
 import appConfig from '@/config/app';
@@ -902,15 +865,16 @@ const handleSubmitEnroll = async () => {
     .time-item {
       display: flex;
       align-items: center;
-      gap: 10rpx;
+      gap: 6rpx;
+      white-space: nowrap;
 
       .time-label {
-        font-size: 24rpx;
+        font-size: 21rpx;
         color: #64748b;
       }
 
       .time-val {
-        font-size: 24rpx;
+        font-size: 21rpx;
         color: #1e293b;
         font-weight: 600;
       }
@@ -919,8 +883,10 @@ const handleSubmitEnroll = async () => {
     .countdown-tag {
       display: flex;
       align-items: center;
+      flex-shrink: 0;
+      white-space: nowrap;
       gap: 6rpx;
-      padding: 4rpx 14rpx;
+      padding: 4rpx 8rpx;
       background: #ffedd5;
       border-radius: 16rpx;
       font-size: 22rpx;

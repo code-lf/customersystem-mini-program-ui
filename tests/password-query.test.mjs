@@ -10,13 +10,16 @@ const script = source.match(/<script setup>([\s\S]*?)<\/script>/)[1].replace(/^i
 // 使用真实页面查询逻辑，覆盖空结果、异常和扫码入口，测试中不保存实际密码。
 function createPage(queryBarcodePassword) {
   const messages = [];
+  const events = [];
   const context = { ref, computed, queryBarcodePassword, uni: {
-    showToast: (data) => messages.push(data.title), showLoading() {}, hideLoading() {},
+    showToast: (data) => { events.push('toast'); messages.push(data.title); },
+    showLoading() { events.push('loading'); },
+    hideLoading({ complete }) { events.push('hideLoading'); complete(); },
     scanCode: ({ success }) => success({ result: 'TEST' })
   } };
   runInNewContext(`${script}\nglobalThis.form = { handleQuery, handleScan, showResult, noResult, querying, barcode };`, context);
   context.form.barcode.value = 'TEST';
-  return { form: context.form, messages };
+  return { form: context.form, messages, events };
 }
 
 test('查询无记录显示常驻提示，重新查到记录时清除空状态', async () => {
@@ -32,11 +35,33 @@ test('查询无记录显示常驻提示，重新查到记录时清除空状态',
 });
 
 test('明确未录入显示空提示，网络与权限错误不冒充未录入', async () => {
-  for (const message of ['未查询到密码', '网络错误', '无权限']) {
+  const emptyMessages = ['未查询到密码', '未查询到该条形码信息', '未查询到该条码信息', '未找到条形码', '条形码不存在'];
+  for (const message of [...emptyMessages, '网络错误', '无权限', '条形码查询无权限']) {
     const { form, messages } = createPage(async () => { throw new Error(message); });
     await form.handleQuery();
-    assert.equal(form.noResult.value, message === '未查询到密码');
-    if (message !== '未查询到密码') assert.deepEqual(messages, [message]);
+    assert.equal(form.noResult.value, emptyMessages.includes(message), message);
+    if (!emptyMessages.includes(message)) assert.deepEqual(messages, [message]);
+    else assert.deepEqual(messages, ['密码未录入平台，请联系业务经理或是平台反馈']);
+    assert.equal(form.querying.value, false);
+  }
+});
+
+test('扫码遇到真实后端未查询到条形码错误也显示指定常驻提示', async () => {
+  const { form, messages } = createPage(async () => { throw new Error('未查询到该条形码信息'); });
+  form.handleScan();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(form.noResult.value, true);
+  assert.equal(form.showResult.value, false);
+  assert.deepEqual(messages, ['密码未录入平台，请联系业务经理或是平台反馈']);
+  assert.match(source, /v-if="noResult"[^>]*>密码未录入平台，请联系业务经理或是平台反馈/);
+});
+
+test('真机提示时序：先关闭loading，再弹出无记录或错误提示', async () => {
+  for (const query of [async () => null, async () => { throw new Error('未查询到该条形码信息'); }, async () => { throw new Error('网络错误'); }]) {
+    const { form, events, messages } = createPage(query);
+    await form.handleQuery();
+    assert.deepEqual(events, ['loading', 'hideLoading', 'toast']);
+    assert.equal(messages.length, 1);
     assert.equal(form.querying.value, false);
   }
 });

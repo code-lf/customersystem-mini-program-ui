@@ -28,7 +28,7 @@
       </view>
       <view class="notice-content">
         <text class="notice-title">新用户注册说明</text>
-        <text class="notice-desc">微信/手机号快捷登录即完成普通会员注册，后台业务员将为您分配专属经销商等级与报价权限。</text>
+        <text class="notice-desc">手机号快捷登录即完成普通会员注册，后台业务员将为您分配专属经销商等级与报价权限。</text>
       </view>
     </view>
 
@@ -41,7 +41,7 @@
           :class="{ active: activeTab === 'wechat' }"
           @click="activeTab = 'wechat'"
         >
-          <text>微信一键</text>
+          <text>手机号快捷</text>
           <view v-if="activeTab === 'wechat'" class="active-indicator" />
         </view>
         <view
@@ -49,7 +49,7 @@
           :class="{ active: activeTab === 'mobile' }"
           @click="activeTab = 'mobile'"
         >
-          <text>手机号快捷</text>
+          <text>验证码登录</text>
           <view v-if="activeTab === 'mobile'" class="active-indicator" />
         </view>
         <view
@@ -62,14 +62,14 @@
         </view>
       </view>
 
-      <!-- 1. 微信一键快捷登录 / 注册 -->
+      <!-- 保留原生手机号授权能力；展示使用本平台登录文案与通用手机图标，不冒用官方标识。 -->
       <view v-if="activeTab === 'wechat'" class="tab-pane wechat-pane">
         <view class="wechat-intro">
           <view class="wechat-icon-circle">
-            <up-icon name="weixin-fill" size="48" color="#07c160" />
+            <up-icon name="phone" size="48" color="#2468e8" />
           </view>
-          <text class="wechat-main-text">推荐使用微信一键快速登录</text>
-          <text class="wechat-sub-text">无需手动输入，自动同步微信认证信息并注册为普通会员</text>
+          <text class="wechat-main-text">手机号快捷登录</text>
+          <text class="wechat-sub-text">经您授权获取手机号，用于登录或注册本平台会员</text>
         </view>
 
         <!-- 小程序端先取得微信手机号授权码，再与登录 code 一起提交后端。 -->
@@ -81,21 +81,19 @@
           @click="handleWechatButtonClick"
           @getphonenumber="handleWechatPhoneLogin"
         >
-          <up-icon name="weixin-fill" size="20" color="#ffffff" />
-          <text class="btn-text">微信一键登录 / 注册</text>
+          <text class="btn-text">手机号快捷登录</text>
         </button>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
         <button class="wechat-submit-btn" :loading="loading" @click="handleWechatLogin">
-          <up-icon name="weixin-fill" size="20" color="#ffffff" />
-          <text class="btn-text">微信一键登录 / 注册</text>
+          <text class="btn-text">手机号快捷登录</text>
         </button>
         <!-- #endif -->
       </view>
 
       <!-- 2. 手机号快捷登录 / 注册 -->
       <view v-else-if="activeTab === 'mobile'" class="tab-pane">
-        <text v-if="!mobileLoginEnabled" class="login-method-tip">{{ loginConfigError || (loginConfigLoading ? '正在读取登录配置…' : '后台暂未开启手机号验证码登录，请使用微信或账号登录') }}</text>
+        <text v-if="!mobileLoginEnabled" class="login-method-tip">{{ loginConfigError || (loginConfigLoading ? '正在读取登录配置…' : '后台暂未开启验证码登录，请使用手机号快捷或账号登录') }}</text>
         <view class="input-field">
           <view class="input-icon">
             <up-icon name="phone" size="18" color="#7a8b9e" />
@@ -231,9 +229,23 @@ const userStore = useUserStore();
 const activeTab = ref('wechat'); // 默认微信一键登录：'wechat' | 'account' | 'mobile'
 const loading = ref(false);
 const showPassword = ref(false);
-const isAgreed = ref(true);
+// 每次进入登录页均默认不同意，不从缓存恢复勾选，也不在切换登录方式时自动同意。
+const isAgreed = ref(false);
+let colleagueReturnId = '';
+
+// 只有邀请页显式传入的合法档案 ID 才在登录后返回邀请页，其他登录流程保持原样。
+const finishLoginNavigation = () => {
+  if (colleagueReturnId) {
+    replacePage('/pages/marketing/colleague-bind', { parent_dealer_id: colleagueReturnId });
+    return;
+  }
+  replacePage('/pages/index/index');
+};
 
 onLoad((options) => {
+  if (options?.returnTo === 'colleague' && /^[1-9]\d*$/.test(String(options.parent_dealer_id || '')) && Number.isSafeInteger(Number(options.parent_dealer_id))) {
+    colleagueReturnId = String(options.parent_dealer_id);
+  }
   if (options?.tab && ['account', 'wechat', 'mobile'].includes(options.tab)) {
     activeTab.value = options.tab;
   }
@@ -392,7 +404,7 @@ const handleWechatLogin = async (mobileCode = '') => {
           }
         }
         uni.showToast({ title: mobileBindFailed ? '登录成功，手机号未绑定' : '登录成功', icon: mobileBindFailed ? 'none' : 'success' });
-        setTimeout(() => replacePage('/pages/index/index'), 600);
+        setTimeout(finishLoginNavigation, 600);
         return;
       }
     } catch (apiErr) {
@@ -492,7 +504,7 @@ const handleMobileLogin = async () => {
         });
         await userStore.fetchUserInfo();
         uni.showToast({ title: '登录成功', icon: 'success' });
-        setTimeout(() => replacePage('/pages/index/index'), 600);
+        setTimeout(finishLoginNavigation, 600);
         return;
       }
     } catch (apiErr) {
@@ -542,6 +554,7 @@ const handleAccountLogin = async () => {
         }
         uni.showToast({ title: '登录成功', icon: 'success' });
         setTimeout(() => {
+          if (colleagueReturnId) { finishLoginNavigation(); return; }
           uni.switchTab({ url: '/pages/index/index' }).catch(() => {
             replacePage('/pages/index/index');
           });
@@ -768,7 +781,7 @@ const openAgreement = (type) => {
   width: 120rpx;
   height: 120rpx;
   border-radius: 60rpx;
-  background: #e8f8ee;
+  background: #eef5ff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -793,13 +806,13 @@ const openAgreement = (type) => {
   width: 100%;
   height: 88rpx;
   border-radius: 44rpx;
-  background: #07c160;
+  background: #2468e8;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
   border: none;
-  box-shadow: 0 8rpx 20rpx rgba(7, 193, 96, 0.25);
+  box-shadow: 0 8rpx 20rpx rgba(36, 104, 232, 0.25);
 
   .btn-text {
     color: #ffffff;

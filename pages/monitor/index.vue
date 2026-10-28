@@ -50,7 +50,7 @@
               <text class="arrow">↓</text>
               <text>¥{{ money(item.change) }}</text>
             </view>
-            <view v-else-if="item.watch_target_type === 'goods' && item.change < 0" class="change-badge flat">
+            <view v-else-if="item.watch_target_type === 'goods' && item.change < 0" class="change-badge up">
               <text>↑ ¥{{ money(-item.change) }}</text>
             </view>
             <view v-else class="change-badge flat">
@@ -340,6 +340,7 @@ const formatTime = (value) => {
 }
 
 .change-badge {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   padding: 4rpx 12rpx;
@@ -350,8 +351,12 @@ const formatTime = (value) => {
 
 .change-badge.down {
   background: #ecfdf5;
-  color: #10b981;
+  color: #059669;
 }
+
+/* 涨红跌绿，变动金额放大加粗；无变化继续使用灰色小标签。 */
+.change-badge.up { background: #fff1f2; color: #dc2626; }
+.change-badge.up, .change-badge.down { font-size: 28rpx; font-weight: 800; padding: 6rpx 12rpx; }
 
 .change-badge.flat {
   background: #f1f5f9;
@@ -359,7 +364,7 @@ const formatTime = (value) => {
 }
 
 .arrow {
-  font-size: 20rpx;
+  font-size: 28rpx;
   margin-right: 2rpx;
 }
 
@@ -451,12 +456,12 @@ const formatTime = (value) => {
 .change-card__old { color: #94a3b8; font-size: 24rpx; text-decoration: line-through; }
 .change-card__arrow { color: #94a3b8; font-size: 24rpx; }
 .change-card__new { font-size: 34rpx; font-weight: 700; }
-.change-card__amount { margin-left: auto; font-size: 23rpx; font-weight: 600; }
+.change-card__amount { margin-left: auto; font-size: 28rpx; font-weight: 800; }
 .change-card__time { color: #94a3b8; font-size: 21rpx; }
-.change-card__direction.down { color: #ef4444; background: #fff1f1; }
-.change-card__direction.up { color: #2468e8; background: #edf4ff; }
-.change-card__new.down, .change-card__amount.down { color: #ef4444; }
-.change-card__new.up, .change-card__amount.up { color: #2468e8; }
+.change-card__direction.down { color: #059669; background: #ecfdf5; }
+.change-card__direction.up { color: #dc2626; background: #fff1f2; }
+.change-card__new.down, .change-card__amount.down { color: #059669; }
+.change-card__new.up, .change-card__amount.up { color: #dc2626; }
 
 .empty-state {
   display: flex;

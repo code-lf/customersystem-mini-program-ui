@@ -66,39 +66,34 @@
       </view>
     </view>
 
-    <!-- 资金与账户资产卡片 -->
+    <!-- 个人中心只展示可提现余额 money，统一命名为账户余额，不混入普通余额或佣金。 -->
     <view class="balance-card">
+      <!-- 钱包与账户余额同行展示，不额外增加标题行和分隔线。 -->
+      <view class="wallet-body">
       <view class="balance-item" @click="handleBalanceClick">
-        <text class="b-label">账户可用余额 (元)</text>
+        <view class="wallet-label"><up-icon name="rmb-circle" size="15" color="#2468e8" /><text class="b-label">钱包 · 账户余额 (元)</text></view>
         <view class="b-price-row">
-          <text class="b-symbol">¥</text>
-          <text class="b-val">{{ userStore.isLoggedIn ? formatMoney(displayBalance) : '--' }}</text>
-        </view>
-      </view>
-      <view class="balance-divider" />
-      <view class="balance-item" @click="handleBalanceClick">
-        <text class="b-label">账户收益 / 零钱 (元)</text>
-        <view class="b-price-row b-price-row--sub">
           <text class="b-symbol">¥</text>
           <text class="b-val">{{ userStore.isLoggedIn ? formatMoney(displayMoney) : '--' }}</text>
         </view>
       </view>
       <button class="withdraw-btn" @click="handleWithdrawClick">{{ userStore.isLoggedIn ? '提现' : '去登录' }}</button>
+      </view>
     </view>
 
-    <!-- 战略合作品牌集全屏流动入口（位于金额与功能菜单之间） -->
+    <!-- 公司代理产品品牌展示入口，不列举具体品牌或未核实的代理规模。 -->
     <view class="brand-entry-banner" @click="openPage('/pages/brand/index')">
       <view class="brand-entry-banner__left">
         <view class="brand-entry-banner__badge">
           <up-icon name="integral-fill" size="12" color="#2468e8" />
-          <text>品牌集展示</text>
+          <text>代理品牌</text>
         </view>
-        <text class="brand-entry-banner__title">战略合作品牌 · 领军供应链矩阵</text>
-        <text class="brand-entry-banner__desc">格力、大金、中国电信、阿里巴巴等 30+ 战略品牌</text>
+        <text class="brand-entry-banner__title">公司代理品牌</text>
+        <text class="brand-entry-banner__desc">了解公司代理的产品与品牌</text>
       </view>
       <view class="brand-entry-banner__right">
         <view class="brand-entry-banner__btn">
-          <text>全屏流动</text>
+          <text>查看品牌</text>
           <up-icon name="arrow-right" size="12" color="#ffffff" />
         </view>
       </view>
@@ -106,6 +101,17 @@
 
     <!-- 辅助功能列表 -->
     <view class="menu-card">
+      <view v-if="userStore.isLoggedIn && userStore.userInfo.can_manage_colleagues !== true" class="menu-row" @click="openPage('/pages/marketing/colleague-bind', { view: 'application' })">
+        <view class="menu-icon-box" style="background:#eff6ff"><up-icon name="order" size="22" color="#2563eb" /></view>
+        <view class="menu-center"><text class="menu-title">同事申请</text><text class="menu-desc">查看加入团队审核状态</text></view>
+        <view class="menu-right"><up-icon name="arrow-right" size="18" color="#b0bac7" /></view>
+      </view>
+      <!-- 邀请与同事管理只对后端确认有管理权限的父经销商显示。 -->
+      <view v-if="userStore.isLoggedIn && userStore.userInfo.can_manage_colleagues === true" class="menu-row" @click="openPage('/pages/marketing/colleague-invite')">
+        <view class="menu-icon-box" style="background:#eff6ff"><up-icon name="account" size="22" color="#2563eb" /></view>
+        <view class="menu-center"><text class="menu-title">邀请同事</text><text class="menu-desc">邀请和管理团队同事</text></view>
+        <view class="menu-right"><up-icon name="arrow-right" size="18" color="#b0bac7" /></view>
+      </view>
       <view
         v-for="(item, index) in menus"
         :key="item.title"
@@ -134,8 +140,9 @@
         <text>切换 / 重新登录账号</text>
       </button>
       <button v-else class="login-action-btn" @click="openPage('/pages/auth/login')">
-        <up-icon name="weixin-fill" size="18" color="#ffffff" />
-        <text>微信 / 手机号一键登录与注册</text>
+        <!-- 登录引导使用中性账号图标，避免被误认为微信官方入口。 -->
+        <up-icon name="account" size="18" color="#ffffff" />
+        <text>会员登录 / 注册</text>
       </button>
     </view>
 
@@ -286,7 +293,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
-import { getBalance, updateMemberInfo } from '@/api/member';
+import { updateMemberInfo } from '@/api/member';
 import { persistMemberAvatar } from '@/api/member';
 import { openPage, replacePage } from '@/utils/pages';
 import { openDealerPage } from '@/utils/dealer-access';
@@ -318,7 +325,6 @@ const handleMenuNavigation = (path) => {
   }
   return openDealerPage(userStore, path);
 };
-const balance = reactive({ money: 0, balance: 0 });
 
 const showEditProfileModal = ref(false);
 const currentAvatarCat = ref('guofeng');
@@ -447,20 +453,10 @@ const handleSaveProfile = async () => {
   }
 };
 
-const displayBalance = computed(() => {
-  if (!userStore.isLoggedIn) return '--';
-  if (userStore.userInfo && userStore.userInfo.balance !== undefined && userStore.userInfo.balance !== null) {
-    return userStore.userInfo.balance;
-  }
-  return balance.balance ?? 0;
-});
-
+// 只读会员资料中的可提现余额；commission 是独立账户，不能拿来替代 money。
 const displayMoney = computed(() => {
   if (!userStore.isLoggedIn) return '--';
-  if (userStore.userInfo && (userStore.userInfo.money !== undefined || userStore.userInfo.commission !== undefined)) {
-    return userStore.userInfo.money ?? userStore.userInfo.commission ?? 0;
-  }
-  return balance.money ?? 0;
+  return userStore.userInfo?.money ?? 0;
 });
 
 const handleBalanceClick = () => {
@@ -482,14 +478,7 @@ const handleWithdrawClick = () => {
 const refreshMemberData = async () => {
   if (userStore.token) {
     await userStore.fetchUserInfo().catch(() => {});
-    try {
-      const res = await getBalance();
-      if (res && (res.money !== undefined || res.balance !== undefined)) {
-        Object.assign(balance, res);
-      }
-    } catch (e) {
-      // ignore
-    }
+    // 金额随会员资料刷新；member/account/balance 是流水接口，不用于读取余额。
   }
 };
 
@@ -779,8 +768,6 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
 
 /* 资金卡片 */
 .balance-card {
-  display: flex;
-  align-items: center;
   margin-top: 22rpx;
   padding: 28rpx 30rpx;
   border-radius: 22rpx;
@@ -788,6 +775,10 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   box-shadow: 0 8rpx 28rpx rgba(23, 35, 61, 0.04);
   border: 1rpx solid #f0f4fb;
 }
+
+/* 钱包名称紧贴余额标签，保持资金卡片紧凑。 */
+.wallet-label { display: flex; align-items: center; gap: 8rpx; }
+.wallet-body { display: flex; align-items: center; }
 
 .balance-item {
   flex: 1;
@@ -833,7 +824,8 @@ const formatMoney = (value) => Number(value || 0).toLocaleString();
   height: 64rpx;
   padding: 0 34rpx;
   border-radius: 32rpx;
-  background: linear-gradient(135deg, #2b70f6 0%, #1555d4 100%);
+  /* 个人中心提现入口与申请、确认提现共用深蓝主色。 */
+  background: #1e40af;
   color: #fff;
   font-size: 26rpx;
   font-weight: 700;
