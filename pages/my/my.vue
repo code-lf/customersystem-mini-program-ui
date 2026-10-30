@@ -102,7 +102,7 @@
     <!-- 辅助功能列表 -->
     <view class="menu-card">
       <view v-if="userStore.isLoggedIn && userStore.userInfo.can_manage_colleagues !== true" class="menu-row" @click="openPage('/pages/marketing/colleague-bind', { view: 'application' })">
-        <view class="menu-icon-box" style="background:#eff6ff"><up-icon name="order" size="22" color="#2563eb" /></view>
+        <view class="menu-icon-box" style="background:#eff6ff"><up-icon name="account" size="22" color="#2563eb" /></view>
         <view class="menu-center"><text class="menu-title">同事申请</text><text class="menu-desc">查看加入团队审核状态</text></view>
         <view class="menu-right"><up-icon name="arrow-right" size="18" color="#b0bac7" /></view>
       </view>
@@ -320,6 +320,8 @@ const assignedSalesperson = computed(() => {
 // 个人中心里重复出现的报价、营销与价格监控入口使用同一经销商校验。
 // 官方公众号直接打开服务号主页；不支持时由统一方法回退二维码页，其他入口保持原权限校验。
 const handleMenuNavigation = (path) => {
+  // 开票资料需要登录，未登录时先进入登录页面。
+  if (path === '/pages/member/invoice-profile' && !userStore.isLoggedIn) return openPage('/pages/auth/login');
   if (path === '/pages/wechat/index') {
     return openOfficialAccount();
   }
@@ -516,8 +518,9 @@ const handleLogout = () => {
 
 // 首页工作台已有报价、价格监控、收藏和反馈入口；“我的”不再重复展示，调阅资料入口也隐藏。
 const menus = [
-  { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'order', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
+  { title: '活动报名记录', desc: '查看活动报名与专属销售跟进', icon: 'calendar', color: '#2563eb', bg: '#eff6ff', path: '/pages/marketing/enrollments' },
   { title: '官方公众号', desc: '获取最新产品选型手册与促销政策', icon: 'weixin-fill', color: '#07c160', bg: '#e8f8ee', path: '/pages/wechat/index' },
+  { title: '开票资料', desc: '维护企业开票信息', icon: 'file-text', color: '#2563eb', bg: '#eff6ff', path: '/pages/member/invoice-profile' },
   { title: '密码查询', desc: '格力空调密码快捷查询', icon: 'lock-fill', color: '#10b981', bg: '#e6fcf5', path: '/pages/password/index' },
   { title: '账号与安全设置', desc: '修改企业信息与密码', icon: 'setting-fill', color: '#647389', bg: '#f0f3f8', path: '/pages/member/profile' }
 ];

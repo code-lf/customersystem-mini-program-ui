@@ -11,7 +11,9 @@ test('品牌集合使用竖屏静态网格，不绑定详情操作', async () =>
   assert.match(source, /v-for="brand in displayBrands" :key="brand.brand_id"/);
   assert.match(source, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.doesNotMatch(source, /marquee|@keyframes|animation:|duplicate\(/);
-  const pages = JSON.parse(await readFile(new URL('../pages.json', import.meta.url), 'utf8'));
+  // uni-app 页面配置允许整行注释，解析前跳过被注释的配置。
+  const pagesText = await readFile(new URL('../pages.json', import.meta.url), 'utf8');
+  const pages = JSON.parse(pagesText.replace(/^\s*\/\/.*$/gm, ''));
   assert.equal(pages.pages.find(page => page.path === 'pages/brand/index').style.pageOrientation, 'portrait');
   assert.doesNotMatch(source, /viewport\.width/);
 });

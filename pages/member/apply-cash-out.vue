@@ -57,6 +57,18 @@
         </view>
       </view>
 
+      <!-- 展示后端实际配置；未提供的规则不自行推断。 -->
+      <view class="rules-card">
+        <text class="rules-title">提现规则</text>
+        <view class="rule-row"><text>可提现额度</text><text>¥{{ moneyFormat(cashOutMoney) }}</text></view>
+        <view class="rule-row"><text>最小提现金额</text><text>¥{{ moneyFormat(config.min) }}</text></view>
+        <view class="rule-row"><text>手续费</text><text>{{ config.rate }}%</text></view>
+        <view class="rule-row"><text>审核方式</text><text>{{ auditRule }}</text></view>
+        <view class="rule-row"><text>每日提现次数</text><text>暂不限制</text></view>
+        <view class="rule-row"><text>提现时间</text><text>暂不限制</text></view>
+        <view class="rule-row"><text>到账时间</text><text>以审核及实际到账为准</text></view>
+      </view>
+
       <view class="footer-space" />
       <view class="submit-bar">
         <!-- 提现主操作固定深蓝色，避免组件默认浅蓝降低对比度；禁用态仍交由组件处理。 -->
@@ -103,6 +115,7 @@ const pageLoading = ref(true);
 const userStore = useUserStore();
 const loading = ref(false);
 const loadError = ref('');
+const auditRule = ref('请联系平台确认');
 const openId = ref('');
 const wechatLoginRequired = ref(false);
 const query = reactive(getPageOptions());
@@ -316,6 +329,9 @@ const loadSettings = async () => {
     // #endif
     const settings = await cashOutConfig();
     if (!settings || ![0, 1].includes(Number(settings.is_open))) throw new Error('提现配置格式不正确');
+    // 最低金额与费率缺失时不使用默认零值，以免展示错误规则。
+    if (Number(settings.is_open) === 1 && (settings.min === undefined || settings.min === null || settings.min === '' || !Number.isFinite(Number(settings.min)) || Number(settings.min) < 0 || settings.rate === undefined || settings.rate === null || settings.rate === '' || !Number.isFinite(Number(settings.rate)) || Number(settings.rate) < 0)) throw new Error('提现规则配置不完整');
+    auditRule.value = String(settings.is_auto_verify) === '1' ? '自动审核' : String(settings.is_auto_verify) === '0' ? '人工审核' : '请联系平台确认';
     const types = Array.isArray(settings.transfer_type) ? settings.transfer_type : [];
     wechatLoginRequired.value = types.includes('wechatpay') && !openId.value;
     Object.assign(config, settings, { is_open: Number(settings.is_open),
@@ -342,6 +358,10 @@ onShow(loadSettings);
   background: #f3f7fd;
 }
 .channel-tip { display: block; margin: 20rpx 0; color: #8b95a7; font-size: 24rpx; line-height: 1.6; }
+.rules-card { margin-top: 18rpx; padding: 24rpx; border-radius: 18rpx; background: #fff; box-shadow: 0 8rpx 22rpx rgba(23,35,61,.04); }
+.rules-title { display: block; color: #17233d; font-size: 28rpx; font-weight: 700; margin-bottom: 12rpx; }
+.rule-row { display: flex; justify-content: space-between; gap: 20rpx; padding: 10rpx 0; font-size: 24rpx; color: #71829b; line-height: 1.5; }
+.rule-row text:last-child { flex: 1; text-align: right; color: #34435a; }
 
 .cash-scroll {
   padding: 0 24rpx 34rpx;

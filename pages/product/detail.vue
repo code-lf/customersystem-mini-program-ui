@@ -292,25 +292,47 @@ const techInfo = computed(() => {
     product.value.params.forEach(p => {
       const label = p.name || p.label || p.key;
       if (label && p.value !== undefined && p.value !== null && p.value !== '') {
-        list.push({ label, value: p.value });
+        list.push({ key: p.key, label, value: p.value });
       }
     });
   }
 
-  // 补充 raw 中可能存在的参数
+  // 补齐同步商品的公开规格字段；不遍历 raw，避免展示成本、折扣等内部业务字段。
   const raw = product.value.raw || {};
-  if (raw.pishu && !list.some(i => i.label.includes('匹'))) list.push({ label: '匹数规格', value: raw.pishu });
-  if (raw.zhileng && !list.some(i => i.label.includes('冷量') || i.label.includes('制冷'))) list.push({ label: '额定制冷量', value: raw.zhileng });
-  if (raw.zhire && !list.some(i => i.label.includes('制热'))) list.push({ label: '额定制热量', value: raw.zhire });
-  if (raw.nengxiao && !list.some(i => i.label.includes('能效'))) list.push({ label: '能效等级', value: raw.nengxiao });
-  if (raw.mianji && !list.some(i => i.label.includes('面积'))) list.push({ label: '适用面积', value: raw.mianji });
-  if (raw.out_type && !list.some(i => i.label.includes('外机型号'))) list.push({ label: '室外机型号', value: raw.out_type });
-  if (raw.lengmei && !list.some(i => i.label.includes('冷媒'))) list.push({ label: '制冷剂冷媒', value: raw.lengmei });
-  if (raw.out_wet && !list.some(i => i.label.includes('外机重量'))) list.push({ label: '外机重量', value: raw.out_wet + ' kg' });
-  if (raw.out_size && !list.some(i => i.label.includes('外机尺寸'))) list.push({ label: '外机尺寸', value: raw.out_size + ' mm' });
-  if (raw.in_size && !list.some(i => i.label.includes('内机尺寸'))) list.push({ label: '内机尺寸', value: raw.in_size + ' mm' });
-  if (raw.fenbei && !list.some(i => i.label.includes('噪音') || i.label.includes('分贝'))) list.push({ label: '运行噪音', value: raw.fenbei + ' dB(A)' });
-
+  const fields = [
+    ['pishu', '匹数规格', ['匹数', '匹数规格']],
+    ['zhileng', '额定制冷量', ['制冷量', '额定制冷量']],
+    ['zhire', '额定制热量', ['制热量', '额定制热量']],
+    ['zhileng_gl', '制冷功率', ['制冷功率', '制冷输入功率']],
+    ['zhire_gl', '制热功率', ['制热功率', '制热输入功率']],
+    ['dfr', '电辅热', ['电辅热', '电辅热功率']],
+    ['nengxiao', '能效等级', ['能效', '能效等级']],
+    ['mianji', '适用面积', ['适用面积']],
+    ['yanse', '颜色', ['颜色']],
+    ['db_type', '定频 / 变频', ['定变频', '定频 / 变频', '定频/变频']],
+    ['lengnuan', '冷暖类型', ['冷暖', '冷暖类型']],
+    ['fengliang', '循环风量', ['风量', '循环风量']],
+    ['guige', '电源规格', ['电源', '电源规格']],
+    ['fenbei', '运行噪音', ['噪音', '运行噪音', '噪声', '分贝']],
+    ['lengmei', '冷媒', ['冷媒', '制冷剂', '制冷剂冷媒']],
+    ['pipeline', '管径', ['管径', '连接管径']],
+    ['out_type', '外机型号', ['外机型号', '室外机型号']],
+    ['kongju', '底角间距', ['底角间距', '底脚间距']],
+    ['in_wet', '内机重量', ['内机重量', '室内机重量']],
+    ['out_wet', '外机重量', ['外机重量', '室外机重量']],
+    ['in_size', '内机尺寸', ['内机尺寸', '室内机尺寸', '内尺寸']],
+    ['out_size', '外机尺寸', ['外机尺寸', '室外机尺寸', '外尺寸']],
+    ['in_vol', '内机体积', ['内机体积', '室内机体积']],
+    ['out_vol', '外机体积', ['外机体积', '室外机体积']],
+    ['tiji', '体积', ['体积']]
+  ];
+  // 仅展示有值的参数，保留数值 0；单位沿用服务端原值。
+  for (const [key, label, aliases] of fields) {
+    const value = raw[key] ?? '';
+    if (String(value).trim() === '') continue;
+    if (list.some(item => item.key === key || aliases.includes(String(item.label).trim()))) continue;
+    list.push({ label, value });
+  }
   return list;
 });
 

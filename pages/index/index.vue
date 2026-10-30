@@ -21,10 +21,12 @@
           <text class="brand__sub">一个懂得你的数字搭档</text>
         </view>
       </view>
+      <!-- AI 暂不开放，保留状态入口便于后续恢复。
       <view class="home-header__status" @click="openPage('/pages/ai/index')">
         <view class="status-dot" />
         <text>AI 在线</text>
       </view>
+      -->
     </view>
 
     
@@ -114,7 +116,7 @@
       <text>快捷工作台</text>
     </view>
     <view class="tool-grid">
-      <view v-for="item in quickTools" :key="item.title" class="tool-item" @click="handleQuickToolClick(item)">
+      <view v-for="item in visibleQuickTools" :key="item.title" class="tool-item" @click="handleQuickToolClick(item)">
         <view class="tool-item__icon" :style="{ backgroundColor: item.bg }">
           <up-icon :name="item.icon" size="24" :color="item.color" />
         </view>
@@ -293,12 +295,17 @@ const quickTools = [
   { title: '特惠货源', icon: 'gift-fill', color: '#e11d48', bg: '#ffe4e6', path: '/pages/marketing/index' },
   { title: '价格监控', icon: 'order', color: '#f59e0b', bg: '#fef3c7', path: '/pages/monitor/index' },
   // 第二行复用现有页面：合作申请从“我的”入口延伸到首页，消息与反馈也可直接打开。
-  { title: 'AI 小格', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  // AI 暂不开放，保留快捷入口配置便于后续恢复。
+  // { title: 'AI 小格', icon: 'kefu-ermai', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/ai/index' },
+  { title: '邀请同事', icon: 'account-fill', color: '#0ea5e9', bg: '#e0f2fe', path: '/pages/marketing/colleague-invite', managerOnly: true },
   { title: '合作申请', icon: 'account-fill', color: '#f59e0b', bg: '#fef7e7', path: '/pages/cooperation/index' },
   // 降价通知入口已并入价格监控；这里改用现有收藏页补齐快捷区的四列排版。
   { title: '我的收藏', icon: 'star-fill', color: '#ef543f', bg: '#fff0ed', path: '/pages/product/favorites' },
   { title: '品牌展示', icon: 'integral-fill', color: '#8b5cf6', bg: '#f3edff', path: '/pages/brand/index' }
 ];
+
+// 邀请入口与个人中心保持一致，仅向有管理权限的父经销商展示。
+const visibleQuickTools = computed(() => quickTools.filter(item => !item.managerOnly || (userStore.isLoggedIn && userStore.userInfo.can_manage_colleagues === true)));
 
 // 三个经销商专享入口点击时先读取会员最新绑定状态，其余入口保持原跳转行为。
 const handleQuickToolClick = (item) => openDealerPage(userStore, item.path);

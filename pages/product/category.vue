@@ -113,7 +113,15 @@
 
       <!-- 商品列表：型号不加粗，名字加粗 -->
       <view class="product-scroll">
-        <view v-if="filteredProducts.length" class="product-list-container">
+        <view v-if="isLoading" class="empty-state">
+          <view class="loading-spinner" />
+          <text class="empty-title">商品加载中...</text>
+        </view>
+        <view v-else-if="productLoadError" class="empty-state" @click="loadProducts">
+          <text class="empty-title">商品加载失败</text>
+          <text class="empty-hint">点击重试</text>
+        </view>
+        <view v-else-if="filteredProducts.length" class="product-list-container">
           <view
             v-for="product in filteredProducts"
             :key="product.goods_id"
@@ -187,7 +195,10 @@ const selectedSubCatIds = ref([]);
 const searchKeyword = ref('');
 const products = ref([]);
 const cartData = ref(null);
-const isLoading = ref(false);
+const isLoading = ref(true);
+const productLoadError = ref(false);
+// 分类或搜索快速变化时，只允许最新请求更新页面。
+let productRequestVersion = 0;
 // 初始化期间会连续设置多级分类，完成后再开放 watch 请求，避免重复加载商品列表。
 const isPageReady = ref(false);
 
@@ -555,7 +566,9 @@ const selectL4 = (l4Id) => {
 };
 
 const loadProducts = async () => {
+  const version = ++productRequestVersion;
   isLoading.value = true;
+  productLoadError.value = false;
   try {
     const params = { limit: 100 };
     if (isCentralAC.value) {
@@ -574,12 +587,15 @@ const loadProducts = async () => {
     if (searchKeyword.value) params.keyword = searchKeyword.value.trim();
 
     const res = await getProductList(params);
+    if (version !== productRequestVersion) return;
     // 只展示当前分类接口返回的商品；空结果不再查询父分类或全量商品，避免串入其他分类。
     products.value = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : (res.data?.data || []));
   } catch (e) {
+    if (version !== productRequestVersion) return;
+    productLoadError.value = true;
     console.error('[产品分类] 加载商品失败:', e);
   } finally {
-    isLoading.value = false;
+    if (version === productRequestVersion) isLoading.value = false;
   }
 };
 
@@ -1153,6 +1169,8 @@ const formatPrice = (val) => Number(val || 0).toLocaleString();
   color: #0f172a;
 }
 
+.loading-spinner { width: 52rpx; height: 52rpx; border: 5rpx solid #dce9fc; border-top-color: #2468e8; border-radius: 50%; animation: product-spin .8s linear infinite; }
+@keyframes product-spin { to { transform: rotate(360deg); } }
 .empty-state {
   display: flex;
   flex-direction: column;

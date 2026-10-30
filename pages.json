@@ -25,12 +25,14 @@
     { "path": "pages/solution/share", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价预览" } },
     { "path": "pages/solution/history", "style": { "navigationStyle": "custom", "navigationBarTitleText": "历史报价单" } },
     { "path": "pages/share/solution", "style": { "navigationStyle": "custom", "navigationBarTitleText": "报价详情" } },
-    { "path": "pages/ai/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI 小格" } },
-    { "path": "pages/ai/chat", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI对话" } },
-    { "path": "pages/ai/history", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI会话记录" } },
+    // AI 页面暂不开放，保留源码和配置便于后续恢复。
+    // { "path": "pages/ai/index", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI 小格" } },
+    // { "path": "pages/ai/chat", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI对话" } },
+    // { "path": "pages/ai/history", "style": { "navigationStyle": "custom", "navigationBarTitleText": "AI会话记录" } },
     { "path": "pages/my/my", "style": { "navigationStyle": "custom", "navigationBarTitleText": "我的" } },
     { "path": "pages/auth/login", "style": { "navigationStyle": "custom", "navigationBarTitleText": "登录" } },
     { "path": "pages/member/profile", "style": { "navigationStyle": "custom", "navigationBarTitleText": "个人资料" } },
+    { "path": "pages/member/invoice-profile", "style": { "navigationStyle": "custom", "navigationBarTitleText": "开票资料" } },
     { "path": "pages/member/salesperson", "style": { "navigationStyle": "custom", "navigationBarTitleText": "客户经理" } },
     { "path": "pages/member/balance", "style": { "navigationStyle": "custom", "navigationBarTitleText": "账户余额" } },
     { "path": "pages/member/apply-cash-out", "style": { "navigationStyle": "custom", "navigationBarTitleText": "申请提现" } },
@@ -68,7 +70,8 @@
       { "pagePath": "pages/index/index", "text": "首页", "iconPath": "static/tabbar/shouye.png", "selectedIconPath": "static/tabbar/shouye_active.png" },
       { "pagePath": "pages/product/index", "text": "产品", "iconPath": "static/tabbar/pisa.png", "selectedIconPath": "static/tabbar/pisa_active.png" },
       { "pagePath": "pages/solution/index", "text": "报价单", "iconPath": "static/tabbar/dingdan.png", "selectedIconPath": "static/tabbar/dingdan_active.png" },
-      { "pagePath": "pages/ai/index", "text": "AI 小格", "iconPath": "static/tabbar/ai.png", "selectedIconPath": "static/tabbar/ai_active.png" },
+      // AI 页面暂不开放，同步隐藏底部导航入口。
+      // { "pagePath": "pages/ai/index", "text": "AI 小格", "iconPath": "static/tabbar/ai.png", "selectedIconPath": "static/tabbar/ai_active.png" },
       { "pagePath": "pages/my/my", "text": "我的", "iconPath": "static/tabbar/wode.png", "selectedIconPath": "static/tabbar/wode_active.png" }
     ]
   },

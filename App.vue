@@ -9,12 +9,18 @@
 </style>
 
 <script>
+	import { getColleagueInviteId } from '@/utils/colleague-invite.mjs';
 	export default {
 		onLaunch: function() {
 			console.log('App Launch')
 		},
-		onShow: function() {
+		onShow: function(options) {
 			console.log('App Show')
+			// 小程序码指向首页，冷启动和后台再次扫码都从入口参数转到邀请页。
+			const parentId = getColleagueInviteId(options);
+			if (parentId) {
+				setTimeout(() => uni.navigateTo({ url: `/pages/marketing/colleague-bind?parent_dealer_id=${parentId}` }), 300);
+			}
 		},
 		onHide: function() {
 			console.log('App Hide')

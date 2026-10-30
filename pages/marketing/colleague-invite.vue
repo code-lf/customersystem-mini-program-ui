@@ -8,7 +8,10 @@
         <text v-if="qrError" class="error">二维码加载失败，请重新进入页面</text>
         <text class="hint">微信扫一扫，查看邀请信息</text>
         <button class="share" open-type="share">分享邀请</button>
+        <button class="save" :disabled="saving || qrError" :loading="saving" @click="saveInvite">保存邀请图片</button>
       </view>
+      <!-- 画布放在屏幕外，生成包含公司名称和小程序码的邀请图。 -->
+      <canvas canvas-id="invitePoster" class="poster-canvas" />
       <view class="list-card"><text class="title">我的同事</text>
         <view v-if="listError" class="message" @click="loadList(1)">{{ listError }}，点击重试</view>
         <view v-else-if="!list.length" class="message">暂无同事</view>
@@ -19,7 +22,7 @@
   </view>
 </template>
 <script setup>
-import { ref } from 'vue';
+import { ref, getCurrentInstance } from 'vue';
 import { onShow, onShareAppMessage } from '@dcloudio/uni-app';
 import AppNavbar from '@/components/app-navbar.vue';
 import { getInviteCode, getColleagues, removeColleague } from '@/api/dealer-colleague';
@@ -28,6 +31,7 @@ import { useUserStore } from '@/store/user';
 
 const user = useUserStore();
 const loading = ref(true), error = ref(''), invite = ref({}), qrError = ref(false);
+const saving = ref(false), instance = getCurrentInstance();
 const list = ref([]), page = ref(1), hasMore = ref(false), listError = ref(''), listLoading = ref(false);
 // 用运行版本请求对应的小程序码；无法识别版本时不冒用正式版。
 function envVersion() {
@@ -60,9 +64,36 @@ function remove(item) {
     catch (e) { uni.showToast({ title: e.message || '移除失败', icon: 'none' }); }
   } });
 }
+// 下载小程序码并绘制邀请图片，保存前由微信向用户申请相册权限。
+async function saveInvite() {
+  if (saving.value || !invite.value.qr_code_url || qrError.value) return;
+  saving.value = true;
+  try {
+    const image = await new Promise((resolve, reject) => uni.getImageInfo({ src: invite.value.qr_code_url, success: resolve, fail: reject }));
+    const ctx = uni.createCanvasContext('invitePoster', instance.proxy);
+    ctx.setFillStyle('#eaf2ff'); ctx.fillRect(0, 0, 600, 800);
+    ctx.setFillStyle('#ffffff'); ctx.fillRect(35, 35, 530, 730);
+    ctx.setTextAlign('center'); ctx.setFillStyle('#17233d'); ctx.setFontSize(27);
+    const company = String(invite.value.dealer_unit || invite.value.dealer_name || '经销商团队');
+    ctx.fillText(company.length > 18 ? `${company.slice(0, 18)}…` : company, 300, 115);
+    ctx.setFillStyle('#71829b'); ctx.setFontSize(20); ctx.fillText('邀请同事加入团队', 300, 155);
+    ctx.drawImage(image.path, 90, 195, 420, 420);
+    ctx.fillText('微信扫一扫，查看邀请信息', 300, 685);
+    await new Promise(resolve => ctx.draw(false, resolve));
+    const poster = await new Promise((resolve, reject) => uni.canvasToTempFilePath({ canvasId: 'invitePoster', width: 600, height: 800, destWidth: 1200, destHeight: 1600, success: resolve, fail: reject }, instance.proxy));
+    await new Promise((resolve, reject) => uni.saveImageToPhotosAlbum({ filePath: poster.tempFilePath, success: resolve, fail: reject }));
+    uni.showToast({ title: '已保存到相册', icon: 'success' });
+  } catch (e) {
+    const message = String(e?.errMsg || '');
+    if (/auth deny|auth denied|authorize|permission/i.test(message)) {
+      uni.showModal({ title: '需要相册权限', content: '请在设置中允许保存图片到相册。', confirmText: '去设置', success: ({ confirm }) => { if (confirm) uni.openSetting(); } });
+    } else uni.showToast({ title: '保存失败，请检查网络后重试', icon: 'none' });
+  } finally { saving.value = false; }
+}
 onShow(() => { if (user.isLoggedIn) load(); else { loading.value = false; error.value = '请先登录'; } });
-onShareAppMessage(() => ({ title: `${invite.value.dealer_unit || '经销商'}邀请您加入团队`, path: `/pages/marketing/colleague-bind?parent_dealer_id=${encodeURIComponent(invite.value.parent_dealer_id || '')}` }));
+onShareAppMessage(() => ({ title: `${invite.value.dealer_unit || '经销商'}邀请您加入团队`, path: `/pages/index/index?parent_dealer_id=${encodeURIComponent(invite.value.parent_dealer_id || '')}` }));
 </script>
 <style scoped>
 .page{min-height:100vh;background:linear-gradient(180deg,#2563eb,#eaf2ff 750rpx);padding-bottom:40rpx}.invite-card,.list-card{margin:32rpx;background:#fff;border-radius:24rpx;padding:32rpx;box-shadow:0 8rpx 30rpx rgba(20,50,110,.08)}.invite-card{display:flex;align-items:center;flex-direction:column}.company,.title{font-size:32rpx;font-weight:700;color:#17233d}.hint{font-size:24rpx;color:#71829b;margin-top:10rpx}.qr{width:420rpx;height:420rpx;margin:20rpx 0}.share{width:80%;margin-top:28rpx;background:#2563eb;color:#fff;border-radius:50rpx;font-size:28rpx}.row{display:flex;align-items:center;padding:24rpx 0;border-bottom:1rpx solid #edf2f8}.details{display:flex;flex:1;flex-direction:column}.name{font-size:28rpx;color:#17233d}.remove{margin:0;background:#fff1f2;color:#dc2626;font-size:24rpx;line-height:2.4}.more{margin-top:20rpx;font-size:25rpx;color:#2563eb;background:#eff6ff}.message,.error{padding:30rpx;text-align:center;color:#71829b;font-size:26rpx}.error{color:#dc2626}
+.save{width:80%;margin-top:16rpx;background:#eff6ff;color:#2563eb;border-radius:50rpx;font-size:28rpx}.poster-canvas{position:fixed;left:-9999px;top:0;width:600px;height:800px}
 </style>

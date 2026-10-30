@@ -256,7 +256,7 @@
           </view>
 
           <!-- 附加费用与备注 -->
-          <view class="form-section">
+          <view class="form-section extra-fees-section">
             <view class="setting-item">
               <text class="label">安装费</text>
               <input
@@ -1714,6 +1714,12 @@ const checkPendingProduct = async () => {
 .setting-item .label {
   color: #586477;
   font-size: 26rpx;
+}
+
+/* 附加费用和备注标题加粗，方便填写报价时辨认。 */
+.extra-fees-section .label {
+  font-weight: 700;
+  color: #34435a;
 }
 
 .discount-stepper {

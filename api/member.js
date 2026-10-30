@@ -94,6 +94,11 @@ export function bindMemberMobile(mobileCode) {
   return apiPut('member/mobile', { mobile_code: mobileCode }, getMemberRequestOptions());
 }
 
+/** 更新当前经销商的共享开票资料，身份由服务端根据登录凭证确定。 */
+export function updateInvoiceProfile(data) {
+  return apiPut('member/dealer/invoice-profile', data, { ...getMemberRequestOptions(), showError: false });
+}
+
 /** 修改会员资料：昵称更新会员记录，经销商名称和客户单位分别同步对应的档案接口。 */
 export async function updateMemberInfo(data = {}) {
   const updates = [];
